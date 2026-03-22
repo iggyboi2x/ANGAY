@@ -624,6 +624,15 @@ const RegisterPage = ({ onSwitch }) => {
           onChange={set("confirm")}
         />
 
+        {role === "donor" && (
+          <InputField
+            label="Contact Number"
+            placeholder="+63 XXX XXX XXXX"
+            value={form.contact}
+            onChange={set("contact")}
+          />
+        )}
+
         {(isFoodbank || isBarangay) && (
           <>
             <div
