@@ -686,7 +686,14 @@ const RegisterPage = ({ onSwitch }) => {
                   textAlign: "center",
                   cursor: "pointer",
                   background: "#F9FAFB",
+                  transition: "border-color 0.2s",
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#F59E0B")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "#D1D5DB")
+                }
               >
                 <UploadIcon />
                 <p
