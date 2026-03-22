@@ -1,29 +1,10 @@
 import { useState } from "react";
 import { supabase } from "../../supabase";
+import { Wheat } from "lucide-react";
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
-const WheatIcon = () => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="#F59E0B"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 2a10 10 0 0 1 0 20" />
-    <path d="M12 2a10 10 0 0 0 0 20" />
-    <path d="M12 2v20" />
-    <path d="M12 7c1.657 0 3-1.343 3-3" />
-    <path d="M12 7c-1.657 0-3-1.343-3-3" />
-    <path d="M12 12c1.657 0 3-1.343 3-3" />
-    <path d="M12 12c-1.657 0-3-1.343-3-3" />
-    <path d="M12 17c1.657 0 3-1.343 3-3" />
-    <path d="M12 17c-1.657 0-3-1.343-3-3" />
-  </svg>
-);
+
+const WheatIcon = () => <Wheat size={22} color="#F59E0B" />;
 
 const EyeIcon = ({ open }) =>
   open ? (
