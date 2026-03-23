@@ -1,5 +1,7 @@
+@import "tailwindcss";
+
 * {
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
 }
@@ -7,4 +9,35 @@
 html, body, #root {
   width: 100%;
   min-height: 100vh;
+}
+
+@theme {
+  --font-fredoka: 'Fredoka', sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-fredoka);
+    background: #fffaf1;
+  }
+
+  .landing-nav a {
+    text-decoration: none;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(25px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  }
+
+  .revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .faq-card button {
+    width: 100%;
+    text-align: left;
+  }
 }
