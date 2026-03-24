@@ -11,10 +11,10 @@ const features = [
 ]
 
 const team = [ 
-  { name: 'Allyssa Faith Ejares', role: 'Team Lead', motto: 'all or nothing at all there\'s no where left to fall', image: 'images/founders/Ejares.png' },
-  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png' },
-  { name: 'Miguel Diano', role: 'Solution Architect', motto: 'innovation drives progress', image: 'images/founders/Diano.jpg' },
-  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg' }
+  { name: 'Allyssa Faith Ejares', role: 'Team Lead', motto: 'all or nothing at all there\'s no where left to fall', image: 'images/founders/Ejares.png', github: 'https://github.com/notyurally' },
+  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png', github: 'https://github.com/spinach-clone'},
+  { name: 'Miguel Diano', role: 'Solution Architect', motto: 'innovation drives progress', image: 'images/founders/Diano.jpg', github: 'https://github.com/iggyboi2x' },
+  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg', github: 'https://github.com/kakeeroams'}
 ]
 
 const faqsData = [
@@ -210,7 +210,7 @@ const LandingPage = () => {
                   {person.motto}
                 </p>
                 <div className="mt-4 flex justify-center gap-3 text-slate-400">
-                  <a href="#" aria-label="Github" className="hover:text-slate-700 transition">
+                  <a href={person.github} aria-label="Github" target="_blank" className="hover:text-slate-700 transition">
                     <Github size={16} />
                   </a>
                   <a href="#" aria-label="LinkedIn" className="hover:text-[#0077b5] transition">
