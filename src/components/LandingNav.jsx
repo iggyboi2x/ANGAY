@@ -1,23 +1,41 @@
 import React from 'react'
+import LandingButton from '@/components/LandingButton'
+
+const links = [
+  { name: 'Home', href: '#home' },
+  { name: 'Features', href: '#features' },
+  { name: 'About', href: '#about' },
+  { name: 'Contact', href: '#contact' },
+]
 
 const LandingNav = () => {
   return (
-    <header className="landing-nav fixed inset-x-0 top-0 z-40 bg-white/90 backdrop-blur shadow-sm border-b border-orange-100">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#" className="text-xl font-extrabold text-[#FE9800] tracking-tight">ANGAY</a>
+   <nav className="fixed top-0 left-0 w-full z-50 bg-white px-12 py-3 flex flex-col sm:flex-row items-center sm:justify-between gap-4">
 
-        <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-700 md:flex">
-          <a href="#home" className="hover:text-[#FE9800] transition text-xl">Home</a>
-          <a href="#about" className="hover:text-[#FE9800] transition text-xl">About</a>
-          <a href="#faqs" className="hover:text-[#FE9800] transition text-xl">FAQs</a>
-          <a href="#contact" className="hover:text-[#FE9800] transition text-xl">Contact us</a>
-        </nav>
+  <div className='system-title text-lg font-bold'>
+    ANGAY
+  </div>
 
-        <a href="#" className="rounded-full border border-[#FE9800] bg-[#FE9800] px-4 py-2 text-sm font-bold text-white shadow-md transition hover:bg-[#ffb110]">
-          Log in
-        </a>
-      </div>
-    </header>
+
+  <div className='flex flex-col sm:flex-row items-center sm:gap-4 w-full sm:w-auto'>
+    {links.map((link) => (
+      <a
+        key={link.name}
+        href={link.href}
+        className="text-slate-800 hover:text-[#FE9800] px-3 py-2 rounded-md text-sm font-medium w-full sm:w-auto text-center"
+      >
+        {link.name}
+      </a>
+    ))}
+  </div>
+
+  <LandingButton
+    className="text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] font-semibold w-full sm:w-auto"
+    size="short"
+  >
+    Log in
+  </LandingButton>
+</nav>
   )
 }
 

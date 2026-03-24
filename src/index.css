@@ -1,21 +1,18 @@
 @import "tailwindcss";
 
-* {
-  margin: 0 auto;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html, body, #root {
-  width: 100%;
-  min-height: 100vh;
-}
-
 @theme {
   --font-fredoka: 'Fredoka', sans-serif;
+  --font-primary: #000000;
+  --font-secondary: #FE9800;
+  --font-tertiary: #FFFFFF;
 }
 
 @layer base {
+  html {
+    font-size: 24px;
+    scroll-behavior: smooth;
+  }
+
   body {
     font-family: var(--font-fredoka);
     background: #fffaf1;
@@ -39,5 +36,11 @@ html, body, #root {
   .faq-card button {
     width: 100%;
     text-align: left;
+  }
+
+  .system-title {
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--font-secondary);
   }
 }

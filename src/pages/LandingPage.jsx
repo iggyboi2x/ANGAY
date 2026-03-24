@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import LandingNav from '../components/LandingNav'
 import { Plus, ArrowRight, Github, Linkedin } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const features = [
-  { title: 'Demographic Insights', description: 'Foodbanks can view aggregated barangay demographic data to better understand community needs.', icon: 'angay-desc-img.png' },
+  { title: 'Demographic Insights', description: 'Foodbanks can view aggregated barangay demographic data to better understand community needs.', icon: 'angay-demo-img.png' },
   { title: 'Interactive Barangay Map', description: 'A visual map helps foodbanks identify where assistance is needed most.', icon: 'angay-interactive-img.png' },
   { title: 'Distribution Coordination', description: 'Foodbanks propose distribution schedules while barangays review and approve them.', icon: 'angay-distribution-img.png' },
   { title: 'Transparent Reporting', description: 'Distribution history is digitally recorded to improve accountability and transparency.', icon: 'angay-transparent-img.png' }
 ]
 
-const team = [
-  { name: 'Allyssa Faith Ejares', role: 'Team Lead' },
-  { name: 'Christo Rey Espina', role: 'Documentation' },
-  { name: 'Miguel Diano', role: 'Solution Architect' },
-  { name: 'Kaycee Roamar', role: 'Business Analyst' }
+const team = [ 
+  { name: 'Allyssa Faith Ejares', role: 'Team Lead', motto: 'all or nothing at all there\'s no where left to fall', image: 'images/founders/Ejares.png' },
+  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png' },
+  { name: 'Miguel Diano', role: 'Solution Architect', motto: 'innovation drives progress', image: 'images/founders/Diano.jpg' },
+  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg' }
 ]
 
 const faqsData = [
@@ -61,15 +62,15 @@ const LandingPage = () => {
     <div className="font-fredoka bg-[#fffaf1] text-slate-800">
       <LandingNav />
 
-      <main className="mt-20">
+      <main className='mt-15'>
 
         {/* ── Hero ── */}
-        <section id="home" className="bg-white overflow-hidden">
-          <div className="  mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 lg:py-24 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+        <section id="home" className=" overflow-hidden">
+          <div className=" bg-white mx-auto max-w-7xl px-4 sm:px-6 lg:px-15 lg:py-10 flex flex-col lg:flex-row  gap-12 lg:gap-16">
 
             {/* Left */}
             <div className="w-full  lg:w-1/2  flex flex-col items-start">
-              <h1 className="reveal text-5xl sm:text-6xl font-black tracking-tight text-slate-900 leading-tight">
+              <h1 className="reveal text-5xl sm:text-6xl font-semibold tracking-tight text-slate-900 leading-tight">
                 Let's End <br />
                 <span className="text-[#FE9800]">World Hunger</span>
               </h1>
@@ -77,21 +78,21 @@ const LandingPage = () => {
                 Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
               </p>
               <div className="reveal mt-8 flex flex-wrap gap-3">
-                <a href="#about" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#e58a00]">
+                <a href="#about" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
                   Get Started
                 </a>
-                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-base font-bold text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">
+                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-base font-semibold shadow-[0px_5px_0px_#FE9800] text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">
                   Learn More <ArrowRight size={16} />
                 </a>
               </div>
             </div>
 
             {/* Right */}
-            <div className="reveal w-full lg:w-1/2 flex justify-center">
+            <div className="reveal w-full lg:w-1/2 flex justify-end">
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-full max-w-lg rounded-3xl"
+                className="w-2/3 max-w-lg -mt-8 rounded-3xl"
               />
             </div>
           </div>
@@ -100,11 +101,11 @@ const LandingPage = () => {
         {/* ── Stats ── */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
           <div className="reveal rounded-3xl bg-[#FE9800] px-8 py-10 shadow-lg text-white text-center">
-            <h3 className="text-3xl font-bold">Our growing impact</h3>
+            <h3 className="text-3xl font-semibold">Our growing impact</h3>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {stats.map((stat) => (
                 <div key={stat.label} className="rounded-2xl bg-white/95 py-6 px-4 shadow-md">
-                  <p className="text-4xl font-black text-[#FE9800]">{stat.value}</p>
+                  <p className="text-4xl font-semibold text-[#FE9800]">{stat.value}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-700">{stat.label}</p>
                 </div>
               ))}
@@ -115,22 +116,17 @@ const LandingPage = () => {
         {/* ── About ── */}
         <section id="about" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           <div className="reveal rounded-3xl bg-white p-8 sm:p-12 shadow-md">
-            <h2 className="text-4xl font-black text-center tracking-tight">
+            <h2 className="text-4xl font-semibold text-center tracking-tight">
               What is <span className="text-[#FE9800]">Angay</span>?
             </h2>
             <p className="mt-4 text-center text-slate-500 max-w-2xl mx-auto text-base leading-relaxed">
               ANGAY (Accessible Nutrition and Goods Assistance for You) connects foodbanks and communities through a digital platform that ensures efficient food distribution.
             </p>
-            <div className="mt-10 flex flex-col lg:flex-row items-center gap-6">
+            <div className="mt-10 flex justify-center">
               <img
-                src="/images/barangay-img.png"
+                src="/images/angay-desc-img.png"
                 alt="What is ANGAY"
-                className="w-full lg:w-1/2 rounded-2xl shadow-md object-cover"
-              />
-              <img
-                src="/images/family-img.png"
-                alt="Community"
-                className="w-full lg:w-1/2 rounded-2xl shadow-md object-cover"
+                className="w-2/3 rounded-2xlobject-cover"
               />
             </div>
           </div>
@@ -138,7 +134,7 @@ const LandingPage = () => {
 
         {/* ── Features ── */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-black text-center tracking-tight text-slate-900">
+          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
             Innovative Features Powering ANGAY
           </h2>
           <div className="mt-10 grid gap-5 md:grid-cols-2">
@@ -153,7 +149,7 @@ const LandingPage = () => {
                   alt={feature.title}
                 />
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">{feature.title}</h3>
+                  <h3 className="text-xl font-semibold text-slate-800">{feature.title}</h3>
                   <p className="mt-2 text-slate-500 text-sm leading-relaxed">{feature.description}</p>
                 </div>
               </article>
@@ -163,19 +159,19 @@ const LandingPage = () => {
 
         {/* ── How it works ── */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-black text-center tracking-tight text-slate-900">
+          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
             How FoodBanks Works
           </h2>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             {[
               { img: 'first-step-img.png', alt: 'Collect', step: '01', text: 'Foodbanks collect surplus or donated food from factories. This helps prevent waste while securing resources for communities.' },
               { img: 'second-step-img.png', alt: 'Sort', step: '02', text: 'The collected goods are brought back to foodbanks for sorting and storage. They are carefully organized to ensure safe and efficient distribution.' },
-              { img: 'angay-distribution-img.png', alt: 'Coordinate', step: '03', text: 'Foodbanks coordinate with barangay officials to share information about available supplies. This ensures proper planning and fair allocation of resources.' },
-              { img: 'angay-footer-img.png', alt: 'Distribute', step: '04', text: 'Barangay officials distribute the food to families in need, making sure the aid reaches the right households in an organized and timely manner.' },
+              { img: 'barangay-img.png', alt: 'Coordinate', step: '03', text: 'Foodbanks coordinate with barangay officials to share information about available supplies. This ensures proper planning and fair allocation of resources.' },
+              { img: 'family-img.png', alt: 'Distribute', step: '04', text: 'Barangay officials distribute the food to families in need, making sure the aid reaches the right households in an organized and timely manner.' },
             ].map((item) => (
               <div key={item.step} className="reveal rounded-3xl bg-white p-6 shadow-md flex flex-col gap-4">
                 <div className="relative overflow-hidden rounded-2xl bg-orange-50">
-                  <span className="absolute top-3 left-3 rounded-full bg-[#FE9800] px-3 py-1 text-xs font-black text-white shadow">
+                  <span className="absolute top-3 left-3 rounded-full bg-[#FE9800] px-3 py-1 text-xs font-semibold text-white shadow">
                     {item.step}
                   </span>
                   <img src={`/images/${item.img}`} alt={item.alt} className="w-full object-cover h-48" />
@@ -188,7 +184,7 @@ const LandingPage = () => {
 
         {/* ── Team ── */}
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-black text-center tracking-tight text-slate-900">
+          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
             The Team Behind ANGAY
           </h2>
           <p className="reveal mt-4 text-center text-slate-500 max-w-xl mx-auto">
@@ -202,16 +198,16 @@ const LandingPage = () => {
               >
                 <div className="h-24 w-24 rounded-full bg-orange-100 border-4 border-orange-200 mb-4 overflow-hidden">
                   <img
-                    src={`/images/avatar-placeholder.png`}
+                    src={person.image}
                     alt={person.name}
                     className="w-full h-full object-cover"
                     onError={(e) => { e.target.style.display = 'none' }}
                   />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">{person.name}</h3>
+                <h3 className="text-lg font-semibold text-slate-800">{person.name}</h3>
                 <p className="mt-1 text-sm font-semibold text-[#FE9800]">{person.role}</p>
                 <p className="mt-3 text-xs text-slate-400 leading-relaxed">
-                  all or nothing at all there's no where left to fall
+                  {person.motto}
                 </p>
                 <div className="mt-4 flex justify-center gap-3 text-slate-400">
                   <a href="#" aria-label="Github" className="hover:text-slate-700 transition">
@@ -228,7 +224,7 @@ const LandingPage = () => {
 
         {/* ── FAQs ── */}
         <section id="faqs" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-black text-center tracking-tight text-slate-900">FAQs</h2>
+          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">FAQs</h2>
           <p className="reveal mt-3 text-center text-slate-500">
             Still curious? These might help quench your interests.
           </p>
@@ -259,7 +255,7 @@ const LandingPage = () => {
           <div className="mt-8 text-center">
             <a
               href="#contact"
-              className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-8 py-3 font-bold text-white shadow-md hover:bg-[#e58a00] transition"
+              className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-8 py-3 font-semibold text-white shadow-md hover:bg-[#e58a00] transition"
             >
               Send an inquiry <ArrowRight size={16} />
             </a>
@@ -267,64 +263,54 @@ const LandingPage = () => {
         </section>
 
         {/* ── CTA ── */}
-        <section className="reveal relative overflow-hidden bg-[#FE9800] text-white">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 flex flex-col lg:flex-row items-center justify-between gap-8">
-            <div>
-              <h2 className="text-4xl font-black">Be Part of the Solution</h2>
-              <p className="mt-2 text-lg text-white/85">Together, We Can Fight Hunger</p>
+        <section className="reveal bg-white">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 text-center">
+            <h2 className="text-5xl font-semibold tracking-tight text-[#FE9800]">Be Part of the Solution</h2>
+            <p className="mt-3 text-lg font-semibold text-slate-800">Together, We Can Fight Hunger</p>
+            <div className="mt-8">
+              <Link to="/login" className="inline-flex items-center rounded-full border-2 border-[#FE9800] bg-white px-8 py-3 text-lg font-semibold text-[#FE9800] shadow-md transition hover:bg-[#ffe9c9]">Join now</Link>
             </div>
-            <a
-              href="#"
-              className="flex-none rounded-full bg-white px-8 py-3 font-bold text-[#FE9800] shadow-lg transition hover:bg-orange-50"
-            >
-              Join now
-            </a>
+            <img src="/images/angay-footer-img.png" alt="Join ANGAY" className="mx-auto mt-12 w-1/4 rounded-2xl object-cover" />
           </div>
-          <img
-            src="/images/angay-footer-img.png"
-            alt="footer illustration"
-            className="pointer-events-none absolute bottom-0 right-0 h-56 opacity-75 lg:h-72"
-          />
         </section>
 
         {/* ── Footer ── */}
-        <footer className="bg-slate-900 text-white">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-            <div className="grid gap-8 md:grid-cols-4">
+        <footer className="relative bg-[#FE9800] text-white">
+          <div className="absolute inset-x-0 -top-10 h-20 bg-white rounded-b-[50%]" aria-hidden="true"></div>
+          <div className="mx-auto -mt-10 max-w-7xl px-4 sm:px-6 lg:px-8 pb-14">
+            <div className="pt-20 grid gap-8 md:grid-cols-4">
               <div>
-                <h3 className="text-xl font-bold text-[#FE9800]">ANGAY</h3>
-                <p className="mt-3 max-w-xs text-sm text-slate-400 leading-relaxed">
-                  Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
-                </p>
+                <h3 className="text-2xl font-semibold">ANGAY</h3>
+                <p className="mt-3 text-sm text-white/90 leading-relaxed max-w-xs">Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.</p>
               </div>
               <div>
-                <h4 className="font-semibold text-white">Product</h4>
-                <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                  <li className="hover:text-white cursor-pointer transition">Features</li>
-                  <li className="hover:text-white cursor-pointer transition">Pricing</li>
-                  <li className="hover:text-white cursor-pointer transition">Download Desktop</li>
-                  <li className="hover:text-white cursor-pointer transition">Download Mobile</li>
+                <h4 className="font-semibold">Product</h4>
+                <ul className="mt-3 space-y-2 text-sm text-white/90">
+                  <li className="hover:text-white transition cursor-pointer">Features</li>
+                  <li className="hover:text-white transition cursor-pointer">Pricing</li>
+                  <li className="hover:text-white transition cursor-pointer">Download Desktop</li>
+                  <li className="hover:text-white transition cursor-pointer">Download Mobile</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-white">Company</h4>
-                <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                  <li className="hover:text-white cursor-pointer transition">About Us</li>
-                  <li className="hover:text-white cursor-pointer transition">Careers</li>
-                  <li className="hover:text-white cursor-pointer transition">Blog</li>
-                  <li className="hover:text-white cursor-pointer transition">Contact</li>
+                <h4 className="font-semibold">Company</h4>
+                <ul className="mt-3 space-y-2 text-sm text-white/90">
+                  <li className="hover:text-white transition cursor-pointer">About Us</li>
+                  <li className="hover:text-white transition cursor-pointer">Careers</li>
+                  <li className="hover:text-white transition cursor-pointer">Blog</li>
+                  <li className="hover:text-white transition cursor-pointer">Contact</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-white">Legal</h4>
-                <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                  <li className="hover:text-white cursor-pointer transition">Privacy Policy</li>
-                  <li className="hover:text-white cursor-pointer transition">Terms of Service</li>
-                  <li className="hover:text-white cursor-pointer transition">Cookie Policy</li>
+                <h4 className="font-semibold">Legal</h4>
+                <ul className="mt-3 space-y-2 text-sm text-white/90">
+                  <li className="hover:text-white transition cursor-pointer">Privacy Policy</li>
+                  <li className="hover:text-white transition cursor-pointer">Terms of Service</li>
+                  <li className="hover:text-white transition cursor-pointer">Cookie Policy</li>
                 </ul>
               </div>
             </div>
-            <div className="mt-10 border-t border-slate-700 pt-6 text-center text-xs text-slate-500">
+            <div className="mt-10 border-t border-white/30 pt-6 text-center text-sm text-white/80">
               © Copyright Team IntelleX. All rights reserved.
             </div>
           </div>
