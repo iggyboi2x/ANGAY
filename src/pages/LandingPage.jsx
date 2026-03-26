@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import LandingNav from '../components/LandingNav'
+import ContactFormPopup from '../components/ContactFormPopup'
 import { Plus, ArrowRight, Github, Linkedin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -27,6 +28,7 @@ const faqsData = [
 
 const LandingPage = () => {
   const [activeFaq, setActiveFaq] = useState(null)
+  const [showContactForm, setShowContactForm] = useState(false)
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -133,7 +135,7 @@ const LandingPage = () => {
         </section>
 
         {/* ── Features ── */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+        <section id="features" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
             Innovative Features Powering ANGAY
           </h2>
@@ -253,12 +255,12 @@ const LandingPage = () => {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <a
-              href="#contact"
+            <button
+              onClick={() => setShowContactForm(true)}
               className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-5 py-2 font-semibold text-white shadow-md hover:bg-[#e58a00] transition"
             >
               Send an inquiry <ArrowRight size={16} />
-            </a>
+            </button>
           </div>
         </section>
 
@@ -317,6 +319,8 @@ const LandingPage = () => {
         </footer>
 
       </main>
+
+      <ContactFormPopup isOpen={showContactForm} onClose={() => setShowContactForm(false)} />
     </div>
   )
 }

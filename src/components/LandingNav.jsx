@@ -1,10 +1,14 @@
 import React from 'react'
 import LandingButton from '@/components/LandingButton'
+import { Wheat } from "lucide-react";
+
+
+const WheatIcon = () => <Wheat size={22} color="#FE9800" />;
 
 const links = [
   { name: 'Home', href: '#home' },
-  { name: 'Features', href: '#features' },
   { name: 'About', href: '#about' },
+  { name: 'Features', href: '#features' },
   { name: 'Contact', href: '#contact' },
 ]
 
@@ -12,10 +16,12 @@ const LandingNav = () => {
   return (
    <nav className="fixed top-0 left-0 w-full z-50 bg-white px-12 py-3 flex flex-col sm:flex-row items-center sm:justify-between gap-4">
 
-  <div className='system-title text-lg font-bold'>
+  <div className='flex items-center gap-1'>
+  <span>{ WheatIcon() }</span>
+  <span className='system-title text-lg font-bold'>
     ANGAY
+  </span>
   </div>
-
 
   <div className='flex flex-col sm:flex-row items-center sm:gap-4 w-full sm:w-auto'>
     {links.map((link) => (
