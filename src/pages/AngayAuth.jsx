@@ -127,10 +127,23 @@ const RegisterPage = ({ onSwitch }) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
   const [form, setForm] = useState({
     fullName: "", email: "", password: "", confirm: "",
     orgName: "", address: "", contact: "", hours: "",
   });
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadFile(file);
+    if (file.type.startsWith("image/")) {
+      setUploadPreview(URL.createObjectURL(file));
+    } else {
+      setUploadPreview(null);
+    }
+  };
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const isFoodbank = role === "foodbank";
   const isBarangay = role === "barangay";
@@ -147,14 +160,33 @@ const RegisterPage = ({ onSwitch }) => {
       setAlert({ message: "Password must be at least 6 characters.", type: "error" }); return;
     }
     setLoading(true);
+
+    // Upload file if provided
+    let fileUrl = null;
+    if (uploadFile && (isFoodbank || isBarangay)) {
+      const bucket = isFoodbank ? "logos" : "documents";
+      const fileName = `${Date.now()}_${uploadFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, uploadFile);
+      if (uploadError) {
+        setAlert({ message: "File upload failed: " + uploadError.message, type: "error" });
+        setLoading(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      fileUrl = urlData.publicUrl;
+    }
+
     const { error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
       options: { data: { full_name: form.fullName, role, org_name: form.orgName || null,
-        address: form.address || null, contact: form.contact || null, hours: form.hours || null } }
+        address: form.address || null, contact: form.contact || null, hours: form.hours || null,
+        file_url: fileUrl } }
     });
     setLoading(false);
     if (error) setAlert({ message: error.message, type: "error" });
-    else setAlert({ message: "Account created! Please check your email to confirm.", type: "success" });
+    else setAlert({ message: "Account created successfully!", type: "success" });
   };
 
 
@@ -232,11 +264,20 @@ const RegisterPage = ({ onSwitch }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer
+              <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer
                 transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
-                <Upload size={28} className="mx-auto text-gray-400" />
-                <p className="text-xs text-gray-400 mt-2">Drag & drop or click to browse</p>
-              </div>
+                <input type="file" className="hidden"
+                  accept={isFoodbank ? "image/*" : "image/*,.pdf"}
+                  onChange={handleFileChange} />
+                {uploadPreview ? (
+                  <img src={uploadPreview} alt="Preview" className="mx-auto h-20 w-20 object-cover rounded-lg mb-2" />
+                ) : (
+                  <Upload size={28} className="mx-auto text-gray-400" />
+                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  {uploadFile ? uploadFile.name : "Drag & drop or click to browse"}
+                </p>
+              </label>
             </div>
           </>
         )}
