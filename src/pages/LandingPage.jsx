@@ -78,10 +78,10 @@ const LandingPage = () => {
                 Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
               </p>
               <div className="reveal mt-8 flex flex-wrap gap-3">
-                <a href="#about" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
+                <a href="#about" className="rounded-xl  bg-[#FE9800] px-5 py-2 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
                   Get Started
                 </a>
-                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-base font-semibold shadow-[0px_5px_0px_#FE9800] text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">
+                <a href="#faqs" className="rounded-xl  border-2 border-[#FE9800] px-5 py-2text-base font-semibold shadow-[0px_5px_0px_#FE9800] text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">
                   Learn More <ArrowRight size={16} />
                 </a>
               </div>
@@ -255,7 +255,7 @@ const LandingPage = () => {
           <div className="mt-8 text-center">
             <a
               href="#contact"
-              className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-8 py-3 font-semibold text-white shadow-md hover:bg-[#e58a00] transition"
+              className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-5 py-2 font-semibold text-white shadow-md hover:bg-[#e58a00] transition"
             >
               Send an inquiry <ArrowRight size={16} />
             </a>
@@ -268,7 +268,7 @@ const LandingPage = () => {
             <h2 className="text-5xl font-semibold tracking-tight text-[#FE9800]">Be Part of the Solution</h2>
             <p className="mt-3 text-lg font-semibold text-slate-800">Together, We Can Fight Hunger</p>
             <div className="mt-8">
-              <Link to="/login" className="inline-flex items-center rounded-full border-2 border-[#FE9800] bg-white px-8 py-3 text-lg font-semibold text-[#FE9800] shadow-md transition hover:bg-[#ffe9c9]">Join now</Link>
+              <Link to="/login" className="inline-flex items-center rounded-full border-2 border-[#FE9800] bg-white px-5 py-2 text-lg font-semibold text-[#FE9800] shadow-md transition hover:bg-[#ffe9c9]">Join now</Link>
             </div>
             <img src="/images/angay-footer-img.png" alt="Join ANGAY" className="mx-auto mt-12 w-1/4 rounded-2xl object-cover" />
           </div>
