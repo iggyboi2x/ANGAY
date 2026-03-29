@@ -159,6 +159,18 @@ const RegisterPage = ({ onSwitch }) => {
     if (form.password.length < 6) {
       setAlert({ message: "Password must be at least 6 characters.", type: "error" }); return;
     }
+
+    if (!form.contact || form.contact.trim() === "") {
+      setAlert({ message: "Please enter a contact number.", type: "error" });
+      return;
+    }
+
+    const contactRegex = /^(?:\+63\s?\d{3}\s?\d{3}\s?\d{4}|\+63\d{10})$/;
+    if (!contactRegex.test(form.contact)) {
+      setAlert({ message: "Invalid Contact Number. Please check and try again.", type: "error" });
+      return;
+    }
+
     setLoading(true);
 
     // Upload file if provided
