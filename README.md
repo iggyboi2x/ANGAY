@@ -1,12 +1,25 @@
-🌾 ANGAY
-Accessible Nutrition & Goods Assistance for You
+# **🌾 ANGAY — Accessible Nutrition & Goods Assistance for You**
 
-A demographic-informed food assistance coordination system that connects foodbanks and barangay communities for equitable, transparent, and needs-responsive aid distribution.
+> A demographic-informed food assistance coordination system that connects foodbanks and barangay communities for equitable, transparent, and needs-responsive aid distribution.
 
-Built in alignment with:
+---
 
-🌱 SDG 2 – Zero Hunger
-🏙️ SDG 11 – Sustainable Cities and Communities
+## **📌 Project Overview**
+
+### **The Problem**
+
+Food assistance in many barangays suffers from inequitable distribution — aid often fails to reach those who need it most due to a lack of coordinated data between foodbanks and local government units. There is no centralized system to track community demographics, monitor inventory, or log distribution history, resulting in wastage, duplication, and unmet needs.
+
+### **Our Solution**
+
+**ANGAY** bridges the gap between **foodbanks** and **barangay communities** by providing a structured digital platform for demographic profiling, inventory management, distribution coordination, and transparent reporting.
+
+### **🎯 UN Sustainable Development Goals Addressed**
+
+| SDG | Goal | How ANGAY Helps |
+|-----|------|-----------------|
+| 🌱 **SDG 2** | Zero Hunger | Enables targeted food distribution based on demographic need, reducing hunger in underserved communities |
+| 🏙️ **SDG 11** | Sustainable Cities & Communities | Promotes inclusive, transparent, and data-driven governance of local aid systems |
 
 ✨ Features
 
