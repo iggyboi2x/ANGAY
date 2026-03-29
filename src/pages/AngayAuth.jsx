@@ -215,7 +215,7 @@ const RegisterPage = ({ onSwitch }) => {
                   : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50 hover:text-[#FE9800]/70"
                 }`}>
               <Icon size={24} />
-              <span className={`text-[11px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
+              <span className={`text-[16px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
                 {label}
               </span>
             </button>
