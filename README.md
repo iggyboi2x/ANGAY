@@ -21,11 +21,25 @@ Food assistance in many barangays suffers from inequitable distribution — aid 
 | 🌱 **SDG 2** | Zero Hunger | Enables targeted food distribution based on demographic need, reducing hunger in underserved communities |
 | 🏙️ **SDG 11** | Sustainable Cities & Communities | Promotes inclusive, transparent, and data-driven governance of local aid systems |
 
-✨ Features
+---
 
-Barangay Demographic Profiling — Aggregate socio-economic data per barangay (population, seniors, PWDs, children, poverty level)
-Foodbank Inventory Management — Track available goods by type, quantity, and target beneficiary
-Interactive Barangay Map — Visual demographic stats with sorting and filtering by need
-Distribution Proposal & Approval Workflow — Structured coordination between foodbanks and barangays
-Distribution Logging & History — Transparent records of all distributions
-Reporting Dashboard — Summary statistics and allocation history
+## **✨ Key Features**
+
+- **Barangay Demographic Profiling** — Aggregate socio-economic data per barangay (population, seniors, PWDs, children, poverty level)
+- **Foodbank Inventory Management** — Track available goods by type, quantity, and target beneficiary
+- **Interactive Barangay Map** — Visual demographic stats with sorting and filtering by need level
+- **Distribution Proposal & Approval Workflow** — Structured coordination between foodbanks and barangays
+- **Distribution Logging & History** — Transparent records of all distributions for accountability
+- **Reporting Dashboard** — Summary statistics and historical allocation data
+
+---
+
+## **🛠️ Tech Stack**
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | [React](https://react.dev/) + [Vite](https://vitejs.dev/) |
+| **Styling** | CSS / Tailwind CSS |
+| **Backend & Database** | [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage) |
+| **Version Control** | Git + GitHub |
+| **Package Manager** | npm |
