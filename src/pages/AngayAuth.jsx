@@ -32,6 +32,19 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
   </div>
 );
 
+
+
+// ─── Alert Box ────────────────────────────────────────────────────────────────
+const Alert = ({ message, type }) => (
+  <div className={`px-4 py-2.5 rounded-xl text-sm mb-4 border ${
+    type === "error"
+      ? "bg-red-50 text-red-700 border-red-200"
+      : "bg-green-50 text-green-700 border-green-200"
+  }`}>
+    {message}
+  </div>
+);
+
 const ContactField = ({ value, onChange }) => {
   const format = (raw) => {
     let digits = raw.replace(/\D/g, "");
@@ -67,18 +80,6 @@ const ContactField = ({ value, onChange }) => {
     </div>
   );
 };
-
-
-// ─── Alert Box ────────────────────────────────────────────────────────────────
-const Alert = ({ message, type }) => (
-  <div className={`px-4 py-2.5 rounded-xl text-sm mb-4 border ${
-    type === "error"
-      ? "bg-red-50 text-red-700 border-red-200"
-      : "bg-green-50 text-green-700 border-green-200"
-  }`}>
-    {message}
-  </div>
-);
 
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
@@ -214,7 +215,7 @@ const RegisterPage = ({ onSwitch }) => {
       return;
     }
 
-    const contactRegex = /^(?:\+63\s?\d{3}\s?\d{3}\s?\d{4}|\+63\d{10})$/;
+    const contactRegex = /^\d{3}\s\d{3}\s\d{4}$/;
     if (!contactRegex.test(form.contact)) {
       setAlert({ message: "Invalid Contact Number. Please check and try again.", type: "error" });
       return;
@@ -242,7 +243,7 @@ const RegisterPage = ({ onSwitch }) => {
     const { error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
       options: { data: { full_name: form.fullName, role, org_name: form.orgName || null,
-        address: form.address || null, contact: form.contact || null, hours: form.hours || null,
+        address: form.address || null, contact: form.contact ? `+63 ${form.contact}` : null, hours: form.hours || null,
         file_url: fileUrl } }
     });
     setLoading(false);
@@ -296,7 +297,7 @@ const RegisterPage = ({ onSwitch }) => {
           placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
 
         {role === "donor" && (
-          <InputField label="Contact Number" placeholder="+63 XXX XXX XXXX" value={form.contact} onChange={set("contact")} />
+          <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
         )}
 
 
