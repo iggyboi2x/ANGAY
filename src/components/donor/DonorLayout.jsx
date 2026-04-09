@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell } from "lucide-react";
+import { Bell, Wheat } from "lucide-react";
 
 export default function DonorLayout({ children }) {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ export default function DonorLayout({ children }) {
           className="flex items-center gap-2 cursor-pointer select-none"
           onClick={() => navigate("/donor/home")}
         >
-          <span className="text-[#FE9800] text-xl">🌾</span>
+          <span className="text-[#FE9800] text-xl"> <Wheat size={20} className="text-[#FE9800]" /></span>
           <span className="text-[#FE9800] font-bold text-lg tracking-wide">ANGAY</span>
         </div>
 
