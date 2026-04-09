@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
 import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
 
@@ -44,7 +45,14 @@ const Alert = ({ message, type }) => (
 
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
+const ROLE_ROUTES = {
+  donor: "/donor/home",
+  foodbank: "/foodbank/dashboard",
+  barangay: "/barangay/dashboard",
+};
+
 const LoginPage = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -58,19 +66,21 @@ const LoginPage = ({ onSwitch }) => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setAlert({ message: error.message, type: "error" });
     } else {
       setAlert({ message: "Logged in successfully!", type: "success" });
-      // TODO: redirect to dashboard
+      const role = data?.user?.user_metadata?.role ?? "donor";
+      const route = ROLE_ROUTES[role] ?? "/donor/home";
+      setTimeout(() => navigate(route), 800);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#fffaf1]">
-      <div className="bg-white rounded-2xl p-10 w-full max-w-md shadow-lg relative overflow-hidden">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg relative overflow-hidden">
         {/* Orange top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
 
@@ -159,6 +169,18 @@ const RegisterPage = ({ onSwitch }) => {
     if (form.password.length < 6) {
       setAlert({ message: "Password must be at least 6 characters.", type: "error" }); return;
     }
+
+    if (!form.contact || form.contact.trim() === "") {
+      setAlert({ message: "Please enter a contact number.", type: "error" });
+      return;
+    }
+
+    const contactRegex = /^(?:\+63\s?\d{3}\s?\d{3}\s?\d{4}|\+63\d{10})$/;
+    if (!contactRegex.test(form.contact)) {
+      setAlert({ message: "Invalid Contact Number. Please check and try again.", type: "error" });
+      return;
+    }
+
     setLoading(true);
 
     // Upload file if provided
@@ -186,13 +208,16 @@ const RegisterPage = ({ onSwitch }) => {
     });
     setLoading(false);
     if (error) setAlert({ message: error.message, type: "error" });
-    else setAlert({ message: "Account created successfully!", type: "success" });
+    else {
+      setAlert({ message: "Account created! Redirecting to login...", type: "success" });
+      setTimeout(() => onSwitch(), 1200);
+    }
   };
 
 
   return (
     <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
-      <div className="bg-white rounded-2xl p-9 w-full max-w-md shadow-lg relative overflow-hidden">
+      <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
 
         {/* Logo */}
