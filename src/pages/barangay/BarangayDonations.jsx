@@ -1,181 +1,153 @@
 import { useState } from 'react';
 import BarangaySidebar from '../../components/barangay/BarangaySidebar';
 import Card from '../../components/Card';
-import { Gift, Clock, CheckCircle, RotateCcw } from 'lucide-react';
+import { Users, UserCheck, UserX, Bell } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const donationsData = {
-  toPickUp: [
-    { id: 1, from: 'Cebu City Food Bank',  items: 'Rice 50kg, Canned Goods 20pcs',    scheduled: 'Mar 20, 2026' },
-    { id: 2, from: 'Caritas Food Center',  items: 'Vegetables 30kg, Cooking Oil 15L', scheduled: 'Mar 22, 2026' },
-    { id: 3, from: 'Mandaue Food Hub',     items: 'Instant Noodles 40pcs, Sugar 10kg',scheduled: 'Mar 24, 2026' },
-  ],
-  inProcess: [
-    { id: 4, from: 'Cebu City Food Bank',  items: 'Mixed Goods 3 boxes', scheduled: 'Mar 18, 2026', status: 'In Transit' },
-    { id: 5, from: 'Caritas Food Center',  items: 'Rice 30kg',           scheduled: 'Mar 17, 2026', status: 'Sorting'    },
-  ],
-  history: [
-    { id: 6, from: 'Cebu City Food Bank',  items: 'Rice 100kg, Canned Goods 50pcs', scheduled: 'Mar 10, 2026', completedOn: 'Mar 10, 2026' },
-    { id: 7, from: 'Mandaue Food Hub',     items: 'Vegetables 20kg',                scheduled: 'Mar 5, 2026',  completedOn: 'Mar 5, 2026'  },
-    { id: 8, from: 'Caritas Food Center',  items: 'Sugar 50kg, Cooking Oil 20L',    scheduled: 'Feb 28, 2026', completedOn: 'Feb 28, 2026' },
-  ],
-};
+// Fix default marker icon broken in React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
-const TABS = [
-  { key: 'toPickUp',  label: 'To Pick Up'  },
-  { key: 'inProcess', label: 'In Process'  },
-  { key: 'history',   label: 'History'     },
+// Custom orange marker to match theme
+const orangeIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+const stats = [
+  { label: 'Total Households', value: '845',   icon: Users     },
+  { label: 'Total Population', value: '4,230', icon: Users     },
+  { label: 'PWD Count',        value: '89',    icon: UserCheck },
+  { label: 'Senior Citizens',  value: '312',   icon: UserX     },
 ];
 
-const TagPill = ({ label, value }) => (
-  <div className="flex items-center gap-1.5">
-    <span className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{label}:</span>
-    <span className="text-xs font-medium px-2 py-0.5 bg-[#F5F5F5] rounded-md text-[#333]"
-      style={{ fontFamily: 'DM Sans' }}>{value}</span>
-  </div>
-);
+const foodbankPins = [
+  { name: 'Cebu City Food Bank', position: [10.3157, 123.8854] },
+  { name: 'Mandaue Food Hub',    position: [10.3236, 123.9223] },
+];
 
-const ToPickUpCard = ({ donation, onConfirm }) => (
-  <Card className="!p-5 flex flex-col gap-4">
-    <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-[#FFF3DC] flex items-center justify-center flex-shrink-0">
-        <Gift size={16} className="text-[#FE9800]" />
-      </div>
-      <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Donation Available</span>
-    </div>
-    <div className="space-y-2">
-      <TagPill label="From" value={donation.from} />
-      <div className="text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>
-        <span className="text-[#888888]">Items: </span>{donation.items}
-      </div>
-      <div className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-        Scheduled: {donation.scheduled}
-      </div>
-    </div>
-    <button onClick={() => onConfirm(donation.id)}
-      className="w-full py-3 bg-[#FE9800] text-white font-semibold text-sm rounded-xl
-        hover:bg-[#e58a00] hover:shadow-md active:scale-[0.98] transition-all"
-      style={{ fontFamily: 'DM Sans' }}>
-      Confirm Pickup
-    </button>
-  </Card>
-);
+// Philippines bounds to restrict panning
+const philippinesBounds = [
+  [4.5, 116.0],
+  [21.5, 127.0],
+];
 
-const InProcessCard = ({ donation }) => (
-  <Card className="!p-5 flex flex-col gap-4">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <Clock size={16} className="text-blue-500" />
-        </div>
-        <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>In Process</span>
-      </div>
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600"
-        style={{ fontFamily: 'DM Sans' }}>{donation.status}</span>
-    </div>
-    <div className="space-y-2">
-      <TagPill label="From" value={donation.from} />
-      <div className="text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>
-        <span className="text-[#888888]">Items: </span>{donation.items}
-      </div>
-      <div className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Scheduled: {donation.scheduled}</div>
-    </div>
-    <div>
-      <div className="flex justify-between text-[11px] text-[#888888] mb-1.5" style={{ fontFamily: 'DM Sans' }}>
-        <span>Progress</span>
-        <span>{donation.status === 'In Transit' ? '75%' : '40%'}</span>
-      </div>
-      <div className="w-full h-1.5 bg-[#F0F0F0] rounded-full overflow-hidden">
-        <div className="h-full bg-[#FE9800] rounded-full" style={{ width: donation.status === 'In Transit' ? '75%' : '40%' }} />
-      </div>
-    </div>
-  </Card>
-);
+const DAYS   = ['S','M','T','W','T','F','S'];
+const EVENTS = [20, 22, 25];
+const grid   = Array.from({ length: 35 }, (_, i) => { const d = i + 1; return d <= 31 ? d : null; });
 
-const HistoryCard = ({ donation }) => (
-  <Card className="!p-5 flex flex-col gap-3">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-          <CheckCircle size={16} className="text-green-500" />
-        </div>
-        <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Donation Received</span>
-      </div>
-      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-600"
-        style={{ fontFamily: 'DM Sans' }}>Completed</span>
-    </div>
-    <div className="space-y-2">
-      <TagPill label="From" value={donation.from} />
-      <div className="text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>
-        <span className="text-[#888888]">Items: </span>{donation.items}
-      </div>
-      <div className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Completed: {donation.completedOn}</div>
-    </div>
-  </Card>
-);
-
-export default function BarangayDonations() {
-  const [activeTab, setActiveTab] = useState('toPickUp');
-  const [donations, setDonations] = useState(donationsData);
-
-  const handleConfirm = (id) => {
-    const confirmed = donations.toPickUp.find(d => d.id === id);
-    if (!confirmed) return;
-    setDonations(prev => ({
-      ...prev,
-      toPickUp:  prev.toPickUp.filter(d => d.id !== id),
-      inProcess: [...prev.inProcess, { ...confirmed, status: 'Sorting' }],
-    }));
-  };
-
-  const current = donations[activeTab];
-
+export default function BarangayDashboard() {
   return (
     <div className="flex min-h-screen bg-white">
       <BarangaySidebar />
 
-      <div className="ml-60 flex-1 p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Donations</h1>
-          <div className="flex items-center gap-2 text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-            <RotateCcw size={14} />
-            <span>Last updated just now</span>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {TABS.map(({ key, label }) => (
-            <button key={key} onClick={() => setActiveTab(key)}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold border transition-all
-                ${activeTab === key
-                  ? 'bg-[#FE9800] text-white border-[#FE9800] shadow-sm'
-                  : 'bg-white text-[#555] border-[#CCCCCC] hover:border-[#FE9800] hover:text-[#FE9800]'}`}
-              style={{ fontFamily: 'DM Sans' }}>
-              {label}
-              {key === 'toPickUp' && donations.toPickUp.length > 0 && (
-                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full
-                  ${activeTab === key ? 'bg-white text-[#FE9800]' : 'bg-[#FFF3DC] text-[#C97700]'}`}>
-                  {donations.toPickUp.length}
-                </span>
-              )}
+      <div className="ml-60 flex-1 flex flex-col">
+        {/* Top Bar */}
+        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
+          <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
+              <Bell size={18} />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />
             </button>
-          ))}
+            <div className="flex items-center gap-2.5">
+              <span className="text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>Barangay Luz</span>
+              <div className="w-9 h-9 rounded-full bg-[#FE9800] text-white text-sm font-bold flex items-center justify-center">BL</div>
+            </div>
+          </div>
         </div>
 
-        {/* Cards */}
-        {current.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#AAAAAA]">
-            <Gift size={40} className="mb-3 opacity-40" />
-            <p className="text-sm" style={{ fontFamily: 'DM Sans' }}>No donations here yet.</p>
+        <div className="p-8 flex-1">
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            {stats.map(({ label, value, icon: Icon }) => (
+              <Card key={label} className="!p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="text-3xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>{value}</div>
+                  <Icon size={22} color="#FE9800" />
+                </div>
+                <div className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{label}</div>
+              </Card>
+            ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-5">
-            {activeTab === 'toPickUp'  && donations.toPickUp.map(d  => <ToPickUpCard  key={d.id} donation={d} onConfirm={handleConfirm} />)}
-            {activeTab === 'inProcess' && donations.inProcess.map(d => <InProcessCard key={d.id} donation={d} />)}
-            {activeTab === 'history'   && donations.history.map(d   => <HistoryCard   key={d.id} donation={d} />)}
+
+          {/* Map + Calendar */}
+          <div className="flex gap-6">
+            {/* Foodbank Map */}
+            <div className="flex-1">
+              <Card className="!p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Foodbank Map</h2>
+                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-[#F5F5F5] text-[#888888]"
+                    style={{ fontFamily: 'DM Sans' }}>2 foodbanks</span>
+                </div>
+
+                <div className="rounded-xl overflow-hidden" style={{ height: '380px' }}>
+                  <MapContainer
+                    center={[12.8797, 121.7740]}
+                    zoom={5}
+                    minZoom={5}
+                    maxZoom={15}
+                    maxBounds={philippinesBounds}
+                    maxBoundsViscosity={1.0}
+                    style={{ height: '100%', width: '100%' }}
+                    scrollWheelZoom={true}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {foodbankPins.map((pin) => (
+                      <Marker key={pin.name} position={pin.position} icon={orangeIcon}>
+                        <Popup>{pin.name}</Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                </div>
+              </Card>
+            </div>
+
+            {/* Calendar */}
+            <div className="w-72">
+              <Card className="!p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <button className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><ChevronLeft size={16} /></button>
+                  <span className="text-sm font-semibold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>March 2026</span>
+                  <button className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><ChevronRight size={16} /></button>
+                </div>
+                <div className="grid grid-cols-7 mb-1">
+                  {DAYS.map((d, i) => (
+                    <div key={i} className="text-center text-[11px] font-semibold text-[#AAAAAA] py-1" style={{ fontFamily: 'DM Sans' }}>{d}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-y-1">
+                  {grid.map((d, i) => (
+                    <div key={i} className="flex flex-col items-center">
+                      {d ? (
+                        <>
+                          <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs cursor-pointer transition-colors
+                            ${d === 17 ? 'bg-[#FE9800] text-white font-bold' : 'text-[#333] hover:bg-[#FFF3DC]'}`}
+                            style={{ fontFamily: 'DM Sans' }}>{d}</div>
+                          {EVENTS.includes(d) && <div className="w-1 h-1 rounded-full bg-[#FE9800] mt-0.5" />}
+                        </>
+                      ) : <div className="w-7 h-7" />}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
