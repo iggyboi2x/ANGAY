@@ -44,3 +44,7 @@
     color: var(--font-secondary);
   }
 }
+
+.leaflet-container {
+  z-index: 0;
+}
