@@ -13,6 +13,7 @@ import BarangayDashboard from "./pages/barangay/BarangayDashboard";
 import BarangayMessages from "./pages/barangay/BarangayMessages";
 import BarangayDemographics from "./pages/barangay/BarangayDemographics";
 import BarangayDonations from "./pages/barangay/BarangayDonations";
+import BarangayAccountSettings from './pages/barangay/BarangayAccountSettings';
 
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/barangay/messages" element={<BarangayMessages />} />
           <Route path="/barangay/demographics" element={<BarangayDemographics />} />
           <Route path="/barangay/donations" element={<BarangayDonations />} />
+          <Route path="/barangay/account" element={<BarangayAccountSettings />} />
         </Routes>
       </BrowserRouter>
     </>

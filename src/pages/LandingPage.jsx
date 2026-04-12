@@ -108,7 +108,7 @@ const LandingPage = () => {
                 Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
               </p>
               <div className="reveal mt-8 flex flex-wrap gap-3">
-                <a href="#about" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
+                <a href="/login" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
                   Get Started
                 </a>
                 <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-base font-semibold shadow-[0px_5px_0px_#FE9800] text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">

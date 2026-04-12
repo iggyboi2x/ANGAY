@@ -44,7 +44,7 @@ export default function BarangaySidebar() {
       {/* Bottom */}
       <div className="border-t border-[#F0F0F0] px-4 py-4">
         <NavLink
-          to="/account-settings"
+          to="/barangay/account"
           className="flex items-center gap-3 px-4 h-12 text-[#444444] hover:bg-[#F8F8F8] rounded-lg transition-colors mb-1"
         >
           <Settings size={18} className="text-[#888888]" />
