@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { createClient } from '@supabase/supabase-js'; 
 import Sidebar from '../components/foodbank/FoodbankSidebar';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -23,22 +22,60 @@ export default function AccountSettings() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [donationReminders, setDonationReminders] = useState(true);
+  const [savingOrg, setSavingOrg] = useState(false);
+
+  const [orgData, setOrgData] = useState({
+    org_name: '',
+    contact: '',
+    address: '',
+    operating_hours: '',
+    website_url: '',
+  });
+  const [originalOrgData, setOriginalOrgData] = useState(null);
+
+  const hasOrgChanges = originalOrgData &&
+    JSON.stringify(orgData) !== JSON.stringify(originalOrgData);
 
   useEffect(() => {
-    const loadAvatar = async () => {
+    const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
+      console.log('user.id:', user.id); // 👈 check this in console
+
+      // Load contact + avatar from profiles
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('contact, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (data?.avatar_url) setPhotoUrl(data.avatar_url);
+      console.log('profile:', profile, profileError);
+
+      if (profile?.avatar_url) setPhotoUrl(profile.avatar_url);
+
+      // Load from foodbanks
+      const { data: foodbank, error: foodbankError } = await supabase
+        .from('foodbanks')
+        .select('org_name, address, operating_hours, website_url')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      console.log('foodbank:', foodbank, foodbankError);
+
+      const loaded = {
+        org_name: foodbank?.org_name || '',
+        contact: profile?.contact || '',
+        address: foodbank?.address || '',
+        operating_hours: foodbank?.operating_hours || '',
+        website_url: foodbank?.website_url || '',
+      };
+
+      setOrgData(loaded);
+      setOriginalOrgData(loaded);
     };
 
-    loadAvatar();
+    loadProfile();
   }, []);
 
   const handlePhotoUpload = async (e) => {
@@ -77,15 +114,9 @@ export default function AccountSettings() {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .upsert({ 
-          id: user.id,           
-          avatar_url: publicUrl 
-        });
+        .upsert({ id: user.id, avatar_url: publicUrl });
 
-      if (updateError) {
-        console.error('Profile update error:', updateError); 
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
       setPhotoUrl(publicUrl);
       alert('Photo updated successfully!');
@@ -95,6 +126,40 @@ export default function AccountSettings() {
       alert('Failed to upload photo: ' + error.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleSaveOrg = async () => {
+    try {
+      setSavingOrg(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+
+      const { error: foodbankError } = await supabase
+        .from('foodbanks')
+        .update({
+          org_name: orgData.org_name,
+          address: orgData.address,
+          operating_hours: orgData.operating_hours,
+          website_url: orgData.website_url,
+        })
+        .eq('id', user.id);
+
+      if (foodbankError) throw foodbankError;
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ contact: orgData.contact })
+        .eq('id', user.id);
+
+      if (profileError) throw profileError;
+
+      setOriginalOrgData({ ...orgData });
+      alert('Organization info saved!');
+    } catch (error) {
+      alert('Failed to save: ' + error.message);
+    } finally {
+      setSavingOrg(false);
     }
   };
 
@@ -114,21 +179,17 @@ export default function AccountSettings() {
   );
 
   return (
-      <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white">
       <Sidebar navItems={navItems} />
       
       <div className="ml-60 flex-1">
         <div className="p-8">
           <div className="max-w-[680px] mx-auto">
-            <h1 className="text-2xl mb-8">
-              Account Settings
-            </h1>
+            <h1 className="text-2xl mb-8">Account Settings</h1>
 
-           {/* Profile Photo Section */}
+            {/* Profile Photo Section */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
               <div className="flex flex-col items-center">
-
-                {/* Avatar — shows uploaded photo or initials fallback */}
                 <div className="relative mb-3">
                   {photoUrl ? (
                     <img
@@ -141,8 +202,6 @@ export default function AccountSettings() {
                       CF
                     </div>
                   )}
-
-                  {/* Camera overlay button */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
@@ -152,7 +211,6 @@ export default function AccountSettings() {
                   </button>
                 </div>
 
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -170,35 +228,62 @@ export default function AccountSettings() {
                 </Button>
 
                 <p className="text-xs text-[#888888] mt-1" style={{ fontFamily: 'DM Sans' }}>
-                  JPG, PNG or GIF · Max 50  MB
+                  JPG, PNG or GIF · Max 50MB
                 </p>
               </div>
             </div>
 
             {/* Organization Information */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
-              <h2 className="text-lg mb-4">
-                Organization Information
-              </h2>
+              <h2 className="text-lg mb-4">Organization Information</h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <Input label="Organization Name" defaultValue="Cebu City Food Bank" />
-                <Input label="Contact Number" defaultValue="+63 917 123 4567" />
+                <Input
+                  label="Organization Name"
+                  value={orgData.org_name}
+                  onChange={(e) => setOrgData({ ...orgData, org_name: e.target.value })}
+                />
+                <Input
+                  label="Contact Number"
+                  value={orgData.contact}
+                  onChange={(e) => setOrgData({ ...orgData, contact: e.target.value })}
+                />
                 <div className="col-span-2">
-                  <Input label="Address" defaultValue="123 Main St, Cebu City, Philippines" />
+                  <Input
+                    label="Address"
+                    value={orgData.address}
+                    onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
+                  />
                 </div>
-                <Input label="Operating Hours" defaultValue="Mon-Fri 8AM-5PM" />
-                <Input label="Website" defaultValue="www.cebufoodbank.org" />
+                <Input
+                  label="Operating Hours"
+                  value={orgData.operating_hours}
+                  onChange={(e) => setOrgData({ ...orgData, operating_hours: e.target.value })}
+                />
+                <Input
+                  label="Website URL"
+                  value={orgData.website_url}
+                  onChange={(e) => setOrgData({ ...orgData, website_url: e.target.value })}
+                />
               </div>
               <div className="flex justify-end">
-                <Button variant="primary">Save Changes</Button>
+                <button
+                  onClick={handleSaveOrg}
+                  disabled={!hasOrgChanges || savingOrg}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    hasOrgChanges
+                      ? 'bg-[#FE9800] text-white hover:bg-[#C97700] cursor-pointer'
+                      : 'bg-[#F0F0F0] text-[#BBBBBB] cursor-not-allowed'
+                  }`}
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  {savingOrg ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </div>
 
             {/* Account Details */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
-              <h2 className="text-lg mb-4">
-                Account Details
-              </h2>
+              <h2 className="text-lg mb-4">Account Details</h2>
               <div className="space-y-4 mb-4">
                 <div className="flex items-center gap-4">
                   <Input 
@@ -229,9 +314,7 @@ export default function AccountSettings() {
 
             {/* Notifications */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
-              <h2 className="text-lg mb-4">
-                Notifications
-              </h2>
+              <h2 className="text-lg mb-4">Notifications</h2>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -273,9 +356,7 @@ export default function AccountSettings() {
 
             {/* Danger Zone */}
             <div className="bg-[#FDECEA] border border-[#E74C3C] rounded-[16px] p-6">
-              <h2 className="text-lg mb-2 text-[#E74C3C]">
-                Danger Zone
-              </h2>
+              <h2 className="text-lg mb-2 text-[#E74C3C]">Danger Zone</h2>
               <p className="text-sm text-[#888888] mb-4" style={{ fontFamily: 'DM Sans' }}>
                 Deactivating your account will remove all your data and cannot be undone.
               </p>
