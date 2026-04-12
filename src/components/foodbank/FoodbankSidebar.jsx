@@ -45,11 +45,22 @@ export default function FoodbankSidebar() {
       {/* Bottom */}
       <div className="border-t border-[#F0F0F0] px-4 py-4">
         <NavLink
-          to="/account-settings"
-          className="flex items-center gap-3 px-4 h-12 text-[#444444] hover:bg-[#F8F8F8] rounded-lg transition-colors mb-1"
+          to="/account/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 h-12 rounded-lg transition-colors relative mb-1 ${
+              isActive ? 'bg-[#FFF3DC] text-[#FE9800]' : 'text-[#444444] hover:bg-[#F8F8F8]'
+            }`
+          }
         >
-          <Settings size={18} className="text-[#888888]" />
-          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Account Settings</span>
+          {({ isActive }) => (
+            <>
+              {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FE9800] rounded-r" />}
+              <Settings size={18} className={isActive ? 'text-[#FE9800]' : 'text-[#888888]'} />
+              <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: isActive ? 600 : 500 }}>
+                Account Settings
+              </span>
+            </>
+          )}
         </NavLink>
         <button
           onClick={() => navigate('/login')}
