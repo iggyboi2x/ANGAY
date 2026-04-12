@@ -4,7 +4,7 @@ import Sidebar from '../components/foodbank/FoodbankSidebar';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { 
-  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera
+  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera, Eye, EyeOff
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +24,25 @@ export default function AccountSettings() {
   const [donationReminders, setDonationReminders] = useState(true);
   const [savingOrg, setSavingOrg] = useState(false);
 
+  // Email change state
+  const [currentEmail, setCurrentEmail] = useState('');
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailChanging, setEmailChanging] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  // Password change state
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordChanging, setPasswordChanging] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
   const [orgData, setOrgData] = useState({
     org_name: '',
     contact: '',
@@ -41,27 +60,27 @@ export default function AccountSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('user.id:', user.id); // 👈 check this in console
+      setCurrentEmail(user.email || '');
 
-      // Load contact + avatar from profiles
+      // Load contact from profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('contact, avatar_url')
+        .select('contact')
         .eq('id', user.id)
         .maybeSingle();
 
       console.log('profile:', profile, profileError);
 
-      if (profile?.avatar_url) setPhotoUrl(profile.avatar_url);
-
-      // Load from foodbanks
+      // Load from foodbanks (including logo_url)
       const { data: foodbank, error: foodbankError } = await supabase
         .from('foodbanks')
-        .select('org_name, address, operating_hours, website_url')
+        .select('org_name, address, operating_hours, website_url, logo_url')
         .eq('id', user.id)
         .maybeSingle();
 
       console.log('foodbank:', foodbank, foodbankError);
+
+      if (foodbank?.logo_url) setPhotoUrl(foodbank.logo_url);
 
       const loaded = {
         org_name: foodbank?.org_name || '',
@@ -98,7 +117,7 @@ export default function AccountSettings() {
       if (!user) throw new Error('Not logged in');
 
       const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/avatar.${fileExt}`;
+      const filePath = `${user.id}/logo.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -112,9 +131,11 @@ export default function AccountSettings() {
 
       const publicUrl = data.publicUrl;
 
+      // Save to foodbanks.logo_url instead of profiles.avatar_url
       const { error: updateError } = await supabase
-        .from('profiles')
-        .upsert({ id: user.id, avatar_url: publicUrl });
+        .from('foodbanks')
+        .update({ logo_url: publicUrl })
+        .eq('id', user.id);
 
       if (updateError) throw updateError;
 
@@ -160,6 +181,63 @@ export default function AccountSettings() {
       alert('Failed to save: ' + error.message);
     } finally {
       setSavingOrg(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    try {
+      setEmailChanging(true);
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      setEmailSent(true);
+    } catch (error) {
+      alert('Failed to update email: ' + error.message);
+    } finally {
+      setEmailChanging(false);
+    }
+  };
+
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all fields.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    try {
+      setPasswordChanging(true);
+      // Re-authenticate with current password first
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        setPasswordError('Current password is incorrect.');
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      setPasswordError('Failed to update password: ' + error.message);
+    } finally {
+      setPasswordChanging(false);
     }
   };
 
@@ -284,31 +362,271 @@ export default function AccountSettings() {
             {/* Account Details */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
               <h2 className="text-lg mb-4">Account Details</h2>
-              <div className="space-y-4 mb-4">
-                <div className="flex items-center gap-4">
-                  <Input 
-                    label="Email" 
-                    defaultValue="foodbank@cebu.org" 
+              <div className="space-y-4">
+
+                {/* Email Card */}
+                <div className="border border-[#F0F0F0] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: 'DM Sans' }}>Email</span>
+                    {!showEmailForm && !emailSent && (
+                      <button
+                        onClick={() => setShowEmailForm(true)}
+                        className="text-xs font-medium px-3 py-1 border border-[#E0E0E0] rounded-lg text-[#555555] hover:border-[#FE9800] hover:text-[#FE9800] transition-colors"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        Change Email
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    value={currentEmail}
                     disabled
-                    className="bg-[#F5F5F5] flex-1"
+                    className="bg-[#F5F5F5]"
                   />
-                  <button className="text-[#FE9800] text-sm underline hover:text-[#C97700] mt-5" style={{ fontFamily: 'DM Sans' }}>
-                    Change Email →
-                  </button>
+
+                  {showEmailForm && !emailSent && (
+                    <div className="mt-3 space-y-3">
+                      <Input
+                        label="New Email Address"
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="Enter new email"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => { setShowEmailForm(false); setNewEmail(''); }}
+                          className="px-4 py-2 rounded-lg text-sm text-[#888888] hover:bg-[#F0F0F0] transition-colors"
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleChangeEmail}
+                          disabled={emailChanging || !newEmail}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            newEmail
+                              ? 'bg-[#FE9800] text-white hover:bg-[#C97700]'
+                              : 'bg-[#F0F0F0] text-[#BBBBBB] cursor-not-allowed'
+                          }`}
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          {emailChanging ? 'Sending...' : 'Send Verification'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {emailSent && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700" style={{ fontFamily: 'DM Sans' }}>
+                      ✅ Verification email sent to <strong>{newEmail}</strong>. Please check your inbox to confirm the change.
+                      <div className="flex justify-end mt-2">
+                        <button
+                          onClick={() => { setShowEmailForm(false); setEmailSent(false); setNewEmail(''); }}
+                          className="text-[#FE9800] text-xs underline hover:text-[#C97700]"
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-4">
-                  <Input 
-                    label="Password" 
-                    type="password"
-                    defaultValue="••••••••" 
-                    disabled
-                    className="bg-[#F5F5F5] flex-1"
-                  />
-                  <Button variant="secondary" className="mt-5">Change Password</Button>
+
+                {/* Password Card */}
+                <div className="border border-[#F0F0F0] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-[#333333]" style={{ fontFamily: 'DM Sans' }}>Password</span>
+                    {!showPasswordForm && !passwordSuccess && (
+                      <button
+                        onClick={() => setShowPasswordForm(true)}
+                        className="text-xs font-medium px-3 py-1 border border-[#E0E0E0] rounded-lg text-[#555555] hover:border-[#FE9800] hover:text-[#FE9800] transition-colors"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        Change Password
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Default masked display with single show/hide toggle */}
+                  {!showPasswordForm && !passwordSuccess && (
+                    <div className="relative">
+                      <input
+                        type={showCurrentPw ? 'text' : 'password'}
+                        value="password123"
+                        disabled
+                        className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none"
+                        style={{ fontFamily: 'DM Sans' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPw(!showCurrentPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AAAAAA] hover:text-[#555555] transition-colors"
+                      >
+                        {showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Change password form */}
+                  {showPasswordForm && !passwordSuccess && (
+                    <div className="mt-3 space-y-3">
+                      {/* Current Password */}
+                      <div>
+                        <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>Current Password</label>
+                        <div className="relative">
+                          <input
+                            type={showCurrentPw ? 'text' : 'password'}
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder="Enter current password"
+                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            style={{ fontFamily: 'DM Sans' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPw(!showCurrentPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AAAAAA] hover:text-[#555555] transition-colors"
+                          >
+                            {showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* New Password */}
+                      <div>
+                        <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>New Password</label>
+                        <div className="relative">
+                          <input
+                            type={showNewPw ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => { setNewPassword(e.target.value); setPasswordError(''); }}
+                            placeholder="Enter new password"
+                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            style={{ fontFamily: 'DM Sans' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPw(!showNewPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AAAAAA] hover:text-[#555555] transition-colors"
+                          >
+                            {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Password strength indicator */}
+                      {newPassword.length > 0 && (() => {
+                        const score = [
+                          newPassword.length >= 8,
+                          /[A-Z]/.test(newPassword),
+                          /[0-9]/.test(newPassword),
+                          /[^A-Za-z0-9]/.test(newPassword),
+                        ].filter(Boolean).length;
+                        const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+                        const colors = ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-green-400'];
+                        const textColors = ['', 'text-red-500', 'text-yellow-600', 'text-blue-600', 'text-green-600'];
+                        return (
+                          <div className="space-y-1">
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4].map((lvl) => (
+                                <div
+                                  key={lvl}
+                                  className={`h-1 flex-1 rounded-full transition-colors ${score >= lvl ? colors[score] : 'bg-[#F0F0F0]'}`}
+                                />
+                              ))}
+                            </div>
+                            <p className={`text-xs ${textColors[score]}`} style={{ fontFamily: 'DM Sans' }}>
+                              {labels[score]} password
+                              {score < 3 && <span className="text-[#AAAAAA]"> — use 8+ chars, uppercase, numbers & symbols</span>}
+                            </p>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Confirm New Password */}
+                      <div>
+                        <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>Confirm New Password</label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPw ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                            placeholder="Confirm new password"
+                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            style={{ fontFamily: 'DM Sans' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPw(!showConfirmPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AAAAAA] hover:text-[#555555] transition-colors"
+                          >
+                            {showConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Match indicator */}
+                      {confirmPassword.length > 0 && (
+                        <p className={`text-xs ${newPassword === confirmPassword ? 'text-green-600' : 'text-red-500'}`} style={{ fontFamily: 'DM Sans' }}>
+                          {newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                        </p>
+                      )}
+
+                      {/* Error message */}
+                      {passwordError && (
+                        <p className="text-xs text-[#E74C3C]" style={{ fontFamily: 'DM Sans' }}>
+                          {passwordError}
+                        </p>
+                      )}
+
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setShowPasswordForm(false);
+                            setCurrentPassword('');
+                            setNewPassword('');
+                            setConfirmPassword('');
+                            setPasswordError('');
+                          }}
+                          className="px-4 py-2 rounded-lg text-sm text-[#888888] hover:bg-[#F0F0F0] transition-colors"
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleChangePassword}
+                          disabled={passwordChanging || !currentPassword || !newPassword || !confirmPassword}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            currentPassword && newPassword && confirmPassword
+                              ? 'bg-[#FE9800] text-white hover:bg-[#C97700]'
+                              : 'bg-[#F0F0F0] text-[#BBBBBB] cursor-not-allowed'
+                          }`}
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          {passwordChanging ? 'Updating...' : 'Update Password'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success state */}
+                  {passwordSuccess && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700" style={{ fontFamily: 'DM Sans' }}>
+                      ✅ Password updated successfully.
+                      <div className="flex justify-end mt-2">
+                        <button
+                          onClick={() => { setPasswordSuccess(false); setShowPasswordForm(false); }}
+                          className="text-[#FE9800] text-xs underline hover:text-[#C97700]"
+                          style={{ fontFamily: 'DM Sans' }}
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="flex justify-end">
-                <Button variant="primary">Save Changes</Button>
+
               </div>
             </div>
 
