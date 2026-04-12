@@ -67,7 +67,7 @@ To set up a local development environment:
     ```bash
     npm run dev
     ```
-    *Open [http://localhost:5173](http://localhost:5173) to view the website.*
+    *Click the [http://localhost:5173](http://localhost:5173) to view the website.*
 
 ---
 ### $\Large {\text{Sample Credentials}}$
