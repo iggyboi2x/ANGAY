@@ -43,6 +43,9 @@ export default function AccountSettings() {
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+
   const [orgData, setOrgData] = useState({
     org_name: '',
     contact: '',
@@ -238,6 +241,30 @@ export default function AccountSettings() {
       setPasswordError('Failed to update password: ' + error.message);
     } finally {
       setPasswordChanging(false);
+    }
+  };
+
+  const handleDeactivateAccount = async () => {
+    try {
+      setDeactivating(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+
+      // Delete from foodbanks
+      await supabase.from('foodbanks').delete().eq('id', user.id);
+      // Delete from profiles
+      await supabase.from('profiles').delete().eq('id', user.id);
+      // Sign out and delete auth user via admin or RPC if available
+      // Since client-side can't delete auth.users directly, we sign out
+      // and rely on a Supabase database trigger or Edge Function to clean up auth.users
+      await supabase.auth.signOut();
+
+      // Redirect to home/login
+      window.location.href = '/';
+    } catch (error) {
+      alert('Failed to deactivate account: ' + error.message);
+      setDeactivating(false);
+      setShowDeactivateModal(false);
     }
   };
 
@@ -569,7 +596,7 @@ export default function AccountSettings() {
                       {/* Match indicator */}
                       {confirmPassword.length > 0 && (
                         <p className={`text-xs ${newPassword === confirmPassword ? 'text-green-600' : 'text-red-500'}`} style={{ fontFamily: 'DM Sans' }}>
-                          {newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
+                          {newPassword === confirmPassword ? '✅ Passwords match' : '❌ Passwords do not match'}
                         </p>
                       )}
 
@@ -673,15 +700,65 @@ export default function AccountSettings() {
             </div>
 
             {/* Danger Zone */}
-            <div className="bg-[#FDECEA] border border-[#E74C3C] rounded-[16px] p-6">
-              <h2 className="text-lg mb-2 text-[#E74C3C]">Danger Zone</h2>
-              <p className="text-sm text-[#888888] mb-4" style={{ fontFamily: 'DM Sans' }}>
-                Deactivating your account will remove all your data and cannot be undone.
-              </p>
-              <Button variant="destructive" className="!border !border-[#E74C3C] !bg-transparent !text-[#E74C3C] hover:!bg-[#E74C3C] hover:!text-white">
-                Deactivate Account
-              </Button>
+            <div className="bg-[#FDECEA] border border-[#E74C3C] rounded-[16px] p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-[#E74C3C]" style={{ fontFamily: 'DM Sans' }}>Danger Zone</h2>
+                  <p className="text-xs text-[#888888] mt-0.5" style={{ fontFamily: 'DM Sans' }}>
+                    Deactivating your account cannot be undone.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDeactivateModal(true)}
+                  className="text-xs font-medium px-3 py-1.5 border border-[#E74C3C] rounded-lg text-[#E74C3C] hover:bg-[#E74C3C] hover:text-white transition-colors"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  Deactivate Account
+                </button>
+              </div>
             </div>
+
+            {/* Deactivate Confirmation Modal */}
+            {showDeactivateModal && (
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-[#FDECEA] flex items-center justify-center flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Deactivate Account</h3>
+                      <p className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>This action cannot be undone</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[#555555] mb-5" style={{ fontFamily: 'DM Sans' }}>
+                    Are you sure you want to deactivate your account? All your organization data, inventory, and settings will be permanently removed from our system.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeactivateModal(false)}
+                      disabled={deactivating}
+                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-[#E0E0E0] text-[#555555] hover:bg-[#F5F5F5] transition-colors"
+                      style={{ fontFamily: 'DM Sans' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeactivateAccount}
+                      disabled={deactivating}
+                      className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-[#E74C3C] text-white hover:bg-[#C0392B] transition-colors disabled:opacity-60"
+                      style={{ fontFamily: 'DM Sans' }}
+                    >
+                      {deactivating ? 'Deactivating...' : 'Yes, Deactivate'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
