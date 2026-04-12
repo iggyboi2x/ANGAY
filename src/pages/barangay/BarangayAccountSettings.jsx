@@ -1,28 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { supabase } from '../../supabase';
-import Sidebar from '../components/foodbank/FoodbankSidebar';
-import Input from '../components/Input';
-import Button from '../components/Button';
-import { 
-  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera, Eye, EyeOff
+import { supabase } from '../../../supabase';
+import Sidebar from '../../components/barangay/BarangaySidebar';
+import Input from "../../components/Input";
+import Button from "../../components/Button";
+import {
+  LayoutDashboard, MessageSquare, Users, Gift, Box, Camera, Eye, EyeOff
 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/foodbank/dashboard' },
-  { label: 'Messages', icon: MessageSquare, path: '/foodbank/messages' },
-  { label: 'Inventory', icon: Package, path: '/foodbank/inventory' },
-  { label: 'Packages', icon: Box, path: '/foodbank/packages' },
-  { label: 'Donations', icon: Gift, path: '/foodbank/donations' },
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/barangay/BarangayDashboard' },
+  { label: 'Messages', icon: MessageSquare, path: '/barangay/Messages' },
+  { label: 'Demographics', icon: Users, path: '/barangay/Demographics' },
+  { label: 'Packages', icon: Box, path: '/barangay/Packages' },
+  { label: 'Donations', icon: Gift, path: '/barangay/Donations' },
 ];
 
-export default function AccountSettings() {
-  const [photoUrl, setPhotoUrl] = useState(null); 
+export default function BarangayAccountSettings() {
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [donationReminders, setDonationReminders] = useState(true);
   const [savingOrg, setSavingOrg] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Email change state
   const [currentEmail, setCurrentEmail] = useState('');
@@ -43,15 +44,15 @@ export default function AccountSettings() {
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
+  // Deactivate state
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
+  // Barangay data
   const [orgData, setOrgData] = useState({
-    org_name: '',
-    contact: '',
+    barangay_name: '',
     address: '',
-    operating_hours: '',
-    website_url: '',
+    contact: '',
   });
   const [originalOrgData, setOriginalOrgData] = useState(null);
 
@@ -60,41 +61,46 @@ export default function AccountSettings() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        setLoadingProfile(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      setCurrentEmail(user.email || '');
+        setCurrentEmail(user.email || '');
 
-      // Load contact from profiles
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('contact')
-        .eq('id', user.id)
-        .maybeSingle();
+        // Load contact from profiles
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('contact')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      console.log('profile:', profile, profileError);
+        if (profileError) console.error('profile error:', profileError);
 
-      // Load from foodbanks (including logo_url)
-      const { data: foodbank, error: foodbankError } = await supabase
-        .from('foodbanks')
-        .select('org_name, address, operating_hours, website_url, logo_url')
-        .eq('id', user.id)
-        .maybeSingle();
+        // Load barangay_name, address, and barangay_profile from barangays
+        const { data: barangay, error: barangayError } = await supabase
+          .from('barangays')
+          .select('barangay_name, address, barangay_profile')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      console.log('foodbank:', foodbank, foodbankError);
+        if (barangayError) console.error('barangay error:', barangayError);
 
-      if (foodbank?.logo_url) setPhotoUrl(foodbank.logo_url);
+        if (barangay?.barangay_profile) setPhotoUrl(barangay.barangay_profile);
 
-      const loaded = {
-        org_name: foodbank?.org_name || '',
-        contact: profile?.contact || '',
-        address: foodbank?.address || '',
-        operating_hours: foodbank?.operating_hours || '',
-        website_url: foodbank?.website_url || '',
-      };
+        const loaded = {
+          barangay_name: barangay?.barangay_name || '',
+          address: barangay?.address || '',
+          contact: profile?.contact || '',
+        };
 
-      setOrgData(loaded);
-      setOriginalOrgData(loaded);
+        setOrgData(loaded);
+        setOriginalOrgData(loaded);
+      } catch (err) {
+        console.error('loadProfile error:', err);
+      } finally {
+        setLoadingProfile(false);
+      }
     };
 
     loadProfile();
@@ -134,10 +140,10 @@ export default function AccountSettings() {
 
       const publicUrl = data.publicUrl;
 
-      // Save to foodbanks.logo_url instead of profiles.avatar_url
+      // Save to barangays.barangay_profile
       const { error: updateError } = await supabase
-        .from('foodbanks')
-        .update({ logo_url: publicUrl })
+        .from('barangays')
+        .update({ barangay_profile: publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
@@ -159,17 +165,15 @@ export default function AccountSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
 
-      const { error: foodbankError } = await supabase
-        .from('foodbanks')
+      const { error: barangayError } = await supabase
+        .from('barangays')
         .update({
-          org_name: orgData.org_name,
+          barangay_name: orgData.barangay_name,
           address: orgData.address,
-          operating_hours: orgData.operating_hours,
-          website_url: orgData.website_url,
         })
         .eq('id', user.id);
 
-      if (foodbankError) throw foodbankError;
+      if (barangayError) throw barangayError;
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -179,7 +183,7 @@ export default function AccountSettings() {
       if (profileError) throw profileError;
 
       setOriginalOrgData({ ...orgData });
-      alert('Organization info saved!');
+      alert('Barangay info saved!');
     } catch (error) {
       alert('Failed to save: ' + error.message);
     } finally {
@@ -204,7 +208,6 @@ export default function AccountSettings() {
     }
   };
 
-
   const handleChangePassword = async () => {
     setPasswordError('');
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -221,7 +224,6 @@ export default function AccountSettings() {
     }
     try {
       setPasswordChanging(true);
-      // Re-authenticate with current password first
       const { data: { user } } = await supabase.auth.getUser();
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
@@ -247,20 +249,27 @@ export default function AccountSettings() {
   const handleDeactivateAccount = async () => {
     try {
       setDeactivating(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not logged in');
 
-      // Delete from foodbanks
-      await supabase.from('foodbanks').delete().eq('id', user.id);
-      // Delete from profiles
-      await supabase.from('profiles').delete().eq('id', user.id);
-      // Sign out and delete auth user via admin or RPC if available
-      // Since client-side can't delete auth.users directly, we sign out
-      // and rely on a Supabase database trigger or Edge Function to clean up auth.users
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not logged in');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
       await supabase.auth.signOut();
-
-      // Redirect to home/login
       window.location.href = '/';
+
     } catch (error) {
       alert('Failed to deactivate account: ' + error.message);
       setDeactivating(false);
@@ -283,10 +292,13 @@ export default function AccountSettings() {
     </button>
   );
 
+  // Reusable field style
+  const fieldClass = "w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] outline-none focus:border-[#FE9800] transition-colors";
+
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar navItems={navItems} />
-      
+
       <div className="ml-60 flex-1">
         <div className="p-8">
           <div className="max-w-[680px] mx-auto">
@@ -304,7 +316,7 @@ export default function AccountSettings() {
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full border-[3px] border-[#FE9800] bg-[#FE9800] flex items-center justify-center text-white text-3xl font-bold">
-                      CF
+                      BL
                     </div>
                   )}
                   <button
@@ -338,38 +350,65 @@ export default function AccountSettings() {
               </div>
             </div>
 
-            {/* Organization Information */}
+            {/* Barangay Information */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
-              <h2 className="text-lg mb-4">Organization Information</h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <Input
-                  label="Organization Name"
-                  value={orgData.org_name}
-                  onChange={(e) => setOrgData({ ...orgData, org_name: e.target.value })}
-                />
-                <Input
-                  label="Contact Number"
-                  value={orgData.contact}
-                  onChange={(e) => setOrgData({ ...orgData, contact: e.target.value })}
-                />
-                <div className="col-span-2">
-                  <Input
-                    label="Address"
-                    value={orgData.address}
-                    onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
-                  />
+              <h2 className="text-lg mb-4">Barangay Information</h2>
+
+              {loadingProfile ? (
+                <div className="grid grid-cols-2 gap-4 mb-4 animate-pulse">
+                  <div className="h-10 bg-[#F0F0F0] rounded-lg" />
+                  <div className="h-10 bg-[#F0F0F0] rounded-lg" />
+                  <div className="col-span-2 h-10 bg-[#F0F0F0] rounded-lg" />
                 </div>
-                <Input
-                  label="Operating Hours"
-                  value={orgData.operating_hours}
-                  onChange={(e) => setOrgData({ ...orgData, operating_hours: e.target.value })}
-                />
-                <Input
-                  label="Website URL"
-                  value={orgData.website_url}
-                  onChange={(e) => setOrgData({ ...orgData, website_url: e.target.value })}
-                />
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  {/* Barangay Name */}
+                  <div>
+                    <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Barangay Name
+                    </label>
+                    <input
+                      type="text"
+                      value={orgData.barangay_name}
+                      onChange={(e) => setOrgData({ ...orgData, barangay_name: e.target.value })}
+                      placeholder="Enter barangay name"
+                      className={fieldClass}
+                      style={{ fontFamily: 'DM Sans' }}
+                    />
+                  </div>
+
+                  {/* Contact Number */}
+                  <div>
+                    <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Contact Number
+                    </label>
+                    <input
+                      type="text"
+                      value={orgData.contact}
+                      onChange={(e) => setOrgData({ ...orgData, contact: e.target.value })}
+                      placeholder="Enter contact number"
+                      className={fieldClass}
+                      style={{ fontFamily: 'DM Sans' }}
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div className="col-span-2">
+                    <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={orgData.address}
+                      onChange={(e) => setOrgData({ ...orgData, address: e.target.value })}
+                      placeholder="Enter address"
+                      className={fieldClass}
+                      style={{ fontFamily: 'DM Sans' }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end">
                 <button
                   onClick={handleSaveOrg}
@@ -475,7 +514,6 @@ export default function AccountSettings() {
                     )}
                   </div>
 
-                  {/* Default masked display with single show/hide toggle */}
                   {!showPasswordForm && !passwordSuccess && (
                     <div className="relative">
                       <input
@@ -495,10 +533,8 @@ export default function AccountSettings() {
                     </div>
                   )}
 
-                  {/* Change password form */}
                   {showPasswordForm && !passwordSuccess && (
                     <div className="mt-3 space-y-3">
-                      {/* Current Password */}
                       <div>
                         <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>Current Password</label>
                         <div className="relative">
@@ -507,7 +543,7 @@ export default function AccountSettings() {
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             placeholder="Enter current password"
-                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            className={`${fieldClass} pr-10`}
                             style={{ fontFamily: 'DM Sans' }}
                           />
                           <button
@@ -520,7 +556,6 @@ export default function AccountSettings() {
                         </div>
                       </div>
 
-                      {/* New Password */}
                       <div>
                         <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>New Password</label>
                         <div className="relative">
@@ -529,7 +564,7 @@ export default function AccountSettings() {
                             value={newPassword}
                             onChange={(e) => { setNewPassword(e.target.value); setPasswordError(''); }}
                             placeholder="Enter new password"
-                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            className={`${fieldClass} pr-10`}
                             style={{ fontFamily: 'DM Sans' }}
                           />
                           <button
@@ -542,7 +577,6 @@ export default function AccountSettings() {
                         </div>
                       </div>
 
-                      {/* Password strength indicator */}
                       {newPassword.length > 0 && (() => {
                         const score = [
                           newPassword.length >= 8,
@@ -571,7 +605,6 @@ export default function AccountSettings() {
                         );
                       })()}
 
-                      {/* Confirm New Password */}
                       <div>
                         <label className="block text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>Confirm New Password</label>
                         <div className="relative">
@@ -580,7 +613,7 @@ export default function AccountSettings() {
                             value={confirmPassword}
                             onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
                             placeholder="Confirm new password"
-                            className="w-full border border-[#E0E0E0] rounded-lg px-3 py-2 text-sm text-[#333333] pr-10 outline-none focus:border-[#FE9800] transition-colors"
+                            className={`${fieldClass} pr-10`}
                             style={{ fontFamily: 'DM Sans' }}
                           />
                           <button
@@ -593,14 +626,12 @@ export default function AccountSettings() {
                         </div>
                       </div>
 
-                      {/* Match indicator */}
                       {confirmPassword.length > 0 && (
                         <p className={`text-xs ${newPassword === confirmPassword ? 'text-green-600' : 'text-red-500'}`} style={{ fontFamily: 'DM Sans' }}>
                           {newPassword === confirmPassword ? 'Passwords match' : 'Passwords do not match'}
                         </p>
                       )}
 
-                      {/* Error message */}
                       {passwordError && (
                         <p className="text-xs text-[#E74C3C]" style={{ fontFamily: 'DM Sans' }}>
                           {passwordError}
@@ -637,7 +668,6 @@ export default function AccountSettings() {
                     </div>
                   )}
 
-                  {/* Success state */}
                   {passwordSuccess && (
                     <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700" style={{ fontFamily: 'DM Sans' }}>
                       ✅ Password updated successfully.
@@ -663,36 +693,22 @@ export default function AccountSettings() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>
-                      Email Notifications
-                    </div>
-                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                      Receive updates and alerts via email
-                    </div>
+                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>Email Notifications</div>
+                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Receive updates and alerts via email</div>
                   </div>
                   <Toggle checked={emailNotifications} onChange={setEmailNotifications} />
                 </div>
-                
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>
-                      SMS Alerts
-                    </div>
-                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                      Receive urgent notifications via SMS
-                    </div>
+                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>SMS Alerts</div>
+                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Receive urgent notifications via SMS</div>
                   </div>
                   <Toggle checked={smsAlerts} onChange={setSmsAlerts} />
                 </div>
-                
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>
-                      Donation Reminders
-                    </div>
-                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                      Get reminders for pending donations
-                    </div>
+                    <div className="text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>Donation Reminders</div>
+                    <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Get reminders for pending donations</div>
                   </div>
                   <Toggle checked={donationReminders} onChange={setDonationReminders} />
                 </div>
@@ -736,7 +752,7 @@ export default function AccountSettings() {
                     </div>
                   </div>
                   <p className="text-sm text-[#555555] mb-5" style={{ fontFamily: 'DM Sans' }}>
-                    Are you sure you want to deactivate your account? All your organization data, inventory, and settings will be permanently removed from our system.
+                    Are you sure you want to deactivate your account? All your barangay data, demographics, and settings will be permanently removed from our system.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -759,6 +775,7 @@ export default function AccountSettings() {
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>

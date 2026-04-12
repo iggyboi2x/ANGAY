@@ -2,7 +2,7 @@ import { useState } from 'react';
 import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import CalendarPanel from '../../components/CalendarPanel';
-import BarangayPopup from '../../components/foodbank/BarangayPopup';
+import BarangayPopup from '../../components/barangay/BarangayPopup';
 import { barangays } from '../../assets/data/barangays';
 import {
   Package, AlertTriangle, Truck, Clock,

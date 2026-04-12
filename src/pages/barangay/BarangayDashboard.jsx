@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { foodbanks } from '../../assets/data/foodbanks';
-import FoodbankPopup from '../../components/barangay/FoodbankPopup';
+import FoodbankPopup from '../../components/foodbank/FoodbankPopup';
 import { Bell, CalendarDays } from 'lucide-react';
 import CalendarPanel from '../../components/CalendarPanel';
 
