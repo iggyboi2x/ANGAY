@@ -6,7 +6,7 @@
 
 ### **The Problem**
 
-Food assistance in many barangays suffers from inequitable distribution — aid often fails to reach those who need it most due to a lack of coordinated data between foodbanks and local government units. There is no centralized system to track community demographics, monitor inventory, or log distribution history, resulting in wastage, duplication, and unmet needs.
+Food assistance in many barangays suffers from inequitable distribution; aid often fails to reach those who need it most due to a lack of coordinated data between foodbanks and local government units. There is no centralized system to track community demographics, monitor inventory, or log distribution history, resulting in wastage, duplication, and unmet needs.
 
 ### **Our Solution**
 
@@ -75,7 +75,7 @@ Use these test accounts to explore the different portal functionalities:
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Foodbank Admin** | `adminfoodbank@gmail.com` | `passWord$1430` |
+| **Foodbank Admin** | `foodbank@gmail.com` | `passWord$1430` |
 | **Barangay Rep** | `barangayrep@gmail.com` | `barangayRep*123` |
 | **Individual Donor** | `donor_example@gmail.com` | `donor_passWord123` |
 --- 
