@@ -80,10 +80,10 @@ Use these test accounts to explore the different portal functionalities:
 | **Individual Donor** | `donor_example@gmail.com` | `donor_passWord123` |
 --- 
 
-### $\Large {\text{Landing Page}}$
+### $\Large {\text{Angay Website}}$
 <p align="center">
-  <a href="#">
-    <img src="/docs/screenshots/hero_page.png" href="https://angay.vercel.app/" alt="Hero Page" width="800">
+  <a href="https://angay.vercel.app/">
+    <img src="/docs/screenshots/hero_page.png" alt="Hero Page" width="800">
   </a>
 </p>
 
