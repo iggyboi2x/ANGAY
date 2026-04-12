@@ -163,7 +163,7 @@ const LandingPage = () => {
         </section>
 
         {/* ── Features ── */}
-        <section id="features" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
             Innovative Features Powering ANGAY
           </h2>

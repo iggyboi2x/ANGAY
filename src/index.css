@@ -9,7 +9,7 @@
 
 @layer base {
   html {
-    font-size: 24px;
+    font-size: 16px;
     scroll-behavior: smooth;
   }
 
@@ -43,4 +43,8 @@
     font-weight: 600;
     color: var(--font-secondary);
   }
+}
+
+.leaflet-container {
+  z-index: 0;
 }

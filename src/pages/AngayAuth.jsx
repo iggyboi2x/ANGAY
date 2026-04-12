@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
 import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
 
@@ -31,6 +32,8 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
   </div>
 );
 
+
+
 // ─── Alert Box ────────────────────────────────────────────────────────────────
 const Alert = ({ message, type }) => (
   <div className={`px-4 py-2.5 rounded-xl text-sm mb-4 border ${
@@ -42,9 +45,52 @@ const Alert = ({ message, type }) => (
   </div>
 );
 
+const ContactField = ({ value, onChange }) => {
+  const format = (raw) => {
+    let digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("63")) digits = digits.slice(2);
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    digits = digits.slice(0, 10);
+
+    let out = digits.slice(0, 3);
+    if (digits.length > 3) out += " " + digits.slice(3, 6);
+    if (digits.length > 6) out += " " + digits.slice(6, 10);
+    return out;
+  };
+
+  const handleChange = (e) => {
+    onChange(format(e.target.value));
+  };
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Number</label>
+      <div className="flex bg-gray-50 border border-gray-200 rounded-xl overflow-hidden transition-all focus-within:border-[#FE9800] focus-within:ring-2 focus-within:ring-[#FE9800]/20">
+        <span className="px-3.5 py-2.5 text-sm text-gray-500 font-medium border-r border-gray-200 bg-gray-100 select-none">
+          +63
+        </span>
+        <input
+          type="tel"
+          placeholder="9XX XXX XXXX"
+          value={value}
+          onChange={handleChange}
+          className="flex-1 px-3.5 py-2.5 text-sm bg-transparent outline-none"
+        />
+      </div>
+    </div>
+  );
+};
+
 
 // ─── Login Page ───────────────────────────────────────────────────────────────
+const ROLE_ROUTES = {
+  donor: "/donor/home",
+  foodbank: "/foodbank/dashboard",
+  barangay: "/barangay/dashboard",
+};
+
 const LoginPage = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -58,19 +104,21 @@ const LoginPage = ({ onSwitch }) => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setAlert({ message: error.message, type: "error" });
     } else {
       setAlert({ message: "Logged in successfully!", type: "success" });
-      // TODO: redirect to dashboard
+      const role = data?.user?.user_metadata?.role ?? "donor";
+      const route = ROLE_ROUTES[role] ?? "/donor/home";
+      setTimeout(() => navigate(route), 800);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#fffaf1]">
-      <div className="bg-white rounded-2xl p-10 w-full max-w-md shadow-lg relative overflow-hidden">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg relative overflow-hidden">
         {/* Orange top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
 
@@ -148,6 +196,8 @@ const RegisterPage = ({ onSwitch }) => {
   const isFoodbank = role === "foodbank";
   const isBarangay = role === "barangay";
 
+  const handleContactChange = e => setForm(f => ({ ...f, contact: e.target.value }));
+
   const handleRegister = async () => {
     setAlert(null);
     if (!form.fullName || !form.email || !form.password || !form.confirm) {
@@ -165,7 +215,7 @@ const RegisterPage = ({ onSwitch }) => {
       return;
     }
 
-    const contactRegex = /^(?:\+63\s?\d{3}\s?\d{3}\s?\d{4}|\+63\d{10})$/;
+    const contactRegex = /^\d{3}\s\d{3}\s\d{4}$/;
     if (!contactRegex.test(form.contact)) {
       setAlert({ message: "Invalid Contact Number. Please check and try again.", type: "error" });
       return;
@@ -193,18 +243,21 @@ const RegisterPage = ({ onSwitch }) => {
     const { error } = await supabase.auth.signUp({
       email: form.email, password: form.password,
       options: { data: { full_name: form.fullName, role, org_name: form.orgName || null,
-        address: form.address || null, contact: form.contact || null, hours: form.hours || null,
+        address: form.address || null, contact: form.contact ? `+63 ${form.contact}` : null, hours: form.hours || null,
         file_url: fileUrl } }
     });
     setLoading(false);
     if (error) setAlert({ message: error.message, type: "error" });
-    else setAlert({ message: "Account created successfully!", type: "success" });
+    else {
+      setAlert({ message: "Account created! Redirecting to login...", type: "success" });
+      setTimeout(() => onSwitch(), 1200);
+    }
   };
 
 
   return (
     <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
-      <div className="bg-white rounded-2xl p-9 w-full max-w-md shadow-lg relative overflow-hidden">
+      <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
 
         {/* Logo */}
@@ -221,13 +274,13 @@ const RegisterPage = ({ onSwitch }) => {
         <div className="flex gap-2.5 mb-5">
           {ROLES.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setRole(id)}
-              className={`flex-1 flex flex-col items-center gap-1.5 py-3 px-1.5 rounded-xl border-2 transition-all duration-200
+              className={`flex-1 flex flex-col justify-center items-center gap-1.5 py-3 px-1.5 rounded-xl border-2 transition-all duration-200
                 ${role === id
                   ? "border-[#FE9800] bg-orange-50 text-[#FE9800]"
                   : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50 hover:text-[#FE9800]/70"
                 }`}>
               <Icon size={24} />
-              <span className={`text-[16px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
+              <span className={`text-[13px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
                 {label}
               </span>
             </button>
@@ -244,7 +297,7 @@ const RegisterPage = ({ onSwitch }) => {
           placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
 
         {role === "donor" && (
-          <InputField label="Contact Number" placeholder="+63 XXX XXX XXXX" value={form.contact} onChange={set("contact")} />
+          <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
         )}
 
 
@@ -264,8 +317,7 @@ const RegisterPage = ({ onSwitch }) => {
               value={form.orgName} onChange={set("orgName")} />
             <InputField label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
               placeholder="Complete address" value={form.address} onChange={set("address")} />
-            <InputField label="Contact Number" placeholder="+63 XXX XXX XXXX"
-              value={form.contact} onChange={set("contact")} />
+            <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
             {isFoodbank && (
               <InputField label="Operating Hours" placeholder="e.g. Mon–Fri 8AM–5PM"
                 value={form.hours} onChange={set("hours")} />
