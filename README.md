@@ -83,7 +83,7 @@ Use these test accounts to explore the different portal functionalities:
 ### $\Large {\text{Landing Page}}$
 <p align="center">
   <a href="#">
-    <img src="/docs/screenshots/hero_page.png" alt="Hero Page" width="800">
+    <img src="/docs/screenshots/hero_page.png" href="https://angay.vercel.app/" alt="Hero Page" width="800">
   </a>
 </p>
 
