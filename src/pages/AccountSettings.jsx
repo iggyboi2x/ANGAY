@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { supabase } from '../../supabase';
+import { createClient } from '@supabase/supabase-js'; 
 import Sidebar from '../components/foodbank/FoodbankSidebar';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { 
-  LayoutDashboard, MessageSquare, Package, Gift, Box
+  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera
 } from 'lucide-react';
 
 const navItems = [
@@ -15,9 +17,86 @@ const navItems = [
 ];
 
 export default function AccountSettings() {
+  const [photoUrl, setPhotoUrl] = useState(null); 
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [donationReminders, setDonationReminders] = useState(true);
+
+  useEffect(() => {
+    const loadAvatar = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (data?.avatar_url) setPhotoUrl(data.avatar_url);
+    };
+
+    loadAvatar();
+  }, []);
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Image must be under 50MB.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({ 
+          id: user.id,           
+          avatar_url: publicUrl 
+        });
+
+      if (updateError) {
+        console.error('Profile update error:', updateError); 
+        throw updateError;
+      }
+
+      setPhotoUrl(publicUrl);
+      alert('Photo updated successfully!');
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload photo: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const Toggle = ({ checked, onChange }) => (
     <button
@@ -45,13 +124,54 @@ export default function AccountSettings() {
               Account Settings
             </h1>
 
-            {/* Profile Photo Section */}
+           {/* Profile Photo Section */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
               <div className="flex flex-col items-center">
-                <div className="w-24 h-24 rounded-full border-[3px] border-[#FE9800] bg-[#FE9800] flex items-center justify-center text-white text-3xl font-bold mb-3">
-                  CF
+
+                {/* Avatar — shows uploaded photo or initials fallback */}
+                <div className="relative mb-3">
+                  {photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt="Profile"
+                      className="w-24 h-24 rounded-full border-[3px] border-[#FE9800] object-cover"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full border-[3px] border-[#FE9800] bg-[#FE9800] flex items-center justify-center text-white text-3xl font-bold">
+                      CF
+                    </div>
+                  )}
+
+                  {/* Camera overlay button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute bottom-0 right-0 w-8 h-8 bg-[#FE9800] rounded-full flex items-center justify-center shadow-md hover:bg-[#C97700] transition-colors"
+                  >
+                    <Camera size={14} className="text-white" />
+                  </button>
                 </div>
-                <Button variant="ghost">Change Photo</Button>
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+
+                <Button
+                  variant="ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? 'Uploading...' : 'Change Photo'}
+                </Button>
+
+                <p className="text-xs text-[#888888] mt-1" style={{ fontFamily: 'DM Sans' }}>
+                  JPG, PNG or GIF · Max 50  MB
+                </p>
               </div>
             </div>
 
