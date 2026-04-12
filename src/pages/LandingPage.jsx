@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import LandingNav from '../components/LandingNav'
-import { Plus, ArrowRight, Github, Linkedin } from 'lucide-react'
+import { Plus, ArrowRight, Github, Linkedin, Mail, Phone, MapPin, Send } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const features = [
@@ -27,6 +27,14 @@ const faqsData = [
 
 const LandingPage = () => {
   const [activeFaq, setActiveFaq] = useState(null)
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    organization: '',
+    message: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState('')
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -57,6 +65,28 @@ const LandingPage = () => {
     { value: '45+', label: 'Foodbank Partners' },
     { value: '25,000+', label: 'Food Packs Distributed' }
   ], [])
+
+  const handleContactChange = (e) => {
+    const { name, value } = e.target
+    setContactForm(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setSubmitStatus('')
+
+    // Simulate form submission
+    setTimeout(() => {
+      console.log('Contact form submitted:', contactForm)
+      setSubmitStatus('success')
+      setContactForm({ name: '', email: '', organization: '', message: '' })
+      setIsSubmitting(false)
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSubmitStatus(''), 5000)
+    }, 1500)
+  }
 
   return (
     <div className="font-fredoka bg-[#fffaf1] text-slate-800">
@@ -104,7 +134,7 @@ const LandingPage = () => {
             <h3 className="text-3xl font-semibold">Our growing impact</h3>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {stats.map((stat) => (
-                <div key={stat.label} className="rounded-2xl bg-white/95 py-6 px-4 shadow-md">
+                <div key={stat.label} className="rounded-2xl bg-white/95 py-6 px-4 shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:bg-white cursor-pointer">
                   <p className="text-4xl font-semibold text-[#FE9800]">{stat.value}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-700">{stat.label}</p>
                 </div>
@@ -169,7 +199,7 @@ const LandingPage = () => {
               { img: 'barangay-img.png', alt: 'Coordinate', step: '03', text: 'Foodbanks coordinate with barangay officials to share information about available supplies. This ensures proper planning and fair allocation of resources.' },
               { img: 'family-img.png', alt: 'Distribute', step: '04', text: 'Barangay officials distribute the food to families in need, making sure the aid reaches the right households in an organized and timely manner.' },
             ].map((item) => (
-              <div key={item.step} className="reveal rounded-3xl bg-white p-6 shadow-md flex flex-col gap-4">
+              <div key={item.step} className="reveal rounded-3xl bg-white p-6 shadow-md flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 cursor-pointer">
                 <div className="relative overflow-hidden rounded-2xl bg-orange-50">
                   <span className="absolute top-3 left-3 rounded-full bg-[#FE9800] px-3 py-1 text-xs font-semibold text-white shadow">
                     {item.step}
@@ -194,7 +224,7 @@ const LandingPage = () => {
             {team.map((person) => (
               <article
                 key={person.name}
-                className="reveal rounded-3xl border border-orange-100 bg-white p-6 shadow-md text-center flex flex-col items-center"
+                className="reveal rounded-3xl border border-orange-100 bg-white p-6 shadow-md text-center flex flex-col items-center transition-all duration-300 hover:scale-110 hover:shadow-xl hover:border-orange-200 cursor-pointer"
               >
                 <div className="h-24 w-24 rounded-full bg-orange-100 border-4 border-orange-200 mb-4 overflow-hidden">
                   <img
@@ -259,6 +289,144 @@ const LandingPage = () => {
             >
               Send an inquiry <ArrowRight size={16} />
             </a>
+          </div>
+        </section>
+
+        {/* ── Contact ── */}
+        <section id="contact" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+          <div className="reveal rounded-3xl bg-white p-8 sm:p-12 shadow-md">
+            <h2 className="text-4xl font-semibold text-center tracking-tight text-slate-900">
+              Get in <span className="text-[#FE9800]">Touch</span>
+            </h2>
+            <p className="mt-4 text-center text-slate-500 max-w-2xl mx-auto text-base leading-relaxed">
+              Have questions or want to partner with us? We'd love to hear from you.
+            </p>
+
+            <div className="mt-10 grid gap-8 lg:grid-cols-2">
+              {/* Contact Info */}
+              <div className="space-y-6">
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-orange-50 border border-orange-100">
+                  <div className="flex-none w-12 h-12 rounded-xl bg-[#FE9800] flex items-center justify-center text-white">
+                    <Mail size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Email Us</h3>
+                    <p className="mt-1 text-sm text-slate-500">contact@angay.ph</p>
+                    <p className="text-sm text-slate-500">support@angay.ph</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-orange-50 border border-orange-100">
+                  <div className="flex-none w-12 h-12 rounded-xl bg-[#FE9800] flex items-center justify-center text-white">
+                    <Phone size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Call Us</h3>
+                    <p className="mt-1 text-sm text-slate-500">+63 123 456 7890</p>
+                    <p className="text-sm text-slate-500">Mon-Fri, 9AM-5PM PHT</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-orange-50 border border-orange-100">
+                  <div className="flex-none w-12 h-12 rounded-xl bg-[#FE9800] flex items-center justify-center text-white">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Visit Us</h3>
+                    <p className="mt-1 text-sm text-slate-500">123 Barangay Hall Street</p>
+                    <p className="text-sm text-slate-500">Manila, Philippines</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Form */}
+              <form onSubmit={handleContactSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={contactForm.name}
+                    onChange={handleContactChange}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-orange-100 bg-white text-slate-800 placeholder-slate-400 focus:border-[#FE9800] focus:outline-none transition"
+                    placeholder="Juan Dela Cruz"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={contactForm.email}
+                    onChange={handleContactChange}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-orange-100 bg-white text-slate-800 placeholder-slate-400 focus:border-[#FE9800] focus:outline-none transition"
+                    placeholder="juan@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="organization" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Organization (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="organization"
+                    name="organization"
+                    value={contactForm.organization}
+                    onChange={handleContactChange}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-orange-100 bg-white text-slate-800 placeholder-slate-400 focus:border-[#FE9800] focus:outline-none transition"
+                    placeholder="Your Foodbank or Barangay"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="message" className="block text-sm font-semibold text-slate-700 mb-2">
+                    Message
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    value={contactForm.message}
+                    onChange={handleContactChange}
+                    required
+                    rows="5"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-orange-100 bg-white text-slate-800 placeholder-slate-400 focus:border-[#FE9800] focus:outline-none transition resize-none"
+                    placeholder="Tell us how we can help..."
+                  ></textarea>
+                </div>
+
+                {submitStatus === 'success' && (
+                  <div className="p-4 rounded-xl bg-green-50 border border-green-200">
+                    <p className="text-sm font-semibold text-green-800">
+                      ✓ Message sent successfully! We'll get back to you soon.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-xl bg-[#FE9800] px-8 py-3 font-semibold text-white shadow-md hover:bg-[#e58a00] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    'Sending...'
+                  ) : (
+                    <>
+                      Send Message <Send size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </section>
 
