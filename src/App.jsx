@@ -8,6 +8,7 @@ import FoodbankDashboard from "./pages/foodbank/FoodbankDashboard";
 import FoodbankMessages from "./pages/foodbank/FoodbankMessages";
 import FoodbankPackages from "./pages/foodbank/FoodbankPackages";
 import FoodbankDonations from "./pages/foodbank/FoodbankDonations";
+import AccountSettings from './pages/AccountSettings';
 import BarangayDashboard from "./pages/barangay/BarangayDashboard";
 import BarangayMessages from "./pages/barangay/BarangayMessages";
 import BarangayDemographics from "./pages/barangay/BarangayDemographics";
@@ -28,6 +29,7 @@ function App() {
           <Route path="/foodbank/packages" element={<FoodbankPackages />} />
           <Route path="/foodbank/inventory" element={<FoodbankInventory />} />
           <Route path="/foodbank/donations" element={<FoodbankDonations />} />
+          <Route path="/account/settings" element={<AccountSettings />} />
           <Route path="/barangay/dashboard" element={<BarangayDashboard />} />
           <Route path="/barangay/messages" element={<BarangayMessages />} />
           <Route path="/barangay/demographics" element={<BarangayDemographics />} />
