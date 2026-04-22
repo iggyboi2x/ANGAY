@@ -2,15 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
 import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 
-// ─── Role Selector Data ───────────────────────────────────────────────────────
 const ROLES = [
-  { id: "foodbank", label: "I'm a Foodbank", Icon: Building2 },
-  { id: "barangay", label: "I'm a Barangay Rep", Icon: Home },
-  { id: "donor", label: "I'm a Donor", Icon: User },
+  { id: "foodbank", label: "I'm a Foodbank",     Icon: Building2 },
+  { id: "barangay", label: "I'm a Barangay Rep", Icon: Home      },
+  { id: "donor",    label: "I'm a Donor",         Icon: User      },
 ];
 
-// ─── Shared Input ─────────────────────────────────────────────────────────────
 const InputField = ({ label, type = "text", placeholder, value, onChange, showToggle, toggled, onToggle }) => (
   <div className="mb-4">
     <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
@@ -20,7 +19,8 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl outline-none transition-all focus:border-[#FE9800] focus:ring-2 focus:ring-[#FE9800]/20"
+        className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl
+          outline-none transition-all focus:border-[#FE9800] focus:ring-2 focus:ring-[#FE9800]/20"
       />
       {showToggle && (
         <button type="button" onClick={onToggle}
@@ -32,9 +32,6 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
   </div>
 );
 
-
-
-// ─── Alert Box ────────────────────────────────────────────────────────────────
 const Alert = ({ message, type }) => (
   <div className={`px-4 py-2.5 rounded-xl text-sm mb-4 border ${
     type === "error"
@@ -49,60 +46,47 @@ const ContactField = ({ value, onChange }) => {
   const format = (raw) => {
     let digits = raw.replace(/\D/g, "");
     if (digits.startsWith("63")) digits = digits.slice(2);
-    if (digits.startsWith("0")) digits = digits.slice(1);
+    if (digits.startsWith("0"))  digits = digits.slice(1);
     digits = digits.slice(0, 10);
-
     let out = digits.slice(0, 3);
     if (digits.length > 3) out += " " + digits.slice(3, 6);
     if (digits.length > 6) out += " " + digits.slice(6, 10);
     return out;
   };
-
-  const handleChange = (e) => {
-    onChange(format(e.target.value));
-  };
-
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Number</label>
-      <div className="flex bg-gray-50 border border-gray-200 rounded-xl overflow-hidden transition-all focus-within:border-[#FE9800] focus-within:ring-2 focus-within:ring-[#FE9800]/20">
+      <div className="flex bg-gray-50 border border-gray-200 rounded-xl overflow-hidden transition-all
+        focus-within:border-[#FE9800] focus-within:ring-2 focus-within:ring-[#FE9800]/20">
         <span className="px-3.5 py-2.5 text-sm text-gray-500 font-medium border-r border-gray-200 bg-gray-100 select-none">
           +63
         </span>
-        <input
-          type="tel"
-          placeholder="9XX XXX XXXX"
-          value={value}
-          onChange={handleChange}
-          className="flex-1 px-3.5 py-2.5 text-sm bg-transparent outline-none"
-        />
+        <input type="tel" placeholder="9XX XXX XXXX" value={value}
+          onChange={(e) => onChange(format(e.target.value))}
+          className="flex-1 px-3.5 py-2.5 text-sm bg-transparent outline-none" />
       </div>
     </div>
   );
 };
 
-
-// ─── Login Page ───────────────────────────────────────────────────────────────
+// ─── Login ────────────────────────────────────────────────────────────────────
 const ROLE_ROUTES = {
-  donor: "/donor/home",
+  donor:    "/donor/home",
   foodbank: "/foodbank/dashboard",
   barangay: "/barangay/dashboard",
 };
 
 const LoginPage = ({ onSwitch }) => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [showPw, setShowPw]   = useState(false);
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
+  const [alert, setAlert]     = useState(null);
 
   const handleLogin = async () => {
     setAlert(null);
-    if (!email || !password) {
-      setAlert({ message: "Please fill in all fields.", type: "error" });
-      return;
-    }
+    if (!email || !password) { setAlert({ message: "Please fill in all fields.", type: "error" }); return; }
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
@@ -110,7 +94,7 @@ const LoginPage = ({ onSwitch }) => {
       setAlert({ message: error.message, type: "error" });
     } else {
       setAlert({ message: "Logged in successfully!", type: "success" });
-      const role = data?.user?.user_metadata?.role ?? "donor";
+      const role  = data?.user?.user_metadata?.role ?? "donor";
       const route = ROLE_ROUTES[role] ?? "/donor/home";
       setTimeout(() => navigate(route), 800);
     }
@@ -119,10 +103,7 @@ const LoginPage = ({ onSwitch }) => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#fffaf1]">
       <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg relative overflow-hidden">
-        {/* Orange top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
-
-        {/* Logo */}
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2 mb-3">
             <Wheat size={24} color="#FE9800" />
@@ -131,34 +112,25 @@ const LoginPage = ({ onSwitch }) => {
           <h1 className="text-xl font-semibold text-slate-800">Welcome back</h1>
           <p className="text-sm text-slate-500 mt-1">Log in to your account</p>
         </div>
-
         {alert && <Alert {...alert} />}
-
         <InputField label="Email Address" type="email" placeholder="your@email.com"
           value={email} onChange={e => setEmail(e.target.value)} />
-        <InputField label="Password" showToggle toggled={showPw}
-          onToggle={() => setShowPw(p => !p)} placeholder="Enter your password"
-          value={password} onChange={e => setPassword(e.target.value)} />
-
-        {/* Forgot Password */}
+        <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
+          placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} />
         <div className="text-right -mt-2 mb-5">
           <a href="#" className="text-sm text-[#FE9800] font-medium hover:text-[#e58a00] hover:underline transition-colors">
             Forgot Password?
           </a>
         </div>
-
-        {/* Login Button */}
         <button onClick={handleLogin} disabled={loading}
           className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md
             hover:bg-[#e58a00] hover:shadow-lg active:scale-[0.98]
             disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
           {loading ? "Logging in..." : "Log In"}
         </button>
-
         <p className="text-center text-sm text-slate-500 mt-5">
           Don't have an account?{" "}
-          <button onClick={onSwitch}
-            className="text-[#FE9800] font-semibold hover:text-[#e58a00] hover:underline transition-colors">
+          <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:text-[#e58a00] hover:underline transition-colors">
             Sign up
           </button>
         </p>
@@ -167,39 +139,37 @@ const LoginPage = ({ onSwitch }) => {
   );
 };
 
-
-// ─── Register Page ────────────────────────────────────────────────────────────
+// ─── Register ─────────────────────────────────────────────────────────────────
 const RegisterPage = ({ onSwitch }) => {
-  const [role, setRole] = useState("foodbank");
-  const [showPw, setShowPw] = useState(false);
+  const [role, setRole]           = useState("foodbank");
+  const [showPw, setShowPw]       = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState(null);
-  const [uploadFile, setUploadFile] = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [alert, setAlert]         = useState(null);
+  const [uploadFile, setUploadFile]   = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [form, setForm] = useState({
     fullName: "", email: "", password: "", confirm: "",
-    orgName: "", address: "", contact: "", hours: "",
+    orgName: "", address: "", lat: null, lng: null, contact: "", hours: "",
   });
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadFile(file);
-    if (file.type.startsWith("image/")) {
-      setUploadPreview(URL.createObjectURL(file));
-    } else {
-      setUploadPreview(null);
-    }
+    if (file.type.startsWith("image/")) setUploadPreview(URL.createObjectURL(file));
+    else setUploadPreview(null);
   };
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+
   const isFoodbank = role === "foodbank";
   const isBarangay = role === "barangay";
 
-  const handleContactChange = e => setForm(f => ({ ...f, contact: e.target.value }));
-
   const handleRegister = async () => {
     setAlert(null);
+
+    // Basic validation
     if (!form.fullName || !form.email || !form.password || !form.confirm) {
       setAlert({ message: "Please fill in all required fields.", type: "error" }); return;
     }
@@ -209,58 +179,82 @@ const RegisterPage = ({ onSwitch }) => {
     if (form.password.length < 6) {
       setAlert({ message: "Password must be at least 6 characters.", type: "error" }); return;
     }
-
-    if (!form.contact || form.contact.trim() === "") {
-      setAlert({ message: "Please enter a contact number.", type: "error" });
-      return;
-    }
-
     const contactRegex = /^\d{3}\s\d{3}\s\d{4}$/;
-    if (!contactRegex.test(form.contact)) {
-      setAlert({ message: "Invalid Contact Number. Please check and try again.", type: "error" });
-      return;
+    if (!form.contact || !contactRegex.test(form.contact)) {
+      setAlert({ message: "Invalid contact number. Please check and try again.", type: "error" }); return;
+    }
+    if ((isFoodbank || isBarangay) && (!form.lat || !form.lng)) {
+      setAlert({ message: "Please search and select your address from the dropdown to enable geotagging.", type: "error" }); return;
     }
 
     setLoading(true);
 
-    // Upload file if provided
+    // Upload file
     let fileUrl = null;
     if (uploadFile && (isFoodbank || isBarangay)) {
-      const bucket = isFoodbank ? "logos" : "documents";
+      const bucket   = isFoodbank ? "logos" : "documents";
       const fileName = `${Date.now()}_${uploadFile.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, uploadFile);
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, uploadFile);
       if (uploadError) {
         setAlert({ message: "File upload failed: " + uploadError.message, type: "error" });
-        setLoading(false);
-        return;
+        setLoading(false); return;
       }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
       fileUrl = urlData.publicUrl;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: form.email, password: form.password,
-      options: { data: { full_name: form.fullName, role, org_name: form.orgName || null,
-        address: form.address || null, contact: form.contact ? `+63 ${form.contact}` : null, hours: form.hours || null,
-        file_url: fileUrl } }
+    // Sign up
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          full_name: form.fullName,
+          role,
+          org_name:  form.orgName  || null,
+          address:   form.address  || null,
+          contact:   form.contact  ? `+63 ${form.contact}` : null,
+          hours:     form.hours    || null,
+          file_url:  fileUrl,
+        },
+      },
     });
-    setLoading(false);
-    if (error) setAlert({ message: error.message, type: "error" });
-    else {
-      setAlert({ message: "Account created! Redirecting to login...", type: "success" });
-      setTimeout(() => onSwitch(), 1200);
-    }
-  };
 
+    if (error) {
+      setAlert({ message: error.message, type: "error" });
+      setLoading(false); return;
+    }
+
+    // Insert profile row with geocoordinates
+    if (signUpData?.user) {
+      const { error: profileError } = await supabase.from("profiles").insert({
+        id:        signUpData.user.id,
+        role,
+        full_name: form.fullName,
+        org_name:  form.orgName  || null,
+        address:   form.address  || null,
+        latitude:  form.lat      || null,
+        longitude: form.lng      || null,
+        contact:   form.contact  ? `+63 ${form.contact}` : null,
+        hours:     form.hours    || null,
+        file_url:  fileUrl       || null,
+      });
+      if (profileError) {
+        // Non-fatal – account was created, just log
+        console.warn("Profile insert error:", profileError.message);
+      }
+    }
+
+    setLoading(false);
+    setAlert({ message: "Account created! Redirecting to login…", type: "success" });
+    setTimeout(() => onSwitch(), 1200);
+  };
 
   return (
     <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
       <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
 
-        {/* Logo */}
         <div className="text-center mb-5">
           <div className="inline-flex items-center gap-2 mb-2">
             <Wheat size={22} color="#FE9800" />
@@ -277,7 +271,7 @@ const RegisterPage = ({ onSwitch }) => {
               className={`flex-1 flex flex-col justify-center items-center gap-1.5 py-3 px-1.5 rounded-xl border-2 transition-all duration-200
                 ${role === id
                   ? "border-[#FE9800] bg-orange-50 text-[#FE9800]"
-                  : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50 hover:text-[#FE9800]/70"
+                  : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50"
                 }`}>
               <Icon size={24} />
               <span className={`text-[13px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
@@ -289,8 +283,10 @@ const RegisterPage = ({ onSwitch }) => {
 
         {alert && <Alert {...alert} />}
 
-        <InputField label="Full Name" placeholder="Enter your full name" value={form.fullName} onChange={set("fullName")} />
-        <InputField label="Email Address" type="email" placeholder="your@email.com" value={form.email} onChange={set("email")} />
+        <InputField label="Full Name" placeholder="Enter your full name"
+          value={form.fullName} onChange={set("fullName")} />
+        <InputField label="Email Address" type="email" placeholder="your@email.com"
+          value={form.email} onChange={set("email")} />
         <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
           placeholder="Create a password" value={form.password} onChange={set("password")} />
         <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
@@ -300,10 +296,8 @@ const RegisterPage = ({ onSwitch }) => {
           <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
         )}
 
-
         {(isFoodbank || isBarangay) && (
           <>
-            {/* Section Divider */}
             <div className="flex items-center gap-3 my-4">
               <div className="flex-1 h-px bg-gray-200" />
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -312,18 +306,29 @@ const RegisterPage = ({ onSwitch }) => {
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
-            <InputField label={isFoodbank ? "Organization Name" : "Barangay Name"}
+            <InputField
+              label={isFoodbank ? "Organization Name" : "Barangay Name"}
               placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
-              value={form.orgName} onChange={set("orgName")} />
-            <InputField label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
-              placeholder="Complete address" value={form.address} onChange={set("address")} />
+              value={form.orgName} onChange={set("orgName")}
+            />
+
+            {/* Geocoded address autocomplete */}
+            <AddressAutocomplete
+              label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
+              placeholder="Type your address to search and pin location…"
+              onSelect={(addr, lat, lng) =>
+                setForm(f => ({ ...f, address: addr, lat, lng }))
+              }
+            />
+
             <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
+
             {isFoodbank && (
               <InputField label="Operating Hours" placeholder="e.g. Mon–Fri 8AM–5PM"
                 value={form.hours} onChange={set("hours")} />
             )}
 
-            {/* Upload Box */}
+            {/* Upload */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
@@ -333,11 +338,10 @@ const RegisterPage = ({ onSwitch }) => {
                 <input type="file" className="hidden"
                   accept={isFoodbank ? "image/*" : "image/*,.pdf"}
                   onChange={handleFileChange} />
-                {uploadPreview ? (
-                  <img src={uploadPreview} alt="Preview" className="mx-auto h-20 w-20 object-cover rounded-lg mb-2" />
-                ) : (
-                  <Upload size={28} className="mx-auto text-gray-400" />
-                )}
+                {uploadPreview
+                  ? <img src={uploadPreview} alt="Preview" className="mx-auto h-20 w-20 object-cover rounded-lg mb-2" />
+                  : <Upload size={28} className="mx-auto text-gray-400" />
+                }
                 <p className="text-xs text-gray-400 mt-2">
                   {uploadFile ? uploadFile.name : "Drag & drop or click to browse"}
                 </p>
@@ -346,12 +350,11 @@ const RegisterPage = ({ onSwitch }) => {
           </>
         )}
 
-        {/* Create Account Button */}
         <button onClick={handleRegister} disabled={loading}
           className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md mt-1
             hover:bg-[#e58a00] hover:shadow-lg active:scale-[0.98]
             disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
-          {loading ? "Creating account..." : "Create Account"}
+          {loading ? "Creating account…" : "Create Account"}
         </button>
 
         <p className="text-center text-sm text-slate-500 mt-4">
