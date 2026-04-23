@@ -1,77 +1,213 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
 import { Search, Send, MoreVertical } from "lucide-react";
+import { supabase } from "../../../supabase";
 
-const conversations = [
-  {
-    id: 1,
-    name: "Cebu City Food Bank",
-    avatar: "CF",
-    avatarColor: "#FE9800",
-    lastMessage: "Your donation of Rice 50kg has been confirmed!",
-    time: "10:32 AM",
-    unread: 2,
-    messages: [
-      { from: "them", text: "Hello! Thank you for reaching out to Cebu City Food Bank.", time: "9:00 AM" },
-      { from: "me", text: "Hi! I'd like to donate 50kg of rice. Is that possible?", time: "9:05 AM" },
-      { from: "them", text: "Absolutely! That would be very helpful for our community.", time: "9:10 AM" },
-      { from: "them", text: "We have a scheduled pickup on March 20, 2026. Would that work?", time: "9:12 AM" },
-      { from: "me", text: "Yes, that works perfectly for me.", time: "9:20 AM" },
-      { from: "them", text: "Your donation of Rice 50kg has been confirmed!", time: "10:32 AM" },
-    ],
-  },
-  {
-    id: 2,
-    name: "Mandaue Food Hub",
-    avatar: "MF",
-    avatarColor: "#34d399",
-    lastMessage: "We will contact you for the schedule soon.",
-    time: "Yesterday",
-    unread: 0,
-    messages: [
-      { from: "me", text: "Hi Mandaue Food Hub! I have some canned goods to donate.", time: "Mar 21" },
-      { from: "them", text: "Thank you so much! How many cans are you looking to donate?", time: "Mar 21" },
-      { from: "me", text: "Around 3 boxes, roughly 60 cans total.", time: "Mar 21" },
-      { from: "them", text: "That's wonderful! We will contact you for the schedule soon.", time: "Mar 22" },
-    ],
-  },
-  {
-    id: 3,
-    name: "ANGAY Support",
-    avatar: "AS",
-    avatarColor: "#60a5fa",
-    lastMessage: "How can we help you today?",
-    time: "Mar 15",
-    unread: 0,
-    messages: [
-      { from: "them", text: "Welcome to ANGAY! How can we help you today?", time: "Mar 15" },
-    ],
-  },
-];
+const formatMessageTime = (raw) => {
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
 
 export default function DonorMessages() {
-  const [selected, setSelected] = useState(conversations[0]);
+  const [searchParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState(null);
   const [input, setInput] = useState("");
-  const [chats, setChats] = useState(conversations);
+  const [chats, setChats] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [nameLookup, setNameLookup] = useState({});
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const selected = useMemo(() => chats.find((chat) => chat.id === selectedId) || null, [chats, selectedId]);
+  const targetRecipientId = searchParams.get("recipient");
+  const targetRecipientName = searchParams.get("name");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConversations = async () => {
+      setLoading(true);
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id || null;
+      setCurrentUserId(userId);
+
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id, conversation_id, sender_id, receiver_id, content, created_at, is_read")
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .order("created_at", { ascending: true });
+
+      if (!cancelled) {
+        if (error) {
+          setChats([]);
+        } else {
+          const grouped = new Map();
+          (data || []).forEach((msg) => {
+            const key = msg.conversation_id || `${msg.sender_id}-${msg.receiver_id}`;
+            const participantId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+            if (!grouped.has(key)) {
+              grouped.set(key, {
+                id: key,
+                name: "Conversation",
+                avatar: "AN",
+                avatarColor: "#FE9800",
+                time: "",
+                unread: 0,
+                lastMessage: "",
+                messages: [],
+                participantId,
+              });
+            }
+
+            const current = grouped.get(key);
+            current.participantId = participantId;
+            const isMine = msg.sender_id === userId;
+            const message = {
+              from: isMine ? "me" : "them",
+              text: msg.content || "",
+              time: formatMessageTime(msg.created_at),
+            };
+            current.messages.push(message);
+            current.lastMessage = msg.content || "";
+            current.time = formatMessageTime(msg.created_at);
+            if (!msg.is_read) current.unread += 1;
+          });
+
+          const nextChats = Array.from(grouped.values());
+          const participantIds = Array.from(new Set(nextChats.map((chat) => chat.participantId).filter(Boolean)));
+          const names = {};
+          if (participantIds.length > 0) {
+            const [{ data: foodbanks }, { data: profiles }] = await Promise.all([
+              supabase.from("foodbanks").select("id, org_name, logo_url").in("id", participantIds),
+              supabase.from("profiles").select("id, full_name").in("id", participantIds),
+            ]);
+
+            (foodbanks || []).forEach((row) => {
+              names[row.id] = { name: row.org_name || "Foodbank", avatarUrl: row.logo_url || null };
+            });
+            (profiles || []).forEach((row) => {
+              if (!names[row.id]) {
+                names[row.id] = { name: row.full_name || "User", avatarUrl: null };
+              }
+            });
+          }
+          setNameLookup(names);
+
+          const enriched = nextChats.map((chat) => {
+            const resolved = names[chat.participantId];
+            const displayName = resolved?.name || `Conversation ${String(chat.id).slice(0, 6)}`;
+            const initials = displayName
+              .split(" ")
+              .slice(0, 2)
+              .map((part) => part[0]?.toUpperCase() || "")
+              .join("");
+            return {
+              ...chat,
+              name: displayName,
+              avatar: initials || "AN",
+              avatarUrl: resolved?.avatarUrl || null,
+            };
+          });
+
+          setChats(enriched);
+          if (enriched.length > 0) setSelectedId(enriched[0].id);
+        }
+        setLoading(false);
+      }
+    };
+
+    loadConversations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!targetRecipientId || !currentUserId || loading) return;
+    const existing = chats.find((chat) => chat.participantId === targetRecipientId);
+    if (existing) {
+      setSelectedId(existing.id);
+      return;
+    }
+
+    const displayName = targetRecipientName || nameLookup[targetRecipientId]?.name || "Foodbank";
+    const draftId = `draft-${targetRecipientId}`;
+    const initials = displayName
+      .split(" ")
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+
+    setChats((prev) => {
+      if (prev.some((chat) => chat.id === draftId)) return prev;
+      return [
+        {
+          id: draftId,
+          participantId: targetRecipientId,
+          name: displayName,
+          avatar: initials || "FB",
+          avatarColor: "#FE9800",
+          time: "",
+          unread: 0,
+          lastMessage: "Start a conversation",
+          messages: [],
+        },
+        ...prev,
+      ];
+    });
+    setSelectedId(draftId);
+  }, [targetRecipientId, targetRecipientName, currentUserId, chats, loading, nameLookup]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !selected) return;
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const newMsg = { from: "me", text: input, time: now };
+    const content = input;
     const updated = chats.map((c) =>
       c.id === selected.id
-        ? { ...c, messages: [...c.messages, newMsg], lastMessage: input, time: now }
+        ? { ...c, messages: [...c.messages, newMsg], lastMessage: content, time: now }
         : c
     );
     setChats(updated);
-    setSelected((prev) => ({ ...prev, messages: [...prev.messages, newMsg] }));
     setInput("");
+
+    if (currentUserId && selected.participantId) {
+      const deterministicConversationId =
+        selected.id.startsWith("draft-")
+          ? [currentUserId, selected.participantId].sort().join("-")
+          : selected.id;
+
+      await supabase.from("messages").insert({
+        conversation_id: deterministicConversationId,
+        sender_id: currentUserId,
+        receiver_id: selected.participantId,
+        content,
+      });
+
+      if (selected.id.startsWith("draft-")) {
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === selected.id
+              ? { ...chat, id: deterministicConversationId }
+              : chat
+          )
+        );
+        setSelectedId(deterministicConversationId);
+      }
+    }
   };
+
+  const filteredChats = chats.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.lastMessage.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <DonorLayout>
       <div className="flex" style={{ height: "calc(100vh - 57px)" }}>
-        {/* Sidebar */}
         <aside className="w-80 bg-white border-r border-gray-100 flex flex-col flex-shrink-0">
           <div className="p-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-800 mb-3">Messages</h2>
@@ -79,6 +215,8 @@ export default function DonorMessages() {
               <Search size={14} className="text-gray-400" />
               <input
                 type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search conversations..."
                 className="bg-transparent text-xs text-gray-600 outline-none w-full placeholder-gray-400"
               />
@@ -86,20 +224,32 @@ export default function DonorMessages() {
           </div>
 
           <div className="overflow-y-auto flex-1">
-            {chats.map((c) => (
+            {loading ? (
+              <p className="text-xs text-gray-400 px-4 py-5">Loading conversations...</p>
+            ) : filteredChats.length === 0 ? (
+              <p className="text-xs text-gray-400 px-4 py-5">No conversations found.</p>
+            ) : filteredChats.map((c) => (
               <button
                 key={c.id}
-                onClick={() => setSelected(c)}
+                onClick={() => setSelectedId(c.id)}
                 className={`w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-orange-50 transition-colors border-b border-gray-50 ${
-                  selected.id === c.id ? "bg-orange-50 border-l-2 border-l-[#FE9800]" : ""
+                  selected?.id === c.id ? "bg-orange-50 border-l-2 border-l-[#FE9800]" : ""
                 }`}
               >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: c.avatarColor }}
-                >
-                  {c.avatar}
-                </div>
+                {c.avatarUrl ? (
+                  <img
+                    src={c.avatarUrl}
+                    alt={c.name}
+                    className="w-9 h-9 rounded-full object-cover border border-gray-100 flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    style={{ backgroundColor: c.avatarColor }}
+                  >
+                    {c.avatar}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-800 truncate">{c.name}</span>
@@ -119,30 +269,41 @@ export default function DonorMessages() {
           </div>
         </aside>
 
-        {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-[#FFFAF1]">
-          {/* Chat Header */}
           <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                style={{ backgroundColor: selected.avatarColor }}
-              >
-                {selected.avatar}
+            {selected ? (
+              <div className="flex items-center gap-3">
+                {selected.avatarUrl ? (
+                  <img
+                    src={selected.avatarUrl}
+                    alt={selected.name}
+                    className="w-9 h-9 rounded-full object-cover border border-gray-100"
+                  />
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: selected.avatarColor }}
+                  >
+                    {selected.avatar}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{selected.name}</p>
+                  <p className="text-xs text-green-500">Active now</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">{selected.name}</p>
-                <p className="text-xs text-green-500">Active now</p>
-              </div>
-            </div>
+            ) : (
+              <p className="text-sm text-gray-500">Select a conversation</p>
+            )}
             <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
               <MoreVertical size={16} />
             </button>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-3">
-            {selected.messages.map((msg, i) => (
+            {!selected ? (
+              <p className="text-sm text-gray-400">No active chat selected.</p>
+            ) : selected.messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm ${
                   msg.from === "me"
@@ -158,7 +319,6 @@ export default function DonorMessages() {
             ))}
           </div>
 
-          {/* Input */}
           <div className="bg-white border-t border-gray-100 px-6 py-4">
             <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-100">
               <input
@@ -172,7 +332,7 @@ export default function DonorMessages() {
               <button
                 onClick={handleSend}
                 className="bg-[#FE9800] text-white p-2 rounded-lg hover:bg-orange-500 transition-colors disabled:opacity-40"
-                disabled={!input.trim()}
+                disabled={!input.trim() || !selected}
               >
                 <Send size={14} />
               </button>
