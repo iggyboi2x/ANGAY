@@ -10,12 +10,18 @@ export function useMapPins(role) {
 
     async function load() {
       setLoading(true);
-      const table   = role === 'foodbank' ? 'foodbanks' : 'barangays';
-      const nameCol = role === 'foodbank' ? 'org_name'  : 'barangay_name';
+
+      const isFoodbank = role === 'foodbank';
+      const table      = isFoodbank ? 'foodbanks' : 'barangays';
+      const nameCol    = isFoodbank ? 'org_name'  : 'barangay_name';
+      // operating_hours only exists on the foodbanks table
+      const selectCols = isFoodbank
+        ? `id, ${nameCol}, address, latitude, longitude, operating_hours`
+        : `id, ${nameCol}, address, latitude, longitude`;
 
       const { data, error } = await supabase
         .from(table)
-        .select(`id, ${nameCol}, address, latitude, longitude, operating_hours`);
+        .select(selectCols);
 
       console.log(`[useMapPins] table=${table}`, { data, error });
 
@@ -23,8 +29,6 @@ export function useMapPins(role) {
         const withCoords = (data || []).filter(
           row => row.latitude != null && row.longitude != null
         );
-        console.log(`[useMapPins] rows with coords:`, withCoords);
-
         const normalized = withCoords.map(row => ({
           ...row,
           org_name: row[nameCol],
