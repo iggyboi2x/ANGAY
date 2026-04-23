@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
+import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import OperatingHoursPicker from "../components/OperatingHoursPicker";
+import FlashMessage from "../components/FlashMessage";
 
 const ROLES = [
   { id: "foodbank", label: "I'm a Foodbank",     Icon: Building2 },
@@ -30,16 +31,6 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
         </button>
       )}
     </div>
-  </div>
-);
-
-const Alert = ({ message, type }) => (
-  <div className={`px-4 py-2.5 rounded-xl text-sm mb-4 border ${
-    type === "error"
-      ? "bg-red-50 text-red-700 border-red-200"
-      : "bg-green-50 text-green-700 border-green-200"
-  }`}>
-    {message}
   </div>
 );
 
@@ -101,9 +92,23 @@ const LoginPage = ({ onSwitch }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#fffaf1]">
-      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
+    <div className="min-h-screen bg-white py-8 px-4">
+      {alert && (
+        <FlashMessage
+          message={alert.message}
+          type={alert.type}
+          onClose={() => setAlert(null)}
+        />
+      )}
+      <div className="w-full max-w-sm mx-auto">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2 mb-3">
             <Wheat size={24} color="#FE9800" />
@@ -112,7 +117,6 @@ const LoginPage = ({ onSwitch }) => {
           <h1 className="text-xl font-semibold text-slate-800">Welcome back</h1>
           <p className="text-sm text-slate-500 mt-1">Log in to your account</p>
         </div>
-        {alert && <Alert {...alert} />}
         <InputField label="Email Address" type="email" placeholder="your@email.com"
           value={email} onChange={e => setEmail(e.target.value)} />
         <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
@@ -135,6 +139,7 @@ const LoginPage = ({ onSwitch }) => {
 };
 
 const RegisterPage = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [role, setRole]               = useState("foodbank");
   const [showPw, setShowPw]           = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -219,9 +224,23 @@ const RegisterPage = ({ onSwitch }) => {
   };
 
   return (
-    <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
-      <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
+    <div className="min-h-screen bg-white py-8 px-4">
+      {alert && (
+        <FlashMessage
+          message={alert.message}
+          type={alert.type}
+          onClose={() => setAlert(null)}
+        />
+      )}
+      <div className="w-full max-w-sm mx-auto">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
         <div className="text-center mb-5">
           <div className="inline-flex items-center gap-2 mb-2">
             <Wheat size={22} color="#FE9800" />
@@ -244,7 +263,6 @@ const RegisterPage = ({ onSwitch }) => {
             </button>
           ))}
         </div>
-        {alert && <Alert {...alert} />}
         <InputField label="Full Name" placeholder="Enter your full name"
           value={form.fullName} onChange={set("fullName")} />
         <InputField label="Email Address" type="email" placeholder="your@email.com"
