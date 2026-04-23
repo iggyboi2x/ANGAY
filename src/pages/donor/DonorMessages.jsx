@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
 import { Search, Send, MoreVertical } from "lucide-react";
 import { supabase } from "../../../supabase";
@@ -11,14 +12,18 @@ const formatMessageTime = (raw) => {
 };
 
 export default function DonorMessages() {
+  const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState(null);
   const [input, setInput] = useState("");
   const [chats, setChats] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [nameLookup, setNameLookup] = useState({});
 
   const selected = useMemo(() => chats.find((chat) => chat.id === selectedId) || null, [chats, selectedId]);
+  const targetRecipientId = searchParams.get("recipient");
+  const targetRecipientName = searchParams.get("name");
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +37,7 @@ export default function DonorMessages() {
       const { data, error } = await supabase
         .from("messages")
         .select("id, conversation_id, sender_id, receiver_id, content, created_at, is_read")
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order("created_at", { ascending: true });
 
       if (!cancelled) {
@@ -41,20 +47,23 @@ export default function DonorMessages() {
           const grouped = new Map();
           (data || []).forEach((msg) => {
             const key = msg.conversation_id || `${msg.sender_id}-${msg.receiver_id}`;
+            const participantId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
             if (!grouped.has(key)) {
               grouped.set(key, {
                 id: key,
-                name: "Conversation " + String(key).slice(0, 8),
+                name: "Conversation",
                 avatar: "AN",
                 avatarColor: "#FE9800",
                 time: "",
                 unread: 0,
                 lastMessage: "",
                 messages: [],
+                participantId,
               });
             }
 
             const current = grouped.get(key);
+            current.participantId = participantId;
             const isMine = msg.sender_id === userId;
             const message = {
               from: isMine ? "me" : "them",
@@ -68,8 +77,43 @@ export default function DonorMessages() {
           });
 
           const nextChats = Array.from(grouped.values());
-          setChats(nextChats);
-          if (nextChats.length > 0) setSelectedId(nextChats[0].id);
+          const participantIds = Array.from(new Set(nextChats.map((chat) => chat.participantId).filter(Boolean)));
+          const names = {};
+          if (participantIds.length > 0) {
+            const [{ data: foodbanks }, { data: profiles }] = await Promise.all([
+              supabase.from("foodbanks").select("id, org_name, logo_url").in("id", participantIds),
+              supabase.from("profiles").select("id, full_name").in("id", participantIds),
+            ]);
+
+            (foodbanks || []).forEach((row) => {
+              names[row.id] = { name: row.org_name || "Foodbank", avatarUrl: row.logo_url || null };
+            });
+            (profiles || []).forEach((row) => {
+              if (!names[row.id]) {
+                names[row.id] = { name: row.full_name || "User", avatarUrl: null };
+              }
+            });
+          }
+          setNameLookup(names);
+
+          const enriched = nextChats.map((chat) => {
+            const resolved = names[chat.participantId];
+            const displayName = resolved?.name || `Conversation ${String(chat.id).slice(0, 6)}`;
+            const initials = displayName
+              .split(" ")
+              .slice(0, 2)
+              .map((part) => part[0]?.toUpperCase() || "")
+              .join("");
+            return {
+              ...chat,
+              name: displayName,
+              avatar: initials || "AN",
+              avatarUrl: resolved?.avatarUrl || null,
+            };
+          });
+
+          setChats(enriched);
+          if (enriched.length > 0) setSelectedId(enriched[0].id);
         }
         setLoading(false);
       }
@@ -80,6 +124,42 @@ export default function DonorMessages() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!targetRecipientId || !currentUserId || loading) return;
+    const existing = chats.find((chat) => chat.participantId === targetRecipientId);
+    if (existing) {
+      setSelectedId(existing.id);
+      return;
+    }
+
+    const displayName = targetRecipientName || nameLookup[targetRecipientId]?.name || "Foodbank";
+    const draftId = `draft-${targetRecipientId}`;
+    const initials = displayName
+      .split(" ")
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+
+    setChats((prev) => {
+      if (prev.some((chat) => chat.id === draftId)) return prev;
+      return [
+        {
+          id: draftId,
+          participantId: targetRecipientId,
+          name: displayName,
+          avatar: initials || "FB",
+          avatarColor: "#FE9800",
+          time: "",
+          unread: 0,
+          lastMessage: "Start a conversation",
+          messages: [],
+        },
+        ...prev,
+      ];
+    });
+    setSelectedId(draftId);
+  }, [targetRecipientId, targetRecipientName, currentUserId, chats, loading, nameLookup]);
 
   const handleSend = async () => {
     if (!input.trim() || !selected) return;
@@ -94,12 +174,29 @@ export default function DonorMessages() {
     setChats(updated);
     setInput("");
 
-    if (currentUserId) {
+    if (currentUserId && selected.participantId) {
+      const deterministicConversationId =
+        selected.id.startsWith("draft-")
+          ? [currentUserId, selected.participantId].sort().join("-")
+          : selected.id;
+
       await supabase.from("messages").insert({
-        conversation_id: selected.id,
+        conversation_id: deterministicConversationId,
         sender_id: currentUserId,
+        receiver_id: selected.participantId,
         content,
       });
+
+      if (selected.id.startsWith("draft-")) {
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === selected.id
+              ? { ...chat, id: deterministicConversationId }
+              : chat
+          )
+        );
+        setSelectedId(deterministicConversationId);
+      }
     }
   };
 
@@ -139,12 +236,20 @@ export default function DonorMessages() {
                   selected?.id === c.id ? "bg-orange-50 border-l-2 border-l-[#FE9800]" : ""
                 }`}
               >
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: c.avatarColor }}
-                >
-                  {c.avatar}
-                </div>
+                {c.avatarUrl ? (
+                  <img
+                    src={c.avatarUrl}
+                    alt={c.name}
+                    className="w-9 h-9 rounded-full object-cover border border-gray-100 flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    style={{ backgroundColor: c.avatarColor }}
+                  >
+                    {c.avatar}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-800 truncate">{c.name}</span>
@@ -168,12 +273,20 @@ export default function DonorMessages() {
           <div className="bg-white border-b border-gray-100 px-6 py-3.5 flex items-center justify-between shadow-sm">
             {selected ? (
               <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: selected.avatarColor }}
-                >
-                  {selected.avatar}
-                </div>
+                {selected.avatarUrl ? (
+                  <img
+                    src={selected.avatarUrl}
+                    alt={selected.name}
+                    className="w-9 h-9 rounded-full object-cover border border-gray-100"
+                  />
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: selected.avatarColor }}
+                  >
+                    {selected.avatar}
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{selected.name}</p>
                   <p className="text-xs text-green-500">Active now</p>

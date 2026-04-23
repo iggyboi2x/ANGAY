@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
+import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import OperatingHoursPicker from "../components/OperatingHoursPicker";
 import FlashMessage from "../components/FlashMessage";
@@ -92,7 +92,7 @@ const LoginPage = ({ onSwitch }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#fffaf1]">
+    <div className="min-h-screen bg-white py-8 px-4">
       {alert && (
         <FlashMessage
           message={alert.message}
@@ -100,8 +100,15 @@ const LoginPage = ({ onSwitch }) => {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
+      <div className="w-full max-w-sm mx-auto">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2 mb-3">
             <Wheat size={24} color="#FE9800" />
@@ -132,6 +139,7 @@ const LoginPage = ({ onSwitch }) => {
 };
 
 const RegisterPage = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [role, setRole]               = useState("foodbank");
   const [showPw, setShowPw]           = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -216,7 +224,7 @@ const RegisterPage = ({ onSwitch }) => {
   };
 
   return (
-    <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
+    <div className="min-h-screen bg-white py-8 px-4">
       {alert && (
         <FlashMessage
           message={alert.message}
@@ -224,8 +232,15 @@ const RegisterPage = ({ onSwitch }) => {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
+      <div className="w-full max-w-sm mx-auto">
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
         <div className="text-center mb-5">
           <div className="inline-flex items-center gap-2 mb-2">
             <Wheat size={22} color="#FE9800" />
