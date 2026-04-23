@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
 import { Wheat, Eye, EyeOff, Upload, Building2, Home, User } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
+import OperatingHoursPicker from "../components/OperatingHoursPicker";
 
 const ROLES = [
   { id: "foodbank", label: "I'm a Foodbank",     Icon: Building2 },
@@ -23,7 +24,7 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
           outline-none transition-all focus:border-[#FE9800] focus:ring-2 focus:ring-[#FE9800]/20"
       />
       {showToggle && (
-        <button type="button" onClick={onToggle}
+        <button type="button" onClick={onToggle} tabIndex={-1}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
           {toggled ? <Eye size={16} /> : <EyeOff size={16} />}
         </button>
@@ -69,7 +70,6 @@ const ContactField = ({ value, onChange }) => {
   );
 };
 
-// ─── Login ────────────────────────────────────────────────────────────────────
 const ROLE_ROUTES = {
   donor:    "/donor/home",
   foodbank: "/foodbank/dashboard",
@@ -78,11 +78,11 @@ const ROLE_ROUTES = {
 
 const LoginPage = ({ onSwitch }) => {
   const navigate = useNavigate();
-  const [email, setEmail]     = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [showPw, setShowPw]   = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [alert, setAlert]     = useState(null);
+  const [showPw, setShowPw]     = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [alert, setAlert]       = useState(null);
 
   const handleLogin = async () => {
     setAlert(null);
@@ -118,34 +118,28 @@ const LoginPage = ({ onSwitch }) => {
         <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
           placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} />
         <div className="text-right -mt-2 mb-5">
-          <a href="#" className="text-sm text-[#FE9800] font-medium hover:text-[#e58a00] hover:underline transition-colors">
-            Forgot Password?
-          </a>
+          <a href="#" className="text-sm text-[#FE9800] font-medium hover:underline">Forgot Password?</a>
         </div>
         <button onClick={handleLogin} disabled={loading}
           className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md
-            hover:bg-[#e58a00] hover:shadow-lg active:scale-[0.98]
-            disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
+            hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
           {loading ? "Logging in..." : "Log In"}
         </button>
         <p className="text-center text-sm text-slate-500 mt-5">
           Don't have an account?{" "}
-          <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:text-[#e58a00] hover:underline transition-colors">
-            Sign up
-          </button>
+          <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Sign up</button>
         </p>
       </div>
     </div>
   );
 };
 
-// ─── Register ─────────────────────────────────────────────────────────────────
 const RegisterPage = ({ onSwitch }) => {
-  const [role, setRole]           = useState("foodbank");
-  const [showPw, setShowPw]       = useState(false);
+  const [role, setRole]               = useState("foodbank");
+  const [showPw, setShowPw]           = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [alert, setAlert]         = useState(null);
+  const [loading, setLoading]         = useState(false);
+  const [alert, setAlert]             = useState(null);
   const [uploadFile, setUploadFile]   = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [form, setForm] = useState({
@@ -168,8 +162,6 @@ const RegisterPage = ({ onSwitch }) => {
 
   const handleRegister = async () => {
     setAlert(null);
-
-    // Basic validation
     if (!form.fullName || !form.email || !form.password || !form.confirm) {
       setAlert({ message: "Please fill in all required fields.", type: "error" }); return;
     }
@@ -186,10 +178,7 @@ const RegisterPage = ({ onSwitch }) => {
     if ((isFoodbank || isBarangay) && (!form.lat || !form.lng)) {
       setAlert({ message: "Please search and select your address from the dropdown to enable geotagging.", type: "error" }); return;
     }
-
     setLoading(true);
-
-    // Upload file
     let fileUrl = null;
     if (uploadFile && (isFoodbank || isBarangay)) {
       const bucket   = isFoodbank ? "logos" : "documents";
@@ -203,58 +192,36 @@ const RegisterPage = ({ onSwitch }) => {
       fileUrl = urlData.publicUrl;
     }
 
-    // Sign up
-    const { data: signUpData, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: {
           full_name: form.fullName,
           role,
-          org_name:  form.orgName  || null,
-          address:   form.address  || null,
-          contact:   form.contact  ? `+63 ${form.contact}` : null,
-          hours:     form.hours    || null,
-          file_url:  fileUrl,
+          org_name:  form.orgName || null,
+          address:   form.address || null,
+          latitude:  form.lat     || null,
+          longitude: form.lng     || null,
+          contact:   form.contact ? `+63 ${form.contact}` : null,
+          hours:     form.hours   || null,
+          file_url:  fileUrl      || null,
         },
       },
     });
-
+    setLoading(false);
     if (error) {
       setAlert({ message: error.message, type: "error" });
-      setLoading(false); return;
+    } else {
+      setAlert({ message: "Account created! Redirecting to login…", type: "success" });
+      setTimeout(() => onSwitch(), 1200);
     }
-
-    // Insert profile row with geocoordinates
-    if (signUpData?.user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id:        signUpData.user.id,
-        role,
-        full_name: form.fullName,
-        org_name:  form.orgName  || null,
-        address:   form.address  || null,
-        latitude:  form.lat      || null,
-        longitude: form.lng      || null,
-        contact:   form.contact  ? `+63 ${form.contact}` : null,
-        hours:     form.hours    || null,
-        file_url:  fileUrl       || null,
-      });
-      if (profileError) {
-        // Non-fatal – account was created, just log
-        console.warn("Profile insert error:", profileError.message);
-      }
-    }
-
-    setLoading(false);
-    setAlert({ message: "Account created! Redirecting to login…", type: "success" });
-    setTimeout(() => onSwitch(), 1200);
   };
 
   return (
     <div className="flex items-start justify-center min-h-screen bg-[#fffaf1] py-8 px-4">
       <div className="bg-white rounded-2xl p-7 w-full max-w-sm shadow-lg relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
-
         <div className="text-center mb-5">
           <div className="inline-flex items-center gap-2 mb-2">
             <Wheat size={22} color="#FE9800" />
@@ -263,8 +230,6 @@ const RegisterPage = ({ onSwitch }) => {
           <h1 className="text-lg font-semibold text-slate-800">Create your account</h1>
           <p className="text-xs text-slate-500 mt-0.5">Select your role to get started</p>
         </div>
-
-        {/* Role Selector */}
         <div className="flex gap-2.5 mb-5">
           {ROLES.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setRole(id)}
@@ -274,15 +239,12 @@ const RegisterPage = ({ onSwitch }) => {
                   : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50"
                 }`}>
               <Icon size={24} />
-              <span className={`text-[13px] font-semibold leading-tight text-center ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>
-                {label}
-              </span>
+              <span className={`text-[13px] font-semibold leading-tight text-center
+                ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>{label}</span>
             </button>
           ))}
         </div>
-
         {alert && <Alert {...alert} />}
-
         <InputField label="Full Name" placeholder="Enter your full name"
           value={form.fullName} onChange={set("fullName")} />
         <InputField label="Email Address" type="email" placeholder="your@email.com"
@@ -291,7 +253,6 @@ const RegisterPage = ({ onSwitch }) => {
           placeholder="Create a password" value={form.password} onChange={set("password")} />
         <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
           placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
-
         {role === "donor" && (
           <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
         )}
@@ -305,36 +266,26 @@ const RegisterPage = ({ onSwitch }) => {
               </span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
-
             <InputField
               label={isFoodbank ? "Organization Name" : "Barangay Name"}
               placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
               value={form.orgName} onChange={set("orgName")}
             />
-
-            {/* Geocoded address autocomplete */}
             <AddressAutocomplete
               label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
               placeholder="Type your address to search and pin location…"
-              onSelect={(addr, lat, lng) =>
-                setForm(f => ({ ...f, address: addr, lat, lng }))
-              }
+              onSelect={(addr, lat, lng) => setForm(f => ({ ...f, address: addr, lat, lng }))}
             />
-
             <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
-
             {isFoodbank && (
-              <InputField label="Operating Hours" placeholder="e.g. Mon–Fri 8AM–5PM"
-                value={form.hours} onChange={set("hours")} />
+              <OperatingHoursPicker onChange={(val) => setForm(f => ({ ...f, hours: val }))} />
             )}
-
-            {/* Upload */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
               </label>
-              <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer
-                transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
+              <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
+                cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
                 <input type="file" className="hidden"
                   accept={isFoodbank ? "image/*" : "image/*,.pdf"}
                   onChange={handleFileChange} />
@@ -349,27 +300,20 @@ const RegisterPage = ({ onSwitch }) => {
             </div>
           </>
         )}
-
         <button onClick={handleRegister} disabled={loading}
           className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md mt-1
-            hover:bg-[#e58a00] hover:shadow-lg active:scale-[0.98]
-            disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
+            hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
           {loading ? "Creating account…" : "Create Account"}
         </button>
-
         <p className="text-center text-sm text-slate-500 mt-4">
           Already have an account?{" "}
-          <button onClick={onSwitch}
-            className="text-[#FE9800] font-semibold hover:text-[#e58a00] hover:underline transition-colors">
-            Log in
-          </button>
+          <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Log in</button>
         </p>
       </div>
     </div>
   );
 };
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
 export default function AngayAuth() {
   const [page, setPage] = useState("login");
   return page === "login"
