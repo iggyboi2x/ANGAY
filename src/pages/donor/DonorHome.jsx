@@ -1,114 +1,161 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
-import { MapPin, ArrowRight, Package, Calendar } from "lucide-react";
+import { ArrowRight, Package, Calendar } from "lucide-react";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { supabase } from "../../../supabase";
+import { useMapPins } from "../../hooks/useMapPins";
 
-const distributions = [
-  {
-    barangay: "Barangay Luz",
-    goods: "Rice 50kg, Canned Goods",
-    date: "Mar 20, 2026",
-    status: "Confirmed",
-  },
-  {
-    barangay: "Barangay Mabolo",
-    goods: "Vegetables 30kg",
-    date: "Mar 22, 2026",
-    status: "Pending",
-  },
-  {
-    barangay: "Barangay Lahug",
-    goods: "Mixed Goods",
-    date: "Mar 25, 2026",
-    status: "Confirmed",
-  },
-];
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
-const foodbanks = [
-  { name: "Cebu City Food Bank", x: 34, y: 42 },
-  { name: "Mandaue Food Hub", x: 59, y: 56 },
-];
+const orangeIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+const philippinesBounds = [[4.5, 116.0], [21.5, 127.0]];
+
+const formatDate = (rawDate) => {
+  if (!rawDate) return "Not scheduled";
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
 
 export default function DonorHome() {
+  const navigate = useNavigate();
+  const { pins: foodbanks, loading: pinsLoading } = useMapPins("foodbank");
+  const [distributions, setDistributions] = useState([]);
+  const [loadingDistributions, setLoadingDistributions] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUpcomingDistributions = async () => {
+      setLoadingDistributions(true);
+      const { data, error } = await supabase
+        .from("donations")
+        .select("id, barangay_name, items, scheduled_date, status")
+        .in("status", ["confirmed", "scheduled", "pending"])
+        .order("scheduled_date", { ascending: true })
+        .limit(6);
+
+      if (!cancelled) {
+        if (error) {
+          setDistributions([]);
+        } else {
+          setDistributions(data || []);
+        }
+        setLoadingDistributions(false);
+      }
+    };
+
+    loadUpcomingDistributions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <DonorLayout>
-      {/* Hero Banner */}
       <div className="bg-[#FE9800] px-10 py-8 flex items-center justify-between">
         <h1 className="text-white font-bold text-2xl">Help Feed Your Community</h1>
-        <button className="bg-white text-[#FE9800] font-semibold text-sm px-6 py-2.5 rounded-lg hover:bg-orange-50 transition-colors shadow-sm">
+        <button
+          onClick={() => navigate("/donor/donations")}
+          className="bg-white text-[#FE9800] font-semibold text-sm px-6 py-2.5 rounded-lg hover:bg-orange-50 transition-colors shadow-sm"
+        >
           Donate Now
         </button>
       </div>
 
       <div className="px-10 py-8 space-y-8">
-        {/* Nearby Foodbanks */}
         <section>
           <h2 className="text-gray-800 font-semibold text-base mb-4">Nearby Foodbanks</h2>
-          <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm" style={{ height: "300px", background: "#dbeafe", position: "relative" }}>
-            {/* Stylized Cebu map SVG placeholder */}
-            <svg width="100%" height="100%" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-              <rect width="800" height="300" fill="#dbeafe" />
-              {/* Cebu island shape approximation */}
-              <ellipse cx="310" cy="155" rx="110" ry="90" fill="#c9b89a" opacity="0.85" />
-              <ellipse cx="520" cy="130" rx="90" ry="75" fill="#c9b89a" opacity="0.85" />
-              <ellipse cx="320" cy="260" rx="55" ry="35" fill="#c9b89a" opacity="0.75" />
-              {/* Connecting line */}
-              <line x1="345" y1="148" x2="450" y2="148" stroke="#aaa" strokeWidth="1.5" strokeDasharray="4,3" />
-            </svg>
-
-            {/* Foodbank pins */}
-            {foodbanks.map((fb) => (
-              <div
-                key={fb.name}
-                style={{ position: "absolute", left: `${fb.x}%`, top: `${fb.y}%`, transform: "translate(-50%,-100%)" }}
-                className="flex flex-col items-center"
-              >
-                <div className="bg-white rounded-full p-1 shadow-md border-2 border-[#FE9800]">
-                  <MapPin size={14} className="text-[#FE9800]" fill="#FE9800" />
-                </div>
-                <div className="mt-1 bg-white text-xs font-medium text-gray-700 px-2 py-0.5 rounded shadow-sm whitespace-nowrap border border-gray-100">
-                  {fb.name}
-                </div>
+          <div className="rounded-xl overflow-hidden border border-gray-100 shadow-sm relative" style={{ height: "320px" }}>
+            {pinsLoading && (
+              <div className="absolute inset-0 z-10 bg-white/70 flex items-center justify-center text-sm text-gray-500">
+                Loading map...
               </div>
-            ))}
+            )}
+            <MapContainer
+              center={[12.8797, 121.7740]}
+              zoom={5}
+              minZoom={5}
+              maxZoom={15}
+              maxBounds={philippinesBounds}
+              maxBoundsViscosity={1.0}
+              style={{ height: "100%", width: "100%" }}
+              scrollWheelZoom
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {foodbanks.map((pin) => (
+                <Marker key={pin.id} position={[pin.latitude, pin.longitude]} icon={orangeIcon} />
+              ))}
+            </MapContainer>
           </div>
         </section>
 
-        {/* Upcoming Distributions */}
         <section>
           <h2 className="text-gray-800 font-semibold text-base mb-4">Upcoming Distributions</h2>
-          <div className="grid grid-cols-3 gap-5">
-            {distributions.map((d) => (
-              <div key={d.barangay} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+          {loadingDistributions ? (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
+              Loading upcoming distributions...
+            </div>
+          ) : distributions.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-sm text-gray-500">
+              No upcoming distributions yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-5">
+              {distributions.map((d) => (
+                <div key={d.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-3">
                   <div className="bg-orange-50 p-2 rounded-lg">
                     <Package size={16} className="text-[#FE9800]" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">{d.barangay}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">{d.goods}</p>
+                      <p className="font-semibold text-gray-800 text-sm">{d.barangay_name || "Unassigned Barangay"}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">{d.items || "Donation items to be finalized"}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-gray-400 text-xs">
                   <Calendar size={12} />
-                  <span>{d.date}</span>
+                    <span>{formatDate(d.scheduled_date)}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                    d.status === "Confirmed"
+                      d.status?.toLowerCase() === "confirmed"
                       ? "bg-green-50 text-green-600"
                       : "bg-yellow-50 text-yellow-600"
                   }`}>
-                    {d.status}
+                      {d.status || "pending"}
                   </span>
-                  <button className="text-[#FE9800] text-xs font-medium flex items-center gap-1 hover:gap-2 transition-all">
+                  <button
+                    onClick={() => navigate("/donor/donations")}
+                    className="text-[#FE9800] text-xs font-medium flex items-center gap-1 hover:gap-2 transition-all"
+                  >
                     View Details <ArrowRight size={12} />
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </DonorLayout>

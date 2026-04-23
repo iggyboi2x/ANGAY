@@ -3,6 +3,8 @@ import LandingPage from "./pages/LandingPage";
 import AngayAuth from "./pages/AngayAuth";
 import DonorHome from "./pages/donor/DonorHome";
 import DonorMessages from "./pages/donor/DonorMessages";
+import DonorDonations from "./pages/donor/DonorDonations";
+import DonorAccountSettings from "./pages/donor/DonorAccountSettings";
 import FoodbankInventory from "./pages/foodbank/FoodbankInventory";
 import FoodbankDashboard from "./pages/foodbank/FoodbankDashboard";
 import FoodbankMessages from "./pages/foodbank/FoodbankMessages";
@@ -24,7 +26,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<AngayAuth />} />
           <Route path="/donor/home" element={<DonorHome />} />
+          <Route path="/donor/donations" element={<DonorDonations />} />
           <Route path="/donor/messages" element={<DonorMessages />} />
+          <Route path="/donor/account" element={<DonorAccountSettings />} />
           <Route path="/foodbank/dashboard" element={<FoodbankDashboard />} />
           <Route path="/foodbank/messages" element={<FoodbankMessages />} />
           <Route path="/foodbank/packages" element={<FoodbankPackages />} />
