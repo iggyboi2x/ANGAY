@@ -23,14 +23,14 @@ export default function DonorLayout({ children }) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, avatar_url, file_url")
+        .select("full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
       if (!cancelled) {
         const fullName = profile?.full_name || user.user_metadata?.full_name || "Donor";
         setUserName(fullName);
-        setAvatarUrl(profile?.avatar_url || profile?.file_url || null);
+        setAvatarUrl(profile?.avatar_url || null);
       }
 
       const { data: notifData } = await supabase

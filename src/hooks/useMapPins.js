@@ -29,13 +29,13 @@ export function useMapPins(role) {
       if (error || sourceRows.length === 0) {
         const { data: profileRows } = await supabase
           .from('profiles')
-          .select('id, role, org_name, address, latitude, longitude, hours, contact, file_url, created_at')
+          .select('id, role, org_name, address, latitude, longitude, hours, contact, avatar_url, created_at')
           .eq('role', role);
         sourceRows = (profileRows || []).map((row) => ({
           ...row,
           [nameCol]: row.org_name,
           operating_hours: row.hours,
-          logo_url: row.file_url,
+          logo_url: row.avatar_url,
         }));
       }
 

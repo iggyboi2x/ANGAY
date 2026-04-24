@@ -19,6 +19,49 @@ import BarangayDemographics from "./pages/barangay/BarangayDemographics";
 import BarangayDonations from "./pages/barangay/BarangayDonations";
 import BarangayAccountSettings from './pages/barangay/BarangayAccountSettings';
 
+function PresenceTracker() {
+  useEffect(() => {
+    let channel;
+    const initPresence = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session?.user) return;
+      
+      channel = supabase.channel('online-users', {
+        config: {
+          presence: {
+            key: data.session.user.id,
+          },
+        },
+      });
+
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: data.session.user.id, online_at: new Date().toISOString() });
+        }
+      });
+    };
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && !channel) {
+        initPresence();
+      } else if (event === 'SIGNED_OUT' && channel) {
+        channel.unsubscribe();
+        channel = null;
+      }
+    });
+
+    initPresence();
+
+    return () => {
+      if (channel) channel.unsubscribe();
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  return null;
+}
+
+
 const ROLE_HOME = {
   donor: "/donor/home",
   foodbank: "/foodbank/dashboard",
@@ -75,6 +118,7 @@ function App() {
   return (
     <>
       <BrowserRouter>
+        <PresenceTracker />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<AngayAuth />} />
