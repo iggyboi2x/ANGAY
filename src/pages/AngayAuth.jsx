@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft } from "lucide-react";
+import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft, X } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import OperatingHoursPicker from "../components/OperatingHoursPicker";
 import FlashMessage from "../components/FlashMessage";
@@ -344,19 +344,38 @@ const RegisterPage = ({ onSwitch }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
                   </label>
-                  <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
-                    cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
-                    <input type="file" className="hidden"
-                      accept={isFoodbank ? "image/*" : "image/*,.pdf"}
-                      onChange={handleFileChange} />
-                    {uploadPreview
-                      ? <img src={uploadPreview} alt="Preview" className="mx-auto h-20 w-20 object-cover rounded-lg mb-2" />
-                      : <Upload size={28} className="mx-auto text-gray-400" />
-                    }
-                    <p className="text-xs text-gray-400 mt-2">
-                      {uploadFile ? uploadFile.name : "Drag & drop or click to browse"}
-                    </p>
-                  </label>
+                  {!uploadFile ? (
+                    <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
+                      cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
+                      <input type="file" className="hidden"
+                        accept={isFoodbank ? "image/*" : "image/*,.pdf"}
+                        onChange={handleFileChange} />
+                      <Upload size={28} className="mx-auto text-gray-400" />
+                      <p className="text-xs text-gray-400 mt-2">
+                        Drag & drop or click to browse
+                      </p>
+                    </label>
+                  ) : (
+                    <div className="relative border-2 border-gray-200 rounded-xl p-4 bg-gray-50 flex flex-col items-center justify-center">
+                      <button 
+                        onClick={() => { setUploadFile(null); setUploadPreview(null); }}
+                        className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm text-gray-400 hover:text-red-500 transition-colors"
+                        title="Remove file"
+                      >
+                        <X size={16} />
+                      </button>
+                      {uploadPreview ? (
+                        <img src={uploadPreview} alt="Preview" className="h-20 w-20 object-cover rounded-lg mb-2" />
+                      ) : (
+                        <div className="h-20 w-20 bg-white rounded-lg mb-2 flex items-center justify-center border border-gray-200">
+                          <span className="text-[10px] font-bold text-gray-400">FILE</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-600 font-medium truncate w-full text-center px-4">
+                        {uploadFile.name}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </>
             )}
