@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft } from "lucide-react";
+import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft, X } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import OperatingHoursPicker from "../components/OperatingHoursPicker";
 import FlashMessage from "../components/FlashMessage";
@@ -140,7 +140,8 @@ const LoginPage = ({ onSwitch }) => {
 
 const RegisterPage = ({ onSwitch }) => {
   const navigate = useNavigate();
-  const [role, setRole]               = useState("foodbank");
+  const [step, setStep]               = useState(1);
+  const [role, setRole]               = useState(null);
   const [showPw, setShowPw]           = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading]         = useState(false);
@@ -233,100 +234,163 @@ const RegisterPage = ({ onSwitch }) => {
         />
       )}
       <div className="w-full max-w-sm mx-auto">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Back
-        </button>
-        <div className="text-center mb-5">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <Wheat size={22} color="#FE9800" />
-            <span className="text-2xl font-semibold text-[#FE9800] tracking-wide">ANGAY</span>
-          </div>
-          <h1 className="text-lg font-semibold text-slate-800">Create your account</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Select your role to get started</p>
-        </div>
-        <div className="flex gap-2.5 mb-5">
-          {ROLES.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setRole(id)}
-              className={`flex-1 flex flex-col justify-center items-center gap-1.5 py-3 px-1.5 rounded-xl border-2 transition-all duration-200
-                ${role === id
-                  ? "border-[#FE9800] bg-orange-50 text-[#FE9800]"
-                  : "border-gray-200 bg-white text-gray-400 hover:border-[#FE9800]/50 hover:bg-orange-50/50"
-                }`}>
-              <Icon size={24} />
-              <span className={`text-[13px] font-semibold leading-tight text-center
-                ${role === id ? "text-[#b45309]" : "text-gray-500"}`}>{label}</span>
-            </button>
-          ))}
-        </div>
-        <InputField label="Full Name" placeholder="Enter your full name"
-          value={form.fullName} onChange={set("fullName")} />
-        <InputField label="Email Address" type="email" placeholder="your@email.com"
-          value={form.email} onChange={set("email")} />
-        <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
-          placeholder="Create a password" value={form.password} onChange={set("password")} />
-        <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
-          placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
-        {role === "donor" && (
-          <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
-        )}
-
-        {(isFoodbank || isBarangay) && (
+        {step === 1 ? (
           <>
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                {isFoodbank ? "Organization Info" : "Barangay Info"}
-              </span>
-              <div className="flex-1 h-px bg-gray-200" />
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+            >
+              <ArrowLeft size={15} />
+              Back
+            </button>
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 mb-2">
+                <Wheat size={24} color="#FE9800" />
+                <span className="text-2xl font-semibold text-[#FE9800] tracking-wide">ANGAY</span>
+              </div>
+              <h1 className="text-xl font-semibold text-slate-800">Create your account</h1>
+              <p className="text-sm text-slate-500 mt-1">Select your role to get started</p>
             </div>
-            <InputField
-              label={isFoodbank ? "Organization Name" : "Barangay Name"}
-              placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
-              value={form.orgName} onChange={set("orgName")}
-            />
-            <AddressAutocomplete
-              label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
-              placeholder="Type your address to search and pin location…"
-              onSelect={(addr, lat, lng) => setForm(f => ({ ...f, address: addr, lat, lng }))}
-            />
-            <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
-            {isFoodbank && (
-              <OperatingHoursPicker onChange={(val) => setForm(f => ({ ...f, hours: val }))} />
+            
+            <div className="flex flex-col gap-3 mb-6 mt-2">
+              {ROLES.map(({ id, label, Icon }) => (
+                <button 
+                  key={id} 
+                  onClick={() => { setRole(id); setStep(2); }}
+                  className="flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-200 border-gray-200 bg-white text-gray-600 hover:border-[#FE9800] hover:bg-orange-50 hover:shadow-md group"
+                >
+                  <div className="bg-gray-50 p-3 rounded-xl group-hover:bg-white group-hover:text-[#FE9800] transition-colors">
+                    <Icon size={24} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-gray-800 group-hover:text-[#b45309]">{label}</h3>
+                    <p className="text-xs text-gray-500 group-hover:text-[#b45309]/70 mt-0.5 leading-tight">
+                      {id === 'foodbank' ? "Register to receive and manage donations" :
+                       id === 'barangay' ? "Register to request items for your community" :
+                       "Register to donate food and supplies"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-center text-sm text-slate-500 mt-6">
+              Already have an account?{" "}
+              <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Log in</button>
+            </p>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+            >
+              <ArrowLeft size={15} />
+              Back to roles
+            </button>
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 mb-2">
+                {role === 'foodbank' ? <Building2 size={24} color="#FE9800" /> :
+                 role === 'barangay' ? <Home size={24} color="#FE9800" /> :
+                 <User size={24} color="#FE9800" />}
+              </div>
+              <h1 className="text-lg font-semibold text-slate-800">
+                {role === 'foodbank' ? "Foodbank Registration" :
+                 role === 'barangay' ? "Barangay Rep Registration" :
+                 "Donor Registration"}
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">Complete your profile to continue</p>
+            </div>
+            
+            <InputField label="Full Name" placeholder="Enter your full name"
+              value={form.fullName} onChange={set("fullName")} />
+            <InputField label="Email Address" type="email" placeholder="your@email.com"
+              value={form.email} onChange={set("email")} />
+            <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
+              placeholder="Create a password" value={form.password} onChange={set("password")} />
+            <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
+              placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
+            
+            {role === "donor" && (
+              <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
             )}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
-              </label>
-              <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
-                cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
-                <input type="file" className="hidden"
-                  accept={isFoodbank ? "image/*" : "image/*,.pdf"}
-                  onChange={handleFileChange} />
-                {uploadPreview
-                  ? <img src={uploadPreview} alt="Preview" className="mx-auto h-20 w-20 object-cover rounded-lg mb-2" />
-                  : <Upload size={28} className="mx-auto text-gray-400" />
-                }
-                <p className="text-xs text-gray-400 mt-2">
-                  {uploadFile ? uploadFile.name : "Drag & drop or click to browse"}
-                </p>
-              </label>
-            </div>
+
+            {(isFoodbank || isBarangay) && (
+              <>
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    {isFoodbank ? "Organization Info" : "Barangay Info"}
+                  </span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                <InputField
+                  label={isFoodbank ? "Organization Name" : "Barangay Name"}
+                  placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
+                  value={form.orgName} onChange={set("orgName")}
+                />
+                <AddressAutocomplete
+                  label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
+                  placeholder="Type your address to search and pin location…"
+                  onSelect={(addr, lat, lng) => setForm(f => ({ ...f, address: addr, lat, lng }))}
+                />
+                <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
+                {isFoodbank && (
+                  <OperatingHoursPicker onChange={(val) => setForm(f => ({ ...f, hours: val }))} />
+                )}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
+                  </label>
+                  {!uploadFile ? (
+                    <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
+                      cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
+                      <input type="file" className="hidden"
+                        accept={isFoodbank ? "image/*" : "image/*,.pdf"}
+                        onChange={handleFileChange} />
+                      <Upload size={28} className="mx-auto text-gray-400" />
+                      <p className="text-xs text-gray-400 mt-2">
+                        Drag & drop or click to browse
+                      </p>
+                    </label>
+                  ) : (
+                    <div className="relative border-2 border-gray-200 rounded-xl p-4 bg-gray-50 flex flex-col items-center justify-center">
+                      <button 
+                        onClick={() => { setUploadFile(null); setUploadPreview(null); }}
+                        className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm text-gray-400 hover:text-red-500 transition-colors"
+                        title="Remove file"
+                      >
+                        <X size={16} />
+                      </button>
+                      {uploadPreview ? (
+                        <img src={uploadPreview} alt="Preview" className="h-20 w-20 object-cover rounded-lg mb-2" />
+                      ) : (
+                        <div className="h-20 w-20 bg-white rounded-lg mb-2 flex items-center justify-center border border-gray-200">
+                          <span className="text-[10px] font-bold text-gray-400">FILE</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-600 font-medium truncate w-full text-center px-4">
+                        {uploadFile.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            
+            <button onClick={handleRegister} disabled={loading}
+              className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md mt-4
+                hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
+              {loading ? "Creating account…" : "Create Account"}
+            </button>
+            <p className="text-center text-sm text-slate-500 mt-5">
+              Already have an account?{" "}
+              <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Log in</button>
+            </p>
           </>
         )}
-        <button onClick={handleRegister} disabled={loading}
-          className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md mt-1
-            hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
-          {loading ? "Creating account…" : "Create Account"}
-        </button>
-        <p className="text-center text-sm text-slate-500 mt-4">
-          Already have an account?{" "}
-          <button onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Log in</button>
-        </p>
       </div>
     </div>
   );
