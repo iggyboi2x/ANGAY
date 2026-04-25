@@ -287,7 +287,6 @@ export default function FoodbankMessages() {
               />
             </div>
           </div>
-
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <p className="text-xs text-[#888] px-4 py-5">Loading conversations...</p>

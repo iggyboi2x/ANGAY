@@ -250,7 +250,7 @@ const RegisterPage = ({ onSwitch }) => {
           <p className="text-xs text-slate-500 mt-0.5">Select your role to get started</p>
         </div>
         <div className="flex gap-2.5 mb-5">
-          {ROLES.map(({ id, label, Icon }) => (
+          {ROLES.map(({ id, label, Icon }) => ( // eslint-disable-line no-unused-vars
             <button key={id} onClick={() => setRole(id)}
               className={`flex-1 flex flex-col justify-center items-center gap-1.5 py-3 px-1.5 rounded-xl border-2 transition-all duration-200
                 ${role === id

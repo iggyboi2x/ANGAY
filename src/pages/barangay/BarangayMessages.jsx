@@ -71,11 +71,10 @@ export default function BarangayMessages() {
   return (
     <div className="flex min-h-screen bg-white">
       <BarangaySidebar />
-
       <div className="ml-60 flex-1 flex" style={{ height: '100vh' }}>
+
         {/* Conversation List */}
         <aside className="w-72 bg-white border-r border-[#F0F0F0] flex flex-col flex-shrink-0">
-          {/* Search */}
           <div className="p-4 border-b border-[#F0F0F0]">
             <div className="flex items-center gap-2 bg-[#F5F5F5] rounded-xl px-3 py-2 border border-[#EBEBEB]">
               <Search size={14} className="text-[#888888]" />
@@ -84,31 +83,22 @@ export default function BarangayMessages() {
                 style={{ fontFamily: 'DM Sans' }} />
             </div>
           </div>
-
-          {/* Filter Pills */}
           <div className="flex gap-2 px-4 py-3 border-b border-[#F0F0F0]">
             {FILTERS.map(f => (
               <button key={f} onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all
-                  ${activeFilter === f
-                    ? 'bg-[#FE9800] text-white border-[#FE9800]'
-                    : 'bg-white text-[#555] border-[#CCCCCC] hover:border-[#FE9800] hover:text-[#FE9800]'}`}
-                style={{ fontFamily: 'DM Sans' }}>
+                  ${activeFilter === f ? 'bg-[#FE9800] text-white border-[#FE9800]' : 'bg-white text-[#555] border-[#CCCCCC] hover:border-[#FE9800] hover:text-[#FE9800]'}`}>
                 {f}
               </button>
             ))}
           </div>
-
           <div className="overflow-y-auto flex-1">
             {filtered.map(c => (
               <button key={c.id} onClick={() => setSelected(c)}
-                className={`w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-orange-50 transition-colors
-                  border-b border-[#F5F5F5]
+                className={`w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-orange-50 transition-colors border-b border-[#F5F5F5]
                   ${selected.id === c.id ? 'bg-orange-50 border-l-2 border-l-[#FE9800]' : ''}`}>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  style={{ backgroundColor: c.avatarColor }}>
-                  {c.avatar}
-                </div>
+                  style={{ backgroundColor: c.avatarColor }}>{c.avatar}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-[#1A1A1A] truncate" style={{ fontFamily: 'DM Sans' }}>{c.name}</span>
@@ -117,9 +107,7 @@ export default function BarangayMessages() {
                   <div className="flex items-center justify-between mt-0.5">
                     <p className="text-xs text-[#888888] truncate pr-2" style={{ fontFamily: 'DM Sans' }}>{c.lastMessage}</p>
                     {c.unread > 0 && (
-                      <span className="bg-[#FE9800] text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                        {c.unread}
-                      </span>
+                      <span className="bg-[#FE9800] text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">{c.unread}</span>
                     )}
                   </div>
                 </div>
@@ -130,38 +118,28 @@ export default function BarangayMessages() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-white">
-          {/* Header */}
           <div className="border-b border-[#F0F0F0] px-6 py-3.5 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-              style={{ backgroundColor: selected.avatarColor }}>
-              {selected.avatar}
-            </div>
+              style={{ backgroundColor: selected.avatarColor }}>{selected.avatar}</div>
             <div>
               <p className="text-sm font-semibold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>{selected.name}</p>
               <p className="text-xs text-[#888888] capitalize" style={{ fontFamily: 'DM Sans' }}>{selected.type}</p>
             </div>
           </div>
-
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4 bg-white">
             {selected.messages.map((msg, i) => (
               <div key={i} className={`flex flex-col ${msg.from === 'me' ? 'items-end' : 'items-start'}`}>
                 <div className={`max-w-sm px-4 py-3 rounded-2xl text-sm
-                  ${msg.from === 'me'
-                    ? 'bg-[#FE9800] text-white rounded-br-sm'
-                    : 'bg-[#F5F5F5] text-[#333] rounded-bl-sm'}`}>
+                  ${msg.from === 'me' ? 'bg-[#FE9800] text-white rounded-br-sm' : 'bg-[#F5F5F5] text-[#333] rounded-bl-sm'}`}>
                   <p style={{ fontFamily: 'DM Sans' }}>{msg.text}</p>
                 </div>
                 <span className="text-[11px] text-[#AAAAAA] mt-1 px-1" style={{ fontFamily: 'DM Sans' }}>{msg.time}</span>
               </div>
             ))}
           </div>
-
-          {/* Input */}
           <div className="border-t border-[#F0F0F0] px-6 py-4 bg-white">
             <div className="flex items-center gap-3 bg-[#F5F5F5] rounded-xl px-4 py-2.5 border border-[#EBEBEB]">
-              <input type="text" value={input}
-                onChange={e => setInput(e.target.value)}
+              <input type="text" value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Type a message..."
                 className="flex-1 bg-transparent text-sm text-[#333] outline-none placeholder:text-[#AAAAAA]"
