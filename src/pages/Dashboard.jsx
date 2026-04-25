@@ -63,8 +63,8 @@ const Dashboard = () => {
             <section className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold mb-3" style={{ fontSize: '14px' }}>March 2026</h3>
               <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (
-                  <div key={d} className="py-1 font-semibold">{d}</div>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                  <div key={i} className="py-1 font-semibold">{d}</div>
                 ))}
 
                 {[...Array(31)].map((_, idx) => {

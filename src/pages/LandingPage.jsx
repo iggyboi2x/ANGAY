@@ -156,7 +156,7 @@ const LandingPage = () => {
               <img
                 src="/images/angay-desc-img.png"
                 alt="What is ANGAY"
-                className="w-2/3 rounded-2xlobject-cover"
+                className="w-2/3 rounded-2xl object-cover"
               />
             </div>
           </div>

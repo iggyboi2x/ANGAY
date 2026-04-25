@@ -146,3 +146,29 @@ with check (
       and room_members.user_id = auth.uid()
   )
 );
+
+-- ============================================================
+-- ANGAY: Storage Buckets and Policies
+-- Run these to allow public uploads during registration
+-- ============================================================
+
+-- Create buckets if they don't exist
+insert into storage.buckets (id, name, public) values ('documents', 'documents', true) on conflict do nothing;
+insert into storage.buckets (id, name, public) values ('logos', 'logos', true) on conflict do nothing;
+
+-- Enable RLS on storage.objects (usually enabled by default)
+-- (Removed alter table statement to prevent 42501 error)
+
+-- Drop existing policies just in case
+drop policy if exists "Public Access to logos" on storage.objects;
+drop policy if exists "Public Access to documents" on storage.objects;
+drop policy if exists "Anyone can upload logos" on storage.objects;
+drop policy if exists "Anyone can upload documents" on storage.objects;
+
+-- Allow public read access to the buckets
+create policy "Public Access to logos" on storage.objects for select using (bucket_id = 'logos');
+create policy "Public Access to documents" on storage.objects for select using (bucket_id = 'documents');
+
+-- Allow ANYONE (including unauthenticated users during registration) to upload files
+create policy "Anyone can upload logos" on storage.objects for insert with check (bucket_id = 'logos');
+create policy "Anyone can upload documents" on storage.objects for insert with check (bucket_id = 'documents');
