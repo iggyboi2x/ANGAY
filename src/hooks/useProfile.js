@@ -7,6 +7,7 @@ import { supabase } from '../../supabase';
  */
 export function useProfile() {
   const [profile, setProfile] = useState({
+    id: null,
     displayName: '',
     initials: '',
     avatarUrl: null,
@@ -62,7 +63,7 @@ export function useProfile() {
         .join('');
 
       if (!cancelled) {
-        setProfile({ displayName, initials, avatarUrl, role, loading: false });
+        setProfile({ id: user.id, displayName, initials, avatarUrl, role, loading: false });
       }
     }
 
