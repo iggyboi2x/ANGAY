@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom';
+
 export default function FoodbankPopup({ pin, onClose }) {
+  const navigate = useNavigate();
+  
   // Support both legacy static shape and live Supabase profile shape
   const name    = pin.org_name || pin.name || 'Food Bank';
   const address = pin.address  || pin.city || '—';
@@ -6,6 +10,11 @@ export default function FoodbankPopup({ pin, onClose }) {
   const hours   = pin.hours    || '—';
 
   const hasDemographics = pin.demographics;
+
+  const handleContact = () => {
+    // Redirect to messages and pass the whole pin object as targetUser
+    navigate('/barangay/messages', { state: { targetUser: pin } });
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-xl w-52 p-3 relative">
@@ -60,7 +69,10 @@ export default function FoodbankPopup({ pin, onClose }) {
         </div>
       )}
 
-      <button className="w-full py-1.5 bg-[#FE9800] hover:bg-[#e08800] text-white text-[10px] font-bold rounded-md transition-colors">
+      <button 
+        onClick={handleContact}
+        className="w-full py-1.5 bg-[#FE9800] hover:bg-[#e08800] text-white text-[10px] font-bold rounded-md transition-all active:scale-95 shadow-sm"
+      >
         Contact Foodbank
       </button>
     </div>
