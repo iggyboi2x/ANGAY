@@ -1,329 +1,574 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import Badge from '../../components/Badge';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
-import Input from '../../components/Input';
+import { supabase } from '../../../supabase';
+import { useProfile } from '../../hooks/useProfile';
 import {
   Package, AlertTriangle, CloudUpload, Search,
-  Box, Upload, Plus, Pencil, Trash2, Minus
+  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check
 } from 'lucide-react';
+import FlashMessage from '../../components/FlashMessage';
+import ConfirmModal from '../../components/ConfirmModal';
 
-const initialItems = [
-  { id: '1', name: 'White Rice',      category: 'Grains',       quantity: 250, unit: 'kg',    expiryDate: '2027-01-15', status: 'fresh'    },
-  { id: '2', name: 'Canned Sardines', category: 'Canned Goods', quantity: 180, unit: 'cans',  expiryDate: '2026-04-20', status: 'expiring' },
-  { id: '3', name: 'Cooking Oil',     category: 'Pantry',       quantity: 45,  unit: 'liters',expiryDate: '2026-12-30', status: 'fresh'    },
-  { id: '4', name: 'Instant Noodles', category: 'Instant Food', quantity: 320, unit: 'packs', expiryDate: '2026-05-10', status: 'expiring' },
-  { id: '5', name: 'Canned Tuna',     category: 'Canned Goods', quantity: 95,  unit: 'cans',  expiryDate: '2026-08-25', status: 'fresh'    },
-  { id: '6', name: 'Sugar',           category: 'Pantry',       quantity: 120, unit: 'kg',    expiryDate: '2026-03-30', status: 'expiring' },
-];
+const COLUMNS = ['Item Name', 'Category', 'Quantity', 'Unit', 'Expiration Date'];
+const UNITS = ['kg', 'g', 'pcs', 'cans', 'packs', 'liters', 'bottles', 'boxes', 'sachets'];
+
+function computeStatus(expDate) {
+  if (!expDate) return 'fresh';
+  const d = new Date(expDate);
+  const now = new Date();
+  const days = Math.ceil((d - now) / 86400000);
+  if (days < 0) return 'expired';
+  if (days <= 30) return 'expiring';
+  return 'fresh';
+}
+
+function StatusBadge({ status }) {
+  const map = { fresh: 'bg-green-100 text-green-700', expiring: 'bg-yellow-100 text-yellow-700', expired: 'bg-red-100 text-red-700' };
+  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${map[status] || map.fresh}`}>{status}</span>;
+}
 
 export default function FoodbankInventory() {
-  const [searchQuery, setSearchQuery]           = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus]     = useState('all');
-  const [showPackModal, setShowPackModal]       = useState(false);
-  const [packageItems, setPackageItems]         = useState([]);
-  const [packageName, setPackageName]           = useState('');
+  const { id: foodbankId } = useProfile();
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const inventoryItems = initialItems;
-  const expiringItems  = inventoryItems.filter(i => i.status === 'expiring');
-  const categories     = ['all', ...new Set(inventoryItems.map(i => i.category))];
+  // Add/Edit modal
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ item_name: '', category_id: '', quantity: '', unit: 'kg', expiration_date: '' });
 
-  const filteredItems = inventoryItems.filter(item => {
-    const matchesSearch   = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesStatus   = selectedStatus   === 'all' || item.status   === selectedStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
+  // Excel review modal
+  const [reviewRows, setReviewRows] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewErrors, setReviewErrors] = useState({});
+
+  // Pack modal
+  const [showPack, setShowPack] = useState(false);
+  const [pkgName, setPkgName] = useState('');
+  const [pkgItems, setPkgItems] = useState([]);
+  const [pkgSearch, setPkgSearch] = useState('');
+  const [isSavingPkg, setIsSavingPkg] = useState(false);
+  const [flash, setFlash] = useState(null);
+  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
+
+  const fileRef = useRef();
+
+  useEffect(() => {
+    if (foodbankId) { fetchCategories(); fetchItems(); }
+  }, [foodbankId]);
+
+  async function fetchCategories() {
+    const { data } = await supabase.from('item_categories').select('*').order('name');
+    setCategories(data || []);
+  }
+
+  async function fetchItems() {
+    setLoading(true);
+    const { data } = await supabase
+      .from('foodbank_inventory')
+      .select('*, item_categories(name)')
+      .eq('foodbank_id', foodbankId)
+      .order('created_at', { ascending: false });
+    setItems((data || []).map(r => ({ ...r, category: r.item_categories?.name || '—' })));
+    setLoading(false);
+  }
+
+  const filtered = items.filter(i => {
+    const ms = i.item_name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase());
+    const mc = catFilter === 'all' || i.category === catFilter;
+    const ms2 = statusFilter === 'all' || i.status === statusFilter;
+    return ms && mc && ms2;
   });
 
-  const handleAddToPackage = (item) => {
-    const existing = packageItems.find(pi => pi.item.id === item.id);
-    if (existing) {
-      setPackageItems(packageItems.map(pi =>
-        pi.item.id === item.id ? { ...pi, quantity: Math.min(pi.quantity + 1, item.quantity) } : pi
-      ));
-    } else {
-      setPackageItems([...packageItems, { item, quantity: 1 }]);
+  const totalQty = items.reduce((s, i) => s + Number(i.quantity), 0);
+  const expiring = items.filter(i => i.status === 'expiring');
+  const expired = items.filter(i => i.status === 'expired');
+  const uniqueCats = ['all', ...new Set(items.map(i => i.category))];
+
+  // ─── Add/Edit ───
+  function openAdd() { setEditing(null); setForm({ item_name: '', category_id: '', quantity: '', unit: 'kg', expiration_date: '' }); setShowForm(true); }
+  function openEdit(item) {
+    setEditing(item);
+    setForm({ item_name: item.item_name, category_id: item.category_id || '', quantity: item.quantity, unit: item.unit, expiration_date: item.expiration_date || '' });
+    setShowForm(true);
+  }
+
+  async function handleSaveItem() {
+    if (!form.item_name || !form.quantity) return;
+    const payload = { ...form, quantity: Number(form.quantity), foodbank_id: foodbankId, status: computeStatus(form.expiration_date) };
+    try {
+      if (editing) {
+        await supabase.from('foodbank_inventory').update(payload).eq('id', editing.id);
+        setFlash({ type: 'success', message: 'Item updated successfully!' });
+      } else {
+        await supabase.from('foodbank_inventory').insert([payload]);
+        setFlash({ type: 'success', message: 'Item added successfully!' });
+      }
+      setShowForm(false);
+      fetchItems();
+    } catch (err) {
+      setFlash({ type: 'error', message: 'Failed to save item.' });
     }
-  };
+  }
 
-  const handleRemoveFromPackage = (itemId) =>
-    setPackageItems(packageItems.filter(pi => pi.item.id !== itemId));
+  async function handleDelete(id) {
+    setConfirm({
+      open: true,
+      title: 'Delete Item',
+      message: 'Are you sure you want to remove this item from your inventory?',
+      onConfirm: async () => {
+        try {
+          await supabase.from('foodbank_inventory').delete().eq('id', id);
+          setFlash({ type: 'success', message: 'Item deleted successfully!' });
+          fetchItems();
+        } catch (err) {
+          setFlash({ type: 'error', message: 'Failed to delete item.' });
+        }
+      }
+    });
+  }
 
-  const handleQuantityChange = (itemId, newQty) =>
-    setPackageItems(packageItems.map(pi =>
-      pi.item.id === itemId
-        ? { ...pi, quantity: Math.max(1, Math.min(newQty, pi.item.quantity)) }
-        : pi
-    ));
+  // ─── Excel Download ───
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([COLUMNS, ['White Rice', 'Grains', 100, 'kg', '2026-12-31']]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    saveAs(new Blob([buf]), 'inventory_template.xlsx');
+  }
 
-  const handleSavePackage = () => {
-    if (packageItems.length > 0 && packageName.trim()) {
-      alert(`Donation package "${packageName}" saved successfully!`);
-      setShowPackModal(false);
-      setPackageItems([]);
-      setPackageName('');
+  // ─── Excel Upload ───
+  function handleFile(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const wb = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      const data = rows.slice(1).filter(r => r.some(c => c !== undefined && c !== ''));
+      const errors = {};
+      data.forEach((row, ri) => {
+        COLUMNS.forEach((col, ci) => {
+          const val = row[ci];
+          if (col === 'Quantity') {
+            if (val === undefined || val === '' || isNaN(Number(val)) || Number(val) < 0)
+              errors[`${ri}-${ci}`] = true;
+          } else if (col === 'Unit') {
+            if (val === undefined || val === '' || !isNaN(Number(val)))
+              errors[`${ri}-${ci}`] = true;
+          } else {
+            if (val === undefined || val === '') errors[`${ri}-${ci}`] = true;
+          }
+        });
+      });
+      setReviewRows(data.map(r => [...r]));
+      setReviewErrors(errors);
+      setShowReview(true);
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  }
+
+  function updateReviewCell(ri, ci, val) {
+    setReviewRows(prev => { const n = prev.map(r => [...r]); n[ri][ci] = val; return n; });
+    const key = `${ri}-${ci}`;
+    const col = COLUMNS[ci];
+    let err = false;
+    if (col === 'Quantity') err = val === '' || isNaN(Number(val)) || Number(val) < 0;
+    else if (col === 'Unit') err = val === '' || !isNaN(Number(val));
+    else err = val === '' || val === undefined;
+    setReviewErrors(prev => { const n = { ...prev }; err ? (n[key] = true) : delete n[key]; return n; });
+  }
+
+  async function importReview() {
+    if (Object.keys(reviewErrors).length > 0) return;
+    const rows = reviewRows.map(r => {
+      const catObj = categories.find(c => c.name.toLowerCase() === String(r[1] || '').toLowerCase());
+      return {
+        foodbank_id: foodbankId,
+        item_name: r[0],
+        category_id: catObj?.id || null,
+        quantity: Number(r[2]),
+        unit: r[3] || 'pcs',
+        expiration_date: r[4] || null,
+        status: computeStatus(r[4])
+      };
+    });
+    await supabase.from('foodbank_inventory').insert(rows);
+    setFlash({ type: 'success', message: `Successfully imported ${rows.length} items!` });
+    setShowReview(false);
+    fetchItems();
+  }
+
+  // ─── Pack ───
+  function addToPkg(item) {
+    const ex = pkgItems.find(p => p.item.id === item.id);
+    if (ex) setPkgItems(pkgItems.map(p => p.item.id === item.id ? { ...p, qty: Math.min(p.qty + 1, item.quantity) } : p));
+    else setPkgItems([...pkgItems, { item, qty: 1 }]);
+  }
+  function changeQty(id, q) { setPkgItems(pkgItems.map(p => p.item.id === id ? { ...p, qty: Math.max(1, Math.min(q, p.item.quantity)) } : p)); }
+  function removePkg(id) { setPkgItems(pkgItems.filter(p => p.item.id !== id)); }
+  async function savePkg() {
+    if (!pkgItems.length || !pkgName.trim() || !foodbankId || isSavingPkg) return;
+    setIsSavingPkg(true);
+    
+    try {
+      // 1. Create the package
+      const { data: pkg, error: pkgErr } = await supabase
+        .from('donation_packages')
+        .insert([{ 
+          name: pkgName, 
+          foodbank_id: foodbankId,
+          status: 'available' 
+        }])
+        .select()
+        .single();
+      
+      if (pkgErr) throw pkgErr;
+
+      // 2. Add items to the package and deduct from inventory
+      for (const p of pkgItems) {
+        // Add to package_items
+        await supabase.from('package_items').insert([{
+          package_id: pkg.id,
+          inventory_id: p.item.id,
+          item_name: p.item.item_name,
+          quantity: p.qty,
+          unit: p.item.unit
+        }]);
+
+        // Deduct from inventory
+        const newQty = Number(p.item.quantity) - p.qty;
+        if (newQty <= 0) {
+          await supabase.from('foodbank_inventory').delete().eq('id', p.item.id);
+        } else {
+          await supabase.from('foodbank_inventory').update({ quantity: newQty }).eq('id', p.item.id);
+        }
+      }
+
+      setFlash({ type: 'success', message: `Package "${pkgName}" has been packed and saved!` });
+      setShowPack(false);
+      setPkgItems([]);
+      setPkgName('');
+      fetchItems(); // Refresh inventory list
+    } catch (err) {
+      console.error('Error saving package:', err);
+      setFlash({ type: 'error', message: 'Failed to save package.' });
+    } finally {
+      setIsSavingPkg(false);
     }
-  };
-
-  const closeModal = () => { setShowPackModal(false); setPackageItems([]); setPackageName(''); };
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
       <FoodbankSidebar />
+      <div className="ml-60 flex-1 p-8">
 
-      <div className="ml-60 flex-1">
-        <div className="p-8">
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-3 mb-6">
-            <Card className="!p-4">
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          {[
+            { label: 'Total SKUs', value: items.length, icon: <Package size={20} className="text-[#FE9800]" /> },
+            { label: 'Total Items', value: totalQty.toLocaleString(), icon: <Package size={20} className="text-[#FE9800]" /> },
+            { label: 'Nearing Expiry', value: expiring.length, icon: <AlertTriangle size={20} className="text-yellow-600" />, warn: true },
+            { label: 'Expired', value: expired.length, icon: <Package size={20} className="text-red-400" /> },
+          ].map(({ label, value, icon, warn }) => (
+            <Card key={label} className={`!p-4 ${warn ? 'border-yellow-300 bg-yellow-50' : ''}`}>
               <div className="flex items-center gap-3">
-                <Package size={20} className="text-[#FE9800]" />
+                {icon}
                 <div>
-                  <div className="text-2xl font-bold" style={{ fontFamily: 'DM Sans' }}>{inventoryItems.length}</div>
-                  <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Total SKUs</div>
+                  <div className={`text-2xl font-bold ${warn ? 'text-yellow-700' : ''}`} style={{ fontFamily: 'DM Sans' }}>{value}</div>
+                  <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{label}</div>
                 </div>
               </div>
             </Card>
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <Package size={20} className="text-[#FE9800]" />
-                <div>
-                  <div className="text-2xl font-bold" style={{ fontFamily: 'DM Sans' }}>
-                    {inventoryItems.reduce((s, i) => s + i.quantity, 0).toLocaleString()}
-                  </div>
-                  <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Total Items</div>
-                </div>
-              </div>
-            </Card>
-            <Card className="!p-4" style={{ backgroundColor: '#FFF3DC', borderColor: '#FE9800' }}>
-              <div className="flex items-center gap-3">
-                <AlertTriangle size={20} className="text-[#C97700]" />
-                <div>
-                  <div className="text-2xl font-bold" style={{ fontFamily: 'DM Sans', color: '#C97700' }}>{expiringItems.length}</div>
-                  <div className="text-xs" style={{ fontFamily: 'DM Sans', color: '#C97700' }}>Nearing Expiry</div>
-                </div>
-              </div>
-            </Card>
-            <Card className="!p-4">
-              <div className="flex items-center gap-3">
-                <Package size={20} className="text-[#888888]" />
-                <div>
-                  <div className="text-2xl font-bold" style={{ fontFamily: 'DM Sans' }}>
-                    {inventoryItems.filter(i => i.status === 'expired').length}
-                  </div>
-                  <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Expired</div>
-                </div>
-              </div>
-            </Card>
-          </div>
+          ))}
+        </div>
 
-          {/* Action Row */}
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
-            <div className="flex gap-3">
-              <Button variant="secondary" icon={<Box size={18} />} onClick={() => setShowPackModal(true)}>
-                Pack Donation
-              </Button>
-              <Button variant="secondary" icon={<Upload size={18} />}>Upload Excel</Button>
-              <Button variant="primary" icon={<Plus size={18} />}>Add Item</Button>
-            </div>
+        {/* Toolbar */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
+          <div className="flex gap-2">
+            <Button variant="secondary" icon={<Box size={16} />} onClick={() => setShowPack(true)}>Pack Donation</Button>
+            <Button variant="secondary" icon={<Download size={16} />} onClick={downloadTemplate}>Download Template</Button>
+            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileRef.current?.click()}>Upload Excel</Button>
+            <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>Add Item</Button>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
           </div>
+        </div>
 
-          {/* Upload Zone */}
-          <div className="border-2 border-dashed border-[#CCCCCC] rounded-[12px] bg-white h-20 mb-6 flex items-center justify-center gap-6">
-            <div className="flex items-center gap-3">
-              <CloudUpload size={24} className="text-[#888888]" />
-              <span className="text-[13px] text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                Drag &amp; drop .xlsx file or click to browse
-              </span>
-            </div>
-            <button className="text-[#FE9800] text-[13px] underline hover:text-[#C97700]" style={{ fontFamily: 'DM Sans' }}>
-              Download template
-            </button>
+        {/* Drop zone */}
+        <div
+          className="border-2 border-dashed border-[#CCCCCC] rounded-xl h-20 mb-6 flex items-center justify-center gap-6 cursor-pointer hover:border-[#FE9800] transition-colors"
+          onClick={() => fileRef.current?.click()}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { const ev = { target: { files: [f], value: '' } }; handleFile(ev); } }}
+        >
+          <CloudUpload size={22} className="text-[#888888]" />
+          <span className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Drag &amp; drop .xlsx or click to browse</span>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-3 mb-4">
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item or category..."
+              className="w-full h-10 pl-9 pr-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
           </div>
+          <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+            className="h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+            {uniqueCats.map(c => <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>)}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+            <option value="all">All Status</option>
+            <option value="fresh">Fresh</option>
+            <option value="expiring">Expiring</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
 
-          {/* Search & Filters */}
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1 relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
-              <input
-                type="text"
-                placeholder="Search by item name or category..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-11 pl-10 pr-4 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm placeholder:text-[#888888] focus:outline-none focus:border-[#FE9800] transition-colors"
-                style={{ fontFamily: 'DM Sans' }}
-              />
-            </div>
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
-              className="h-11 px-4 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800] transition-colors"
-              style={{ fontFamily: 'DM Sans' }}>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat === 'all' ? 'All Categories' : cat}</option>
-              ))}
-            </select>
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
-              className="h-11 px-4 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800] transition-colors"
-              style={{ fontFamily: 'DM Sans' }}>
-              <option value="all">All Status</option>
-              <option value="fresh">Fresh</option>
-              <option value="expiring">Expiring</option>
-              <option value="expired">Expired</option>
-            </select>
-          </div>
-
-          <div className="flex gap-6">
-            {/* Table */}
-            <div className="flex-1">
-              <Card className="!p-0 overflow-hidden">
-                <table className="w-full">
-                  <thead style={{ backgroundColor: '#F5F5F5' }}>
-                    <tr>
-                      <th className="px-4 py-3 text-left"><input type="checkbox" className="w-4 h-4" /></th>
-                      {['Item Name','Category','Quantity','Unit','Expiry Date','Status','Actions'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs uppercase"
-                          style={{ fontFamily: 'DM Sans', color: '#888888' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredItems.map((item, idx) => (
-                      <tr key={item.id} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#FAFAFA' }}>
-                        <td className="px-4 py-3"><input type="checkbox" className="w-4 h-4" /></td>
-                        <td className="px-4 py-3 text-sm" style={{ fontFamily: 'DM Sans' }}>{item.name}</td>
-                        <td className="px-4 py-3 text-sm" style={{ fontFamily: 'DM Sans' }}>{item.category}</td>
-                        <td className="px-4 py-3 text-sm" style={{ fontFamily: 'DM Sans' }}>{item.quantity}</td>
-                        <td className="px-4 py-3 text-sm" style={{ fontFamily: 'DM Sans' }}>{item.unit}</td>
-                        <td className="px-4 py-3 text-sm" style={{ fontFamily: 'DM Sans' }}>{item.expiryDate}</td>
-                        <td className="px-4 py-3">
-                          <Badge type={item.status}>
-                            {item.status === 'fresh' ? 'Fresh' : item.status === 'expiring' ? 'Expiring' : 'Expired'}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button className="text-[#888888] hover:text-[#FE9800]"><Pencil size={16} /></button>
-                            <button className="text-[#888888] hover:text-[#E74C3C]"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
+        <div className="flex gap-5">
+          {/* Table */}
+          <div className="flex-1">
+            <Card className="!p-0 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-[#F5F5F5]">
+                  <tr>
+                    {['Item Name', 'Category', 'Qty', 'Unit', 'Expiry', 'Status', ''].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs uppercase text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{h}</th>
                     ))}
-                  </tbody>
-                </table>
-                <div className="border-t border-[#F0F0F0] px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                    Showing {filteredItems.length} of {inventoryItems.length} items
-                  </span>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1 border border-[#CCCCCC] rounded text-sm hover:bg-[#F5F5F5]" style={{ fontFamily: 'DM Sans' }}>Previous</button>
-                    <button className="px-3 py-1 rounded text-sm text-white" style={{ backgroundColor: '#FE9800', fontFamily: 'DM Sans' }}>1</button>
-                    <button className="px-3 py-1 border border-[#CCCCCC] rounded text-sm hover:bg-[#F5F5F5]" style={{ fontFamily: 'DM Sans' }}>Next</button>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Expiring Soon */}
-            <div className="w-60">
-              <Card>
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle size={16} className="text-[#FE9800]" />
-                  <h3 className="text-[14px] font-semibold text-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>Expiring Soon</h3>
-                </div>
-                <div className="space-y-4">
-                  {expiringItems.map((item) => (
-                    <div key={item.id} className="pb-4 border-b border-[#F0F0F0] last:border-0">
-                      <div className="text-sm font-semibold mb-1" style={{ fontFamily: 'DM Sans' }}>{item.name}</div>
-                      <div className="text-xs text-[#888888] mb-1" style={{ fontFamily: 'DM Sans' }}>Expires: {item.expiryDate}</div>
-                      <div className="text-xs text-[#888888] mb-2" style={{ fontFamily: 'DM Sans' }}>{item.quantity} {item.unit}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge type="warning">Expiring</Badge>
-                        <button className="text-[#FE9800] text-xs underline hover:text-[#C97700]" style={{ fontFamily: 'DM Sans' }}>
-                         Redistribute →
-                        </button>
-                      </div>
-                    </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">Loading…</td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No items found.</td></tr>
+                  ) : filtered.map((item, idx) => (
+                    <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFA]'}>
+                      <td className="px-4 py-3 text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</td>
+                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.category}</td>
+                      <td className="px-4 py-3 text-sm font-bold" style={{ fontFamily: 'DM Sans' }}>{Number(item.quantity).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.unit}</td>
+                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.expiration_date || '—'}</td>
+                      <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button onClick={() => openEdit(item)} className="text-[#888] hover:text-[#FE9800] transition-colors"><Pencil size={15} /></button>
+                          <button onClick={() => handleDelete(item.id)} className="text-[#888] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </Card>
-            </div>
+                </tbody>
+              </table>
+              <div className="border-t border-[#F0F0F0] px-4 py-3">
+                <span className="text-xs text-[#888]" style={{ fontFamily: 'DM Sans' }}>Showing {filtered.length} of {items.length} items</span>
+              </div>
+            </Card>
+          </div>
+
+          {/* Expiring Soon */}
+          <div className="w-56 shrink-0">
+            <Card>
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle size={15} className="text-[#FE9800]" />
+                <h3 className="text-sm font-bold text-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>Expiring Soon</h3>
+              </div>
+              {expiring.length === 0
+                ? <p className="text-xs text-gray-400">None expiring soon.</p>
+                : expiring.map(item => (
+                  <div key={item.id} className="pb-3 mb-3 border-b border-[#F0F0F0] last:border-0 last:mb-0">
+                    <p className="text-xs font-bold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
+                    <p className="text-[10px] text-[#888]">Exp: {item.expiration_date}</p>
+                    <p className="text-[10px] text-[#888]">{Number(item.quantity).toLocaleString()} {item.unit}</p>
+                  </div>
+                ))}
+            </Card>
           </div>
         </div>
       </div>
 
-      {/* Pack Donation Modal */}
-      <Modal isOpen={showPackModal} onClose={closeModal} title="Pack Donation Package" width="xl">
+      {/* ── Add/Edit Modal ── */}
+      <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={editing ? 'Edit Item' : 'Add Inventory Item'}>
+        <div className="space-y-3">
+          {[
+            { label: 'Item Name', field: 'item_name', type: 'text' },
+            { label: 'Quantity', field: 'quantity', type: 'number' },
+            { label: 'Expiration Date', field: 'expiration_date', type: 'date' },
+          ].map(({ label, field, type }) => (
+            <div key={field}>
+              <label className="block text-xs font-semibold text-[#555] mb-1" style={{ fontFamily: 'DM Sans' }}>{label}</label>
+              <input type={type} value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} min={type === 'number' ? 0 : undefined}
+                className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-semibold text-[#555] mb-1">Category</label>
+            <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+              <option value="">Select category</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#555] mb-1">Unit</label>
+            <select value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveItem} disabled={!form.item_name || !form.quantity}>Save</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Excel Review Modal ── */}
+      {showReview && reviewRows && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F0F0F0]">
+              <div>
+                <h2 className="text-base font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Review Uploaded Data</h2>
+                {Object.keys(reviewErrors).length > 0
+                  ? <p className="text-xs text-red-500 mt-0.5">Fix highlighted cells before importing.</p>
+                  : <p className="text-xs text-green-600 mt-0.5">All rows look good. Ready to import.</p>}
+              </div>
+              <button onClick={() => setShowReview(false)} className="p-2 rounded-lg hover:bg-gray-100"><X size={18} /></button>
+            </div>
+            <div className="overflow-auto flex-1 p-4">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>{COLUMNS.map((c, i) => <th key={i} className="px-3 py-2 bg-[#F5F5F5] text-left text-xs font-bold text-[#555] border border-[#E0E0E0]">{c}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {reviewRows.map((row, ri) => (
+                    <tr key={ri}>
+                      {COLUMNS.map((col, ci) => {
+                        const err = reviewErrors[`${ri}-${ci}`];
+                        return (
+                          <td key={ci} className={`border border-[#E0E0E0] p-0 ${err ? 'bg-red-50' : ''}`}>
+                            <input
+                              type={col === 'Quantity' ? 'number' : col === 'Expiration Date' ? 'date' : 'text'}
+                              value={row[ci] ?? ''}
+                              onChange={e => updateReviewCell(ri, ci, e.target.value)}
+                              min={col === 'Quantity' ? 0 : undefined}
+                              className={`w-full px-3 py-2 text-sm outline-none bg-transparent ${err ? 'placeholder:text-red-300' : ''}`}
+                              style={{ fontFamily: 'DM Sans', color: err ? '#dc2626' : '#1A1A1A' }}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#F0F0F0]">
+              <Button variant="ghost" onClick={() => setShowReview(false)}>Cancel</Button>
+              <Button variant="primary" icon={<Check size={15} />} onClick={importReview} disabled={Object.keys(reviewErrors).length > 0}>
+                Import {reviewRows.length} Row{reviewRows.length !== 1 ? 's' : ''}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pack Modal ── */}
+      <Modal isOpen={showPack} onClose={() => { setShowPack(false); setPkgItems([]); setPkgName(''); }} title="Pack Donation Package" width="xl">
         <div className="space-y-4">
-          <Input label="Package Name" placeholder="Enter package name (e.g., Family Relief Package)"
-            value={packageName} onChange={(e) => setPackageName(e.target.value)} />
-          <div className="border-t border-[#F0F0F0] pt-4">
-            <h3 className="text-sm font-semibold mb-3" style={{ fontFamily: 'DM Sans' }}>Select Items from Inventory</h3>
-            <div className="max-h-[300px] overflow-y-auto space-y-2 mb-4">
-              {inventoryItems.map((item) => {
-                const inPackage = packageItems.find(pi => pi.item.id === item.id);
+          <div>
+            <label className="block text-xs font-semibold mb-1">Package Name</label>
+            <input value={pkgName} onChange={e => setPkgName(e.target.value)} placeholder="e.g. Family Relief Package"
+              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
+          </div>
+
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+            <input 
+              type="text" 
+              placeholder="Search items to add..." 
+              value={pkgSearch} 
+              onChange={e => setPkgSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg text-xs focus:outline-none focus:border-[#FE9800]"
+              style={{ fontFamily: 'DM Sans' }}
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {items
+              .filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase()))
+              .map(item => {
+                const inPkg = pkgItems.find(p => p.item.id === item.id);
                 return (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg hover:bg-[#ECECEC] transition-colors">
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{item.name}</div>
-                      <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Available: {item.quantity} {item.unit}</div>
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-[#FE9800]/20 transition-all">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
+                      <p className="text-[11px] text-[#888]">Available: {Number(item.quantity).toLocaleString()} {item.unit}</p>
                     </div>
-                    {inPackage ? (
+                    {inPkg ? (
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleQuantityChange(item.id, inPackage.quantity - 1)}
-                          className="w-7 h-7 flex items-center justify-center rounded text-white"
-                          style={{ backgroundColor: '#CCCCCC' }}>
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-12 text-center text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{inPackage.quantity}</span>
-                        <button onClick={() => handleQuantityChange(item.id, inPackage.quantity + 1)}
-                          className="w-7 h-7 flex items-center justify-center rounded text-white"
-                          style={{ backgroundColor: '#FE9800' }}>
-                          <Plus size={14} />
-                        </button>
-                        <button onClick={() => handleRemoveFromPackage(item.id)}
-                          className="ml-2 text-xs hover:underline" style={{ fontFamily: 'DM Sans', color: '#E74C3C' }}>
-                          Remove
-                        </button>
+                        <button onClick={() => changeQty(item.id, inPkg.qty - 1)} className="w-7 h-7 bg-gray-200 text-[#555] rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"><Minus size={13} /></button>
+                        <span className="w-8 text-center text-sm font-bold">{inPkg.qty}</span>
+                        <button onClick={() => changeQty(item.id, inPkg.qty + 1)} className="w-7 h-7 bg-[#FE9800] text-white rounded-lg flex items-center justify-center hover:bg-[#e58a00] transition-colors"><Plus size={13} /></button>
+                        <button onClick={() => removePkg(item.id)} className="text-[10px] text-red-500 ml-1 font-bold uppercase tracking-wider">Remove</button>
                       </div>
                     ) : (
-                      <button onClick={() => handleAddToPackage(item)}
-                        className="px-3 py-1.5 rounded-lg text-white text-xs transition-colors"
-                        style={{ backgroundColor: '#FE9800', fontFamily: 'DM Sans', fontWeight: 600 }}>
-                        Add to Package
-                      </button>
+                      <button onClick={() => addToPkg(item)} className="px-4 py-1.5 bg-[#FE9800] text-white text-xs rounded-lg font-bold hover:bg-[#e58a00] transition-colors">Add</button>
                     )}
                   </div>
                 );
               })}
-            </div>
-            {packageItems.length > 0 && (
-              <div className="border-t border-[#F0F0F0] pt-4">
-                <h4 className="text-sm font-semibold mb-2" style={{ fontFamily: 'DM Sans' }}>Package Summary ({packageItems.length} items)</h4>
-                <div className="rounded-lg p-3 space-y-1" style={{ backgroundColor: '#FFF3DC' }}>
-                  {packageItems.map(pi => (
-                    <div key={pi.item.id} className="flex justify-between text-xs" style={{ fontFamily: 'DM Sans' }}>
-                      <span>{pi.item.name}</span>
-                      <span className="font-semibold">{pi.quantity} {pi.item.unit}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {items.filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && (
+              <div className="py-8 text-center text-xs text-gray-400">No items matching "{pkgSearch}"</div>
             )}
           </div>
-          <div className="flex justify-end gap-3 border-t border-[#F0F0F0] pt-4">
-            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
-            <Button variant="primary" onClick={handleSavePackage}
-              disabled={packageItems.length === 0 || !packageName.trim()}>
-              Save Package
+          {pkgItems.length > 0 && (
+            <div className="bg-[#FFF3DC] rounded-lg p-3 space-y-1">
+              <p className="text-xs font-bold mb-2">Summary ({pkgItems.length} items)</p>
+              {pkgItems.map(p => (
+                <div key={p.item.id} className="flex justify-between text-xs">
+                  <span>{p.item.item_name}</span><span className="font-bold">{p.qty} {p.item.unit}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 border-t pt-3">
+            <Button variant="ghost" onClick={() => { setShowPack(false); setPkgItems([]); setPkgName(''); setPkgSearch(''); }} disabled={isSavingPkg}>Cancel</Button>
+            <Button variant="primary" onClick={savePkg} disabled={!pkgItems.length || !pkgName.trim() || isSavingPkg}>
+              {isSavingPkg ? 'Saving...' : 'Save Package'}
             </Button>
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirm.open}
+        onClose={() => setConfirm({ ...confirm, open: false })}
+        onConfirm={confirm.onConfirm}
+        title={confirm.title}
+        message={confirm.message}
+      />
+
+      {flash && (
+        <FlashMessage
+          type={flash.type}
+          message={flash.message}
+          onClose={() => setFlash(null)}
+        />
+      )}
     </div>
   );
 }

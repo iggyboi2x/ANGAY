@@ -74,10 +74,19 @@ export default function BarangayDonations() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
 
-  const confirmReceived = async (id) => {
+  const confirmReceived = async (dist) => {
+    // 1. Update distribution status
     await supabase.from('distributions')
       .update({ status: 'received', updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', dist.id);
+    
+    // 2. If it was a package, mark the package as donated
+    if (dist.package_id) {
+      await supabase.from('donation_packages')
+        .update({ status: 'donated', updated_at: new Date().toISOString() })
+        .eq('id', dist.package_id);
+    }
+
     await load();
   };
 
@@ -164,7 +173,7 @@ export default function BarangayDonations() {
           ) : (
             <div className="grid grid-cols-2 gap-5">
               {filtered.map(d => (
-                <AidCard key={d.id} dist={d} onConfirmReceived={() => confirmReceived(d.id)} />
+                <AidCard key={d.id} dist={d} onConfirmReceived={() => confirmReceived(d)} />
               ))}
             </div>
           )}

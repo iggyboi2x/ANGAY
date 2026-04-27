@@ -101,73 +101,7 @@ function DistCard({ dist }) {
   );
 }
 
-// ─── Send to Barangay Modal ───────────────────────────────────────────────────
-function SendModal({ barangays, onClose, onSubmit }) {
-  const [form, setForm] = useState({ barangay_id: '', items: '', notes: '', scheduled_date: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-
-  const submit = async () => {
-    if (!form.barangay_id || !form.items || !form.scheduled_date) {
-      setError('Please fill in all required fields.'); return;
-    }
-    setLoading(true);
-    const ok = await onSubmit(form);
-    setLoading(false);
-    if (!ok) setError('Failed to send. Please try again.');
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FE9800] to-[#FBBF24]" />
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-bold text-[#1A1A1A]">Send Food Aid to Barangay</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
-          </div>
-          {error && <p className="text-xs text-red-500 mb-3 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Barangay *</label>
-              <div className="relative">
-                <select value={form.barangay_id} onChange={set('barangay_id')} className={inputCls + ' appearance-none pr-8'}>
-                  <option value="">Select barangay…</option>
-                  {barangays.map(b => <option key={b.id} value={b.id}>{b.barangay_name}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Items *</label>
-              <textarea value={form.items} onChange={set('items')} rows={3}
-                placeholder="e.g. Rice 50kg, Canned goods 20pcs"
-                className={inputCls + ' resize-none'} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Scheduled Date *</label>
-              <input type="date" value={form.scheduled_date} onChange={set('scheduled_date')}
-                min={new Date().toISOString().split('T')[0]} className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Notes <span className="text-gray-300 font-normal normal-case">(optional)</span></label>
-              <textarea value={form.notes} onChange={set('notes')} rows={2}
-                placeholder="Any special instructions…" className={inputCls + ' resize-none'} />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-6">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={submit} disabled={loading}
-              className="flex-1 py-2.5 rounded-xl bg-[#FE9800] text-white text-sm font-semibold hover:bg-[#e58a00] disabled:opacity-60 transition-all">
-              {loading ? 'Sending…' : 'Send Food Aid'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FoodbankDonations() {
@@ -178,6 +112,7 @@ export default function FoodbankDonations() {
   const [donations, setDonations]   = useState([]);
   const [dists, setDists]           = useState([]);
   const [barangays, setBarangays]   = useState([]);
+  const [packages, setPackages]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
 
@@ -185,14 +120,16 @@ export default function FoodbankDonations() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [{ data: don }, { data: dis }, { data: bays }] = await Promise.all([
+    const [{ data: don }, { data: dis }, { data: bays }, { data: pkgs }] = await Promise.all([
       supabase.from('donations').select('*').eq('foodbank_id', user.id).order('created_at', { ascending: false }),
       supabase.from('distributions').select('*').eq('foodbank_id', user.id).order('created_at', { ascending: false }),
       supabase.from('barangays').select('id, barangay_name').not('latitude', 'is', null),
+      supabase.from('donation_packages').select('*, package_items(*)').eq('foodbank_id', user.id).eq('status', 'available'),
     ]);
     setDonations(don || []);
     setDists(dis || []);
     setBarangays(bays || []);
+    setPackages(pkgs || []);
     setLoading(false);
   };
 
@@ -206,9 +143,9 @@ export default function FoodbankDonations() {
 
   const handleSend = async (form) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    if (!user) return { error: 'Authentication required' };
     const bay = barangays.find(b => b.id === form.barangay_id);
-    const { error } = await supabase.from('distributions').insert({
+    const { error: distError } = await supabase.from('distributions').insert({
       foodbank_id:   user.id,
       barangay_id:   form.barangay_id,
       foodbank_name: displayName,
@@ -217,11 +154,26 @@ export default function FoodbankDonations() {
       notes:         form.notes || null,
       scheduled_date: form.scheduled_date,
       status:        'pending',
+      package_id:    form.package_id || null,
     });
-    if (error) { console.error(error); return false; }
+    if (distError) { 
+      console.error(distError); 
+      return { error: distError.message }; 
+    }
+
+    if (form.package_id) {
+      const { error: pkgError } = await supabase.from('donation_packages')
+        .update({ status: 'pending' })
+        .eq('id', form.package_id);
+      
+      if (pkgError) {
+        console.error(pkgError);
+        return { error: pkgError.message };
+      }
+    }
     setShowModal(false);
     await loadAll();
-    return true;
+    return { success: true };
   };
 
   const pendingDonors = donations.filter(d => d.status === 'pending').length;
@@ -360,7 +312,7 @@ export default function FoodbankDonations() {
         </div>
       </div>
 
-      {showModal && <SendModal barangays={barangays} onClose={() => setShowModal(false)} onSubmit={handleSend} />}
+      {showModal && <SendFoodAidModal barangays={barangays} packages={packages} onClose={() => setShowModal(false)} onSubmit={handleSend} />}
     </div>
   );
 }

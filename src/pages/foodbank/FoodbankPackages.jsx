@@ -1,74 +1,127 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Clock, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../../../supabase';
+import { useProfile } from '../../hooks/useProfile';
+import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
+import FlashMessage from '../../components/FlashMessage';
 
-const initialPackages = [
-  {
-    id: 1,
-    name: 'Family Relief Package',
-    createdAt: 'Mar 18, 2026',
-    status: 'available',
-    items: [
-      { name: 'White Rice',    qty: 10,  unit: 'kg'    },
-      { name: 'Canned Sardines', qty: 12, unit: 'cans' },
-      { name: 'Cooking Oil',   qty: 2,   unit: 'liters'},
-    ],
-  },
-  {
-    id: 2,
-    name: 'Emergency Food Pack',
-    createdAt: 'Mar 17, 2026',
-    status: 'available',
-    items: [
-      { name: 'Instant Noodles', qty: 24, unit: 'packs' },
-      { name: 'Canned Tuna',     qty: 8,  unit: 'cans'  },
-      { name: 'Sugar',           qty: 5,  unit: 'kg'    },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Weekly Sustenance Package',
-    createdAt: 'Mar 16, 2026',
-    status: 'available',
-    items: [
-      { name: 'White Rice',      qty: 15, unit: 'kg'    },
-      { name: 'Canned Sardines', qty: 10, unit: 'cans'  },
-      { name: 'Instant Noodles', qty: 20, unit: 'packs' },
-      { name: 'Cooking Oil',     qty: 3,  unit: 'liters'},
-    ],
-  },
-  {
-    id: 4,
-    name: 'Community Distribution Pack',
-    createdAt: 'Mar 10, 2026',
-    status: 'donated',
-    items: [
-      { name: 'White Rice',      qty: 25, unit: 'kg'   },
-      { name: 'Canned Goods Mix',qty: 30, unit: 'cans' },
-    ],
-  },
+const StatusBadge = ({ status }) => {
+  const styles = {
+    available: 'bg-green-50 text-green-600 border border-green-100',
+    pending: 'bg-blue-50 text-blue-600 border border-blue-100',
+    donated: 'bg-[#F0F0F0] text-[#888888] border border-[#E0E0E0]'
+  };
+  const labels = { available: 'Available', pending: 'Pending', donated: 'Donated' };
+  const icons = { 
+    available: <Clock size={12} />, 
+    pending: <Clock size={12} className="animate-pulse" />, 
+    donated: <CheckCircle2 size={12} /> 
+  };
+
+  return (
+    <span className={`text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 ${styles[status] || styles.donated}`} style={{ fontFamily: 'DM Sans' }}>
+      {icons[status] || icons.donated}
+      {labels[status] || labels.donated}
+    </span>
+  );
+};
+
+const TABS = [
+  { key: 'available', label: 'Available' },
+  { key: 'pending',   label: 'Pending Confirmation' },
+  { key: 'donated',   label: 'Donated' },
 ];
 
-const StatusBadge = ({ status }) => (
-  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-    status === 'available'
-      ? 'bg-green-50 text-green-600'
-      : 'bg-[#F0F0F0] text-[#888888]'
-  }`} style={{ fontFamily: 'DM Sans' }}>
-    {status === 'available' ? 'Available' : 'Donated'}
-  </span>
-);
-
 export default function FoodbankPackages() {
-  const [packages, setPackages] = useState(initialPackages);
+  const { id: foodbankId, displayName } = useProfile();
+  const [packages, setPackages] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('available');
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [selectedPkgId, setSelectedPkgId] = useState(null);
+  const [flash, setFlash] = useState(null);
 
-  const availableCount = packages.filter(p => p.status === 'available').length;
+  useEffect(() => {
+    if (foodbankId) {
+      fetchPackages();
+      fetchBarangays();
+    }
+  }, [foodbankId]);
 
-  const handleDonate = (id) => {
-    setPackages(packages.map(p => p.id === id ? { ...p, status: 'donated' } : p));
+  const fetchBarangays = async () => {
+    const { data } = await supabase.from('barangays').select('id, barangay_name').not('latitude', 'is', null);
+    setBarangays(data || []);
   };
+
+  const fetchPackages = async () => {
+    setLoading(true);
+    // Fetch packages with items and their associated distributions (to get barangay name)
+    const { data, error } = await supabase
+      .from('donation_packages')
+      .select('*, package_items(*), distributions(barangay_name)')
+      .eq('foodbank_id', foodbankId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching packages:', error);
+    } else {
+      // Map distributions to the package for easier access
+      const formatted = (data || []).map(p => ({
+        ...p,
+        barangay_name: p.distributions?.[0]?.barangay_name || null
+      }));
+      setPackages(formatted);
+    }
+    setLoading(false);
+  };
+
+  const handleSend = async (form) => {
+    const bay = barangays.find(b => b.id === form.barangay_id);
+    const { error: distError } = await supabase.from('distributions').insert({
+      foodbank_id:   foodbankId,
+      barangay_id:   form.barangay_id,
+      foodbank_name: displayName,
+      barangay_name: bay?.barangay_name || '',
+      items:         form.items,
+      notes:         form.notes || null,
+      scheduled_date: form.scheduled_date,
+      status:        'pending',
+      package_id:    form.package_id || null,
+    });
+
+    if (distError) {
+      console.error(distError);
+      return { error: distError.message };
+    }
+
+    if (form.package_id) {
+      const { error: pkgError } = await supabase.from('donation_packages')
+        .update({ status: 'pending' })
+        .eq('id', form.package_id);
+      
+      if (pkgError) {
+        console.error(pkgError);
+        return { error: pkgError.message };
+      }
+    }
+
+    setFlash({ type: 'success', message: 'Food aid distribution sent successfully!' });
+    setShowSendModal(false);
+    fetchPackages();
+    return { success: true };
+  };
+
+  const counts = {
+    available: packages.filter(p => p.status === 'available').length,
+    pending:   packages.filter(p => p.status === 'pending').length,
+    donated:   packages.filter(p => p.status === 'donated').length,
+  };
+
+  const filtered = packages.filter(p => p.status === activeTab);
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -77,81 +130,160 @@ export default function FoodbankPackages() {
       <div className="ml-60 flex-1 p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-7">
-          <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
-            Donation Packages
-          </h1>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-green-50 text-green-600 border border-green-100"
-              style={{ fontFamily: 'DM Sans' }}>
-              {availableCount} Available Packages
-            </span>
-            <Button variant="primary" icon={<Plus size={16} />}>
-              New Package
-            </Button>
+          <div>
+            <h1 className="text-[24px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
+              Donation Packages
+            </h1>
+            <p className="text-sm text-[#888888] mt-1" style={{ fontFamily: 'DM Sans' }}>
+              Manage your prepared relief goods and track their distribution status.
+            </p>
           </div>
+          <Button variant="primary" icon={<Plus size={16} />} onClick={() => window.location.href='/foodbank/inventory'}>
+            New Package
+          </Button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-8 bg-[#F5F5F5] p-1.5 rounded-[18px] w-fit">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-6 py-2.5 rounded-[14px] text-sm font-bold transition-all duration-300 flex items-center gap-2
+                ${activeTab === key
+                  ? 'bg-white text-[#FE9800] shadow-[0px_4px_12px_rgba(0,0,0,0.05)] scale-[1.02]'
+                  : 'text-[#888888] hover:text-[#555] hover:bg-gray-100'
+                }`}
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              {label}
+              {counts[key] > 0 && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                  activeTab === key ? 'bg-[#FE9800] text-white' : 'bg-gray-200 text-gray-500'
+                }`}>
+                  {counts[key]}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Package Grid */}
-        <div className="grid grid-cols-2 gap-5">
-          {packages.map((pkg) => {
-            const isDonated = pkg.status === 'donated';
-            return (
-              <Card key={pkg.id} className={`!p-5 flex flex-col gap-4 ${isDonated ? 'opacity-70' : ''}`}>
-                {/* Card Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#FFF3DC] flex items-center justify-center flex-shrink-0">
-                      <Package size={20} className="text-[#FE9800]" />
-                    </div>
-                    <div>
-                      <div className="text-base font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
-                        {pkg.name}
-                      </div>
-                      <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>
-                        Created: {pkg.createdAt}
-                      </div>
-                    </div>
-                  </div>
-                  <StatusBadge status={pkg.status} />
-                </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading packages...</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-80 bg-[#F9FAFB]/50 rounded-[32px] border-2 border-dashed border-[#E0E0E0]">
+            <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
+              <Package size={30} className="text-[#CCC]" />
+            </div>
+            <p className="text-base text-[#888] font-bold" style={{ fontFamily: 'DM Sans' }}>No {activeTab} packages found.</p>
+            <p className="text-sm text-[#AAA] mt-1 max-w-[280px] text-center" style={{ fontFamily: 'DM Sans' }}>
+              {activeTab === 'available' 
+                ? "Go to Inventory to pack your first relief package for distribution." 
+                : activeTab === 'pending'
+                ? "Packages currently being sent to barangays will appear here."
+                : "Your distribution history will appear here once packages are received."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {filtered.map((pkg) => (
+              <PackageCard 
+                key={pkg.id} 
+                pkg={pkg} 
+                onSend={() => {
+                  setSelectedPkgId(pkg.id);
+                  setShowSendModal(true);
+                }} 
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-                {/* Package Contents */}
-                <div className="bg-[#F5F5F5] rounded-xl p-4">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#888888] mb-3"
-                    style={{ fontFamily: 'DM Sans' }}>
-                    Package Contents ({pkg.items.length} items)
-                  </div>
-                  <div className="space-y-2">
-                    {pkg.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <span className="text-sm text-[#333]" style={{ fontFamily: 'DM Sans' }}>
-                          {item.name}
-                        </span>
-                        <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
-                          {item.qty} {item.unit}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      {showSendModal && (
+        <SendFoodAidModal
+          barangays={barangays}
+          packages={packages}
+          initialPackageId={selectedPkgId}
+          onClose={() => setShowSendModal(false)}
+          onSubmit={handleSend}
+        />
+      )}
 
-                {/* Action Button */}
-                <button
-                  onClick={() => !isDonated && handleDonate(pkg.id)}
-                  disabled={isDonated}
-                  className={`w-full py-3 rounded-xl font-semibold text-sm transition-all
-                    ${isDonated
-                      ? 'bg-[#FDE9B8] text-[#C97700] cursor-not-allowed'
-                      : 'bg-[#FE9800] text-white hover:bg-[#e58a00] hover:shadow-md active:scale-[0.98]'
-                    }`}
-                  style={{ fontFamily: 'DM Sans' }}>
-                  {isDonated ? 'Already Donated' : 'Donate Package'}
-                </button>
-              </Card>
-            );
-          })}
+      {flash && (
+        <FlashMessage
+          type={flash.type}
+          message={flash.message}
+          onClose={() => setFlash(null)}
+        />
+      )}
+    </div>
+  );
+}
+function PackageCard({ pkg, onSend }) {
+  const isDonated = pkg.status === 'donated';
+  const isPending = pkg.status === 'pending';
+  return (
+    <Card className={`!p-6 flex flex-col gap-4 transition-all duration-300 hover:shadow-lg ${(isDonated || isPending) ? 'opacity-80' : ''}`}>
+      {/* Card Header */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors ${isDonated ? 'bg-gray-100' : isPending ? 'bg-blue-50' : 'bg-[#FFF3DC]'}`}>
+            <Package size={24} className={isDonated ? 'text-gray-400' : isPending ? 'text-blue-500' : 'text-[#FE9800]'} />
+          </div>
+          <div>
+            <div className="text-lg font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
+              {pkg.name}
+            </div>
+            {isPending && pkg.barangay_name && (
+              <div className="text-[11px] font-bold text-blue-600 uppercase tracking-wide mt-0.5" style={{ fontFamily: 'DM Sans' }}>
+                Sent to: {pkg.barangay_name}
+              </div>
+            )}
+            <div className="text-xs text-[#888888] mt-0.5" style={{ fontFamily: 'DM Sans' }}>
+              Created: {new Date(pkg.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+          </div>
+        </div>
+        <StatusBadge status={pkg.status} />
+      </div>
+
+      {/* Package Contents */}
+      <div className={`rounded-2xl p-5 border transition-colors ${isDonated ? 'bg-gray-50 border-gray-100' : isPending ? 'bg-blue-50/30 border-blue-100' : 'bg-[#F9FAFB] border-[#F0F0F0]'}`}>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-[#AAAAAA] mb-4 flex justify-between"
+          style={{ fontFamily: 'DM Sans' }}>
+          <span>Package Contents</span>
+          <span>{pkg.package_items?.length || 0} items</span>
+        </div>
+        <div className="space-y-3">
+          {pkg.package_items?.map((item, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <span className="text-sm text-[#444]" style={{ fontFamily: 'DM Sans' }}>
+                {item.item_name}
+              </span>
+              <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
+                {item.quantity} {item.unit}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      {/* Action Button */}
+      <button
+        onClick={() => !(isDonated || isPending) && onSend && onSend()}
+        disabled={isDonated || isPending}
+        className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200
+          ${isDonated
+            ? 'bg-[#E0E0E0] text-[#888888] cursor-not-allowed'
+            : isPending
+            ? 'bg-blue-100 text-blue-500 cursor-not-allowed'
+            : 'bg-[#FE9800] text-white hover:bg-[#e58a00] hover:shadow-md active:scale-[0.98]'
+          }`}
+        style={{ fontFamily: 'DM Sans' }}>
+        {isDonated ? 'Distributed' : isPending ? 'Sent (Pending Receipt)' : 'Send to Barangay'}
+      </button>
+    </Card>
   );
 }
