@@ -21,7 +21,10 @@ const MONTH_NAMES = [
 
 export default function CalendarPanel({ isOpen, onClose }) {
   const today = new Date();
-  const { id: barangayId } = useProfile();
+  const { id: userId, role } = useProfile();
+  
+  const tableName = role === 'foodbank' ? 'foodbank_events' : 'barangay_events';
+  const idField   = role === 'foodbank' ? 'foodbank_id' : 'barangay_id';
   
   const [year,  setYear]  = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -38,10 +41,10 @@ export default function CalendarPanel({ isOpen, onClose }) {
   const grid = getGrid(year, month);
 
   useEffect(() => {
-    if (isOpen && barangayId) {
+    if (isOpen && userId) {
       fetchEvents();
     }
-  }, [isOpen, year, month, barangayId]);
+  }, [isOpen, year, month, userId, role]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -50,9 +53,9 @@ export default function CalendarPanel({ isOpen, onClose }) {
 
     try {
       const { data, error } = await supabase
-        .from('barangay_events')
+        .from(tableName)
         .select('*')
-        .eq('barangay_id', barangayId)
+        .eq(idField, userId)
         .gte('event_date', startDate)
         .lte('event_date', endDate)
         .order('event_date', { ascending: true })
@@ -68,12 +71,12 @@ export default function CalendarPanel({ isOpen, onClose }) {
   };
 
   const handleSave = async () => {
-    if (!form.title || !barangayId) return;
+    if (!form.title || !userId) return;
 
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
     const payload = {
       ...form,
-      barangay_id: barangayId,
+      [idField]: userId,
       event_date: dateStr,
     };
 
@@ -81,13 +84,13 @@ export default function CalendarPanel({ isOpen, onClose }) {
       let error;
       if (editingEvent) {
         const { error: err } = await supabase
-          .from('barangay_events')
+          .from(tableName)
           .update(payload)
           .eq('id', editingEvent.id);
         error = err;
       } else {
         const { error: err } = await supabase
-          .from('barangay_events')
+          .from(tableName)
           .insert([payload]);
         error = err;
       }
@@ -105,7 +108,7 @@ export default function CalendarPanel({ isOpen, onClose }) {
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this event?')) return;
     try {
-      const { error } = await supabase.from('barangay_events').delete().eq('id', id);
+      const { error } = await supabase.from(tableName).delete().eq('id', id);
       if (error) throw error;
       fetchEvents();
     } catch (err) {
