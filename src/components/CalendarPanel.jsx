@@ -151,7 +151,7 @@ export default function CalendarPanel({ isOpen, onClose }) {
 
       {/* Sliding Panel */}
       <div className={`
-        fixed top-0 right-0 h-full w-[350px] bg-white z-50 shadow-2xl
+        fixed top-0 right-0 h-full w-full max-w-[350px] bg-white z-50 shadow-2xl
         transform transition-transform duration-300 ease-in-out flex flex-col
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>

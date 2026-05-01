@@ -56,7 +56,7 @@ export default function BarangayPopup({ pin, onClose }) {
       )}
 
       <button className="w-full py-1.5 bg-[#FE9800] hover:bg-[#e08800] text-white text-[10px] font-bold rounded-md transition-colors">
-        Send Donation Proposal
+        Contact Barangay
       </button>
     </div>
   );
