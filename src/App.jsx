@@ -76,31 +76,56 @@ function RequireAuth({ children, allowedRoles }) {
   useEffect(() => {
     let mounted = true;
 
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      const sessionUser = data?.session?.user;
-      setAuthed(Boolean(sessionUser));
-      setRole(sessionUser?.user_metadata?.role || null);
-      setChecking(false);
+    // Set a timeout to prevent infinite "checking" state
+    const timeout = setTimeout(() => {
+      if (mounted && checking) {
+        setChecking(false);
+      }
+    }, 5000);
+
+    const init = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          setAuthed(Boolean(session));
+          setRole(session?.user?.user_metadata?.role || null);
+          setChecking(false);
+        }
+      } catch (err) {
+        console.error("Auth init failed:", err);
+        if (mounted) {
+          setAuthed(false);
+          setRole(null);
+          setChecking(false);
+        }
+      }
     };
 
-    checkSession();
+    init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthed(Boolean(session));
-      setRole(session?.user?.user_metadata?.role || null);
-      setChecking(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setAuthed(Boolean(session));
+        setRole(session?.user?.user_metadata?.role || null);
+        setChecking(false);
+      }
     });
 
     return () => {
       mounted = false;
-      listener?.subscription?.unsubscribe();
+      clearTimeout(timeout);
+      subscription?.unsubscribe();
     };
   }, []);
 
   if (checking) {
-    return <div className="min-h-screen bg-white" />;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-sm text-gray-500">Loading...</div>
+      </div>
+    );
   }
 
   if (!authed) {
