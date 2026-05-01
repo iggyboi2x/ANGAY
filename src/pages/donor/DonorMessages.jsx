@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
 import { Search, Send, MoreVertical } from "lucide-react";
 import { supabase } from "../../../supabase";
+import { usePresence } from "../../hooks/usePresence";
 
 const formatMessageTime = (raw) => {
   if (!raw) return "";
@@ -22,7 +23,7 @@ export default function DonorMessages() {
   const [savingMessage, setSavingMessage] = useState(false);
   const [sendError, setSendError] = useState("");
   const [targetInfo, setTargetInfo] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const onlineUsers = usePresence();
 
   const selected = useMemo(
     () => chats.find((chat) => chat.id === selectedRoomId) || null,
@@ -386,19 +387,7 @@ export default function DonorMessages() {
     };
   }, [currentUserId, loadConversations]);
 
-  useEffect(() => {
-    const channel = supabase.channel('online-users');
-    channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState();
-      const onlineIds = new Set();
-      for (const id in state) {
-        onlineIds.add(id);
-      }
-      setOnlineUsers(onlineIds);
-    });
-    channel.subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+
 
   const lastTargetIdRef = useRef(null);
   useEffect(() => {
