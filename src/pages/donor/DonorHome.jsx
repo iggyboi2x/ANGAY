@@ -46,9 +46,10 @@ export default function DonorHome() {
   const [donationForm, setDonationForm] = useState({
     foodbank_id: "",
     barangay_name: "",
-    items: "",
     scheduled_date: "",
   });
+  const [itemsList, setItemsList] = useState([{ name: "", qty: "", unit: "kg" }]);
+  const [barangayOptions, setBarangayOptions] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const cardRef = useRef(null);
 
@@ -56,6 +57,19 @@ export default function DonorHome() {
     () => foodbanks.map((bank) => ({ id: bank.id, label: bank.org_name || "Foodbank" })),
     [foodbanks]
   );
+
+  useEffect(() => {
+    const loadBarangays = async () => {
+      const { data, error } = await supabase
+        .from("barangays")
+        .select("id, barangay_name")
+        .order("barangay_name", { ascending: true });
+      if (!error && data) {
+        setBarangayOptions(data.map((b) => ({ id: b.id, label: b.barangay_name || "Unnamed Barangay" })));
+      }
+    };
+    loadBarangays();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,20 +134,28 @@ export default function DonorHome() {
   }, [foodbanks]);
 
   const handleDonationSubmit = async () => {
-    if (!donationForm.items || !donationForm.scheduled_date || !donationForm.foodbank_id) {
+    const filledItems = itemsList.filter((i) => i.name.trim());
+    if (filledItems.length === 0 || !donationForm.scheduled_date || !donationForm.foodbank_id) {
       setFlash({ type: "error", message: "Please complete all required donation fields." });
       return;
     }
+
+    const itemsString = filledItems
+      .map((i) => (i.qty.trim() ? `${i.name.trim()} ${i.qty.trim()}${i.unit}` : i.name.trim()))
+      .join(", ");
 
     setSavingDonation(true);
     const { data: authData } = await supabase.auth.getUser();
     const user = authData?.user;
 
+    const selectedFoodbankLabel = foodbankOptions.find(f => f.id === donationForm.foodbank_id)?.label || null;
+
     const payload = {
       donor_id: user?.id || null,
       foodbank_id: donationForm.foodbank_id,
+      foodbank_name: selectedFoodbankLabel,
       barangay_name: donationForm.barangay_name || null,
-      items: donationForm.items,
+      items: itemsString,
       scheduled_date: donationForm.scheduled_date,
       status: "pending",
     };
@@ -148,7 +170,8 @@ export default function DonorHome() {
 
     setFlash({ type: "success", message: "Donation request submitted." });
     setFormOpen(false);
-    setDonationForm({ foodbank_id: "", barangay_name: "", items: "", scheduled_date: "" });
+    setDonationForm({ foodbank_id: "", barangay_name: "", scheduled_date: "" });
+    setItemsList([{ name: "", qty: "", unit: "kg" }]);
   };
 
   return (
@@ -367,13 +390,66 @@ export default function DonorHome() {
                 </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5">Items *</label>
-                <textarea
-                  value={donationForm.items}
-                  onChange={(e) => setDonationForm((prev) => ({ ...prev, items: e.target.value }))}
-                  rows={3}
-                  placeholder="Ex. Rice 20kg, canned goods 40 pcs"
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-[#FE9800] resize-none"
-                />
+                <div className="space-y-2">
+                  {itemsList.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input
+                        value={item.name}
+                        onChange={(e) => {
+                          const updated = [...itemsList];
+                          updated[idx].name = e.target.value;
+                          setItemsList(updated);
+                        }}
+                        placeholder="Item name (e.g. Rice)"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-[#FE9800]"
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.qty}
+                        onChange={(e) => {
+                          const updated = [...itemsList];
+                          updated[idx].qty = e.target.value;
+                          setItemsList(updated);
+                        }}
+                        placeholder="Qty"
+                        className="w-16 px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-[#FE9800]"
+                      />
+                      <select
+                        value={item.unit}
+                        onChange={(e) => {
+                          const updated = [...itemsList];
+                          updated[idx].unit = e.target.value;
+                          setItemsList(updated);
+                        }}
+                        className="w-20 px-2 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-[#FE9800]"
+                      >
+                        <option value="kg">kg</option>
+                        <option value="pcs">pcs</option>
+                        <option value="cans">cans</option>
+                        <option value="packs">packs</option>
+                        <option value="sacks">sacks</option>
+                        <option value="boxes">boxes</option>
+                        <option value="liters">liters</option>
+                        <option value="trays">trays</option>
+                      </select>
+                      {itemsList.length > 1 && (
+                        <button
+                          onClick={() => setItemsList(itemsList.filter((_, i) => i !== idx))}
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setItemsList([...itemsList, { name: "", qty: "", unit: "kg" }])}
+                    className="text-xs text-[#FE9800] font-medium hover:underline mt-1"
+                  >
+                    + Add another item
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -387,12 +463,18 @@ export default function DonorHome() {
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1.5">Target Barangay</label>
-                  <input
+                  <select
                     value={donationForm.barangay_name}
                     onChange={(e) => setDonationForm((prev) => ({ ...prev, barangay_name: e.target.value }))}
-                    placeholder="Optional"
                     className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 outline-none focus:border-[#FE9800]"
-                  />
+                  >
+                    <option value="">Optional</option>
+                    {barangayOptions.map((opt) => (
+                      <option key={opt.id} value={opt.label}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button

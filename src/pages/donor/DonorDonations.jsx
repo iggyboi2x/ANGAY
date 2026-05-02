@@ -30,10 +30,11 @@ export default function DonorDonations() {
     if (!user) return;
     const { data } = await supabase
       .from("donations")
-      .select("id, foodbank_name, items, notes, scheduled_date, status, created_at")
+      .select("id, foodbank_id, foodbank_name, items, notes, scheduled_date, status, created_at")
       .eq("donor_id", user.id)
       .order("created_at", { ascending: false });
-    setDonations(data || []);
+
+    setDonations((data || []).map(d => ({ ...d, foodbank_name: d.foodbank_name || "Foodbank" })));
     setLoading(false);
   };
 
