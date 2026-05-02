@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import BarangaySidebar from '../../components/barangay/BarangaySidebar';
+import BarangayNotificationBell from '../../components/barangay/BarangayNotificationBell';
 import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../../supabase';
-import { Package, CheckCircle, Clock, Bell, RotateCcw } from 'lucide-react';
+import { Package, CheckCircle, Clock, RotateCcw } from 'lucide-react';
 
 const fmt = d => d ? new Date(d).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' }) : '—';
 
@@ -108,10 +109,7 @@ export default function BarangayDonations() {
         <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
           <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Food Aid</h1>
           <div className="flex items-center gap-2">
-            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
-              <Bell size={18} />
-              {incomingCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />}
-            </button>
+            <BarangayNotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
               <span className="text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}
