@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Package, Box, Gift, Settings, LogOut, Wheat } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Package, Box, Gift, Settings, LogOut, Wheat, X } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/foodbank/dashboard' },
@@ -9,16 +9,30 @@ const navItems = [
   { label: 'Donations', icon: Gift,             to: '/foodbank/donations' },
 ];
 
-export default function FoodbankSidebar() {
+export default function FoodbankSidebar({ mobileOpen, setMobileOpen }) {
   const navigate = useNavigate();
 
   return (
-    <div className="w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0]">
-      {/* Logo */}
-      <div className="h-16 px-5 flex items-center gap-2">
-        <Wheat size={20} className="text-[#FE9800]" />
-        <h1 className="text-[24px] text-[#FE9800]" style={{ fontFamily: 'Fredoka', fontWeight: 700 }}>ANGAY</h1>
-      </div>
+    <>
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40 md:hidden" 
+          onClick={() => setMobileOpen && setMobileOpen(false)}
+        />
+      )}
+      <div className={`w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0] z-50 transition-transform transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        {/* Logo */}
+        <div className="h-16 px-5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wheat size={20} className="text-[#FE9800]" />
+            <h1 className="text-[24px] text-[#FE9800]" style={{ fontFamily: 'Fredoka', fontWeight: 700 }}>ANGAY</h1>
+          </div>
+          {mobileOpen && setMobileOpen && (
+            <button className="md:hidden text-[#888888] hover:bg-gray-100 p-1 rounded-md" onClick={() => setMobileOpen(false)}>
+              <X size={20} />
+            </button>
+          )}
+        </div>
 
       {/* Nav */}
       <nav className="flex-1 px-4 pt-2">
@@ -70,6 +84,7 @@ export default function FoodbankSidebar() {
           <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Logout</span>
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

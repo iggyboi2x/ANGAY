@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
-import { Package, Plus, Clock, CheckCircle2 } from 'lucide-react';
+import Modal from '../../components/Modal';
+import { Package, Plus, Clock, CheckCircle2, Pencil, Trash2, Search, Minus } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
@@ -44,6 +45,12 @@ export default function FoodbankPackages() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [selectedPkgId, setSelectedPkgId] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [editingPkg, setEditingPkg] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [pkgItems, setPkgItems] = useState([]);
+  const [pkgSearch, setPkgSearch] = useState('');
+  const [isSavingPkg, setIsSavingPkg] = useState(false);
 
   useEffect(() => {
     if (foodbankId) {
@@ -62,7 +69,7 @@ export default function FoodbankPackages() {
     // Fetch packages with items and their associated distributions (to get barangay name)
     const { data, error } = await supabase
       .from('donation_packages')
-      .select('*, package_items(*), distributions(barangay_name)')
+      .select('*, package_items(*), distributions(*)')
       .eq('foodbank_id', foodbankId)
       .order('created_at', { ascending: false });
 
@@ -70,13 +77,145 @@ export default function FoodbankPackages() {
       console.error('Error fetching packages:', error);
     } else {
       // Map distributions to the package for easier access
-      const formatted = (data || []).map(p => ({
-        ...p,
-        barangay_name: p.distributions?.[0]?.barangay_name || null
-      }));
+      const formatted = (data || []).map(p => {
+        const dist = p.distributions?.[0];
+        return {
+          ...p,
+          barangay_name: dist?.barangay_name || null,
+          received_date: dist?.updated_at || dist?.created_at || null
+        };
+      });
       setPackages(formatted);
     }
     setLoading(false);
+  };
+
+  const openEditModal = async (pkg) => {
+    setEditingPkg(pkg);
+    setEditName(pkg.name);
+    setPkgSearch('');
+    
+    const { data: inv } = await supabase.from('foodbank_inventory').select('*').eq('foodbank_id', foodbankId);
+    
+    const invMap = {};
+    (inv || []).forEach(item => {
+       invMap[item.id] = { ...item };
+    });
+
+    const loadedPkgItems = [];
+    (pkg.package_items || []).forEach(pi => {
+       if (pi.inventory_id && invMap[pi.inventory_id]) {
+          invMap[pi.inventory_id].quantity = Number(invMap[pi.inventory_id].quantity) + Number(pi.quantity);
+          loadedPkgItems.push({
+             item: invMap[pi.inventory_id],
+             qty: Number(pi.quantity)
+          });
+       } else {
+          const mockItem = {
+             id: pi.inventory_id || `mock-${pi.id}`,
+             item_name: pi.item_name,
+             quantity: Number(pi.quantity),
+             unit: pi.unit,
+             isDeleted: true
+          };
+          loadedPkgItems.push({
+             item: mockItem,
+             qty: Number(pi.quantity)
+          });
+       }
+    });
+
+    setInventoryItems(Object.values(invMap));
+    setPkgItems(loadedPkgItems);
+  };
+
+  function addToPkg(item) {
+    const ex = pkgItems.find(p => p.item.id === item.id);
+    if (ex) setPkgItems(pkgItems.map(p => p.item.id === item.id ? { ...p, qty: Math.min(p.qty + 1, item.quantity) } : p));
+    else setPkgItems([...pkgItems, { item, qty: 1 }]);
+  }
+  function changeQty(id, q) { setPkgItems(pkgItems.map(p => p.item.id === id ? { ...p, qty: Math.max(1, Math.min(q, p.item.quantity)) } : p)); }
+  function removePkg(id) { setPkgItems(pkgItems.filter(p => p.item.id !== id)); }
+
+  const handleEditSave = async () => {
+    if (!editName.trim() || !editingPkg || isSavingPkg) return;
+    setIsSavingPkg(true);
+    
+    try {
+      const { data: originalItems } = await supabase.from('package_items').select('*').eq('package_id', editingPkg.id);
+      if (originalItems) {
+         for (const pi of originalItems) {
+            if (pi.inventory_id) {
+               const { data: inv } = await supabase.from('foodbank_inventory').select('quantity').eq('id', pi.inventory_id).maybeSingle();
+               if (inv) {
+                  await supabase.from('foodbank_inventory').update({ quantity: Number(inv.quantity) + Number(pi.quantity) }).eq('id', pi.inventory_id);
+               }
+            }
+         }
+      }
+
+      await supabase.from('package_items').delete().eq('package_id', editingPkg.id);
+      await supabase.from('donation_packages').update({ name: editName }).eq('id', editingPkg.id);
+
+      for (const p of pkgItems) {
+         if (p.item.isDeleted) {
+            await supabase.from('package_items').insert([{
+               package_id: editingPkg.id,
+               inventory_id: p.item.id.startsWith('mock-') ? null : p.item.id,
+               item_name: p.item.item_name,
+               quantity: p.qty,
+               unit: p.item.unit
+            }]);
+         } else {
+            await supabase.from('package_items').insert([{
+               package_id: editingPkg.id,
+               inventory_id: p.item.id,
+               item_name: p.item.item_name,
+               quantity: p.qty,
+               unit: p.item.unit
+            }]);
+
+            const { data: inv } = await supabase.from('foodbank_inventory').select('quantity').eq('id', p.item.id).maybeSingle();
+            if (inv) {
+               const newQty = Number(inv.quantity) - p.qty;
+               if (newQty <= 0) {
+                 await supabase.from('foodbank_inventory').delete().eq('id', p.item.id);
+               } else {
+                 await supabase.from('foodbank_inventory').update({ quantity: newQty }).eq('id', p.item.id);
+               }
+            }
+         }
+      }
+
+      setFlash({ type: 'success', message: 'Package updated!' });
+      fetchPackages();
+      setEditingPkg(null);
+    } catch (err) {
+      console.error(err);
+      setFlash({ type: 'error', message: 'Error updating package.' });
+    } finally {
+      setIsSavingPkg(false);
+    }
+  };
+
+  const handleDelete = async (pkg) => {
+    if (!window.confirm(`Are you sure you want to delete "${pkg.name}"? Items will be restored to your inventory.`)) return;
+    
+    const { data: items } = await supabase.from('package_items').select('*').eq('package_id', pkg.id);
+    if (items && items.length > 0) {
+       for (const item of items) {
+          if (item.inventory_id) {
+             const { data: inv } = await supabase.from('foodbank_inventory').select('quantity').eq('id', item.inventory_id).maybeSingle();
+             if (inv) {
+                await supabase.from('foodbank_inventory').update({ quantity: Number(inv.quantity) + Number(item.quantity) }).eq('id', item.inventory_id);
+             }
+          }
+       }
+    }
+    
+    await supabase.from('donation_packages').delete().eq('id', pkg.id);
+    setFlash({ type: 'success', message: 'Package deleted and items restored.' });
+    fetchPackages();
   };
 
   const handleSend = async (form) => {
@@ -194,7 +333,9 @@ export default function FoodbankPackages() {
                 onSend={() => {
                   setSelectedPkgId(pkg.id);
                   setShowSendModal(true);
-                }} 
+                }}
+                onEdit={() => openEditModal(pkg)}
+                onDelete={() => handleDelete(pkg)}
               />
             ))}
           </div>
@@ -211,6 +352,90 @@ export default function FoodbankPackages() {
         />
       )}
 
+      <Modal isOpen={!!editingPkg} onClose={() => setEditingPkg(null)} title="Edit Donation Package" width="xl">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold mb-1">Package Name</label>
+            <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Family Relief Package"
+              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
+          </div>
+
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+            <input 
+              type="text" 
+              placeholder="Search items to add..." 
+              value={pkgSearch} 
+              onChange={e => setPkgSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg text-xs focus:outline-none focus:border-[#FE9800]"
+              style={{ fontFamily: 'DM Sans' }}
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {inventoryItems
+              .filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase()))
+              .map(item => {
+                const inPkg = pkgItems.find(p => p.item.id === item.id);
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-[#FE9800]/20 transition-all">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
+                      <p className="text-[11px] text-[#888]">Available: {Number(item.quantity).toLocaleString()} {item.unit}</p>
+                    </div>
+                    {inPkg ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => changeQty(item.id, inPkg.qty - 1)} className="w-7 h-7 bg-gray-200 text-[#555] rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"><Minus size={13} /></button>
+                        <span className="w-8 text-center text-sm font-bold">{inPkg.qty}</span>
+                        <button onClick={() => changeQty(item.id, inPkg.qty + 1)} className="w-7 h-7 bg-[#FE9800] text-white rounded-lg flex items-center justify-center hover:bg-[#e58a00] transition-colors"><Plus size={13} /></button>
+                        <button onClick={() => removePkg(item.id)} className="text-[10px] text-red-500 ml-1 font-bold uppercase tracking-wider">Remove</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => addToPkg(item)} className="px-4 py-1.5 bg-[#FE9800] text-white text-xs rounded-lg font-bold hover:bg-[#e58a00] transition-colors">Add</button>
+                    )}
+                  </div>
+                );
+              })}
+            
+            {pkgItems.filter(p => p.item.isDeleted && p.item.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).map(p => (
+                  <div key={p.item.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                    <div>
+                      <p className="text-sm font-semibold text-red-700" style={{ fontFamily: 'DM Sans' }}>{p.item.item_name} (Deleted from Inventory)</p>
+                      <p className="text-[11px] text-red-400">Available: {Number(p.item.quantity).toLocaleString()} {p.item.unit}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => changeQty(p.item.id, p.qty - 1)} className="w-7 h-7 bg-red-200 text-red-700 rounded-lg flex items-center justify-center hover:bg-red-300 transition-colors"><Minus size={13} /></button>
+                      <span className="w-8 text-center text-sm font-bold text-red-700">{p.qty}</span>
+                      <button onClick={() => changeQty(p.item.id, p.qty + 1)} className="w-7 h-7 bg-red-400 text-white rounded-lg flex items-center justify-center hover:bg-red-500 transition-colors"><Plus size={13} /></button>
+                      <button onClick={() => removePkg(p.item.id)} className="text-[10px] text-red-500 ml-1 font-bold uppercase tracking-wider">Remove</button>
+                    </div>
+                  </div>
+            ))}
+
+            {inventoryItems.filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && 
+             pkgItems.filter(p => p.item.isDeleted && p.item.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && (
+              <div className="py-8 text-center text-xs text-gray-400">No items matching "{pkgSearch}"</div>
+            )}
+          </div>
+          {pkgItems.length > 0 && (
+            <div className="bg-[#FFF3DC] rounded-lg p-3 space-y-1">
+              <p className="text-xs font-bold mb-2">Summary ({pkgItems.length} items)</p>
+              {pkgItems.map(p => (
+                <div key={p.item.id} className="flex justify-between text-xs">
+                  <span>{p.item.item_name}</span><span className="font-bold">{p.qty} {p.item.unit}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 border-t pt-3">
+            <Button variant="ghost" onClick={() => setEditingPkg(null)} disabled={isSavingPkg}>Cancel</Button>
+            <Button variant="primary" onClick={handleEditSave} disabled={!pkgItems.length || !editName.trim() || isSavingPkg}>
+              {isSavingPkg ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {flash && (
         <FlashMessage
           type={flash.type}
@@ -221,7 +446,7 @@ export default function FoodbankPackages() {
     </div>
   );
 }
-function PackageCard({ pkg, onSend }) {
+function PackageCard({ pkg, onSend, onEdit, onDelete }) {
   const isDonated = pkg.status === 'donated';
   const isPending = pkg.status === 'pending';
   return (
@@ -241,12 +466,26 @@ function PackageCard({ pkg, onSend }) {
                 Sent to: {pkg.barangay_name}
               </div>
             )}
+            {isDonated && pkg.barangay_name && (
+              <div className="text-[11px] font-bold text-[#888888] uppercase tracking-wide mt-0.5" style={{ fontFamily: 'DM Sans' }}>
+                <div>Sent to: {pkg.barangay_name}</div>
+                <div className="mt-0.5 text-[#AAAAAA]">Received: {pkg.received_date ? new Date(pkg.received_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}</div>
+              </div>
+            )}
             <div className="text-xs text-[#888888] mt-0.5" style={{ fontFamily: 'DM Sans' }}>
               Created: {new Date(pkg.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
         </div>
-        <StatusBadge status={pkg.status} />
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge status={pkg.status} />
+          {!isDonated && !isPending && (
+            <div className="flex gap-2.5 mt-1">
+              <button onClick={() => onEdit(pkg)} className="text-[#AAAAAA] hover:text-[#FE9800] transition-colors"><Pencil size={15}/></button>
+              <button onClick={() => onDelete(pkg.id)} className="text-[#AAAAAA] hover:text-red-500 transition-colors"><Trash2 size={15}/></button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Package Contents */}

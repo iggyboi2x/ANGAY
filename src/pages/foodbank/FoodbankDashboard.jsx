@@ -3,9 +3,10 @@ import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import CalendarPanel from '../../components/CalendarPanel';
 import BarangayPopup from '../../components/barangay/BarangayPopup';
+import NotificationBell from '../../components/foodbank/NotificationBell';
 import { useMapPins } from '../../hooks/useMapPins';
 import { useProfile } from '../../hooks/useProfile';
-import { Package, AlertTriangle, Truck, Clock, Bell, Search, CalendarDays } from 'lucide-react';
+import { Package, AlertTriangle, Truck, Clock, Bell, Search, CalendarDays, Menu } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -37,33 +38,36 @@ const stats = [
 export default function FoodbankDashboard() {
   const [selectedPin,  setSelectedPin]  = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { pins: barangays, loading: pinsLoading } = useMapPins('barangay');
   const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
 
   return (
     <div className="flex min-h-screen bg-white">
-      <FoodbankSidebar />
-      <div className="ml-60 flex-1 flex flex-col">
+      <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="md:ml-60 flex-1 flex flex-col w-full min-w-0">
 
         {/* Top Bar */}
-        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-72">
-            <Search size={14} className="text-[#888888]" />
-            <input type="text" placeholder="Search here…"
-              className="bg-transparent text-sm text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
-              style={{ fontFamily: 'DM Sans' }} />
+        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div className="hidden sm:flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-64 md:w-72">
+              <Search size={14} className="text-[#888888]" />
+              <input type="text" placeholder="Search here…"
+                className="bg-transparent text-sm text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
+                style={{ fontFamily: 'DM Sans' }} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setCalendarOpen(true)}
               className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
               <CalendarDays size={18} />
             </button>
-            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
-              <span className="text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
+              <span className="hidden sm:inline text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}
               </span>
               {avatarUrl
@@ -78,9 +82,9 @@ export default function FoodbankDashboard() {
 
         <CalendarPanel isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
-        <div className="p-8 flex-1 flex flex-col">
+        <div className="p-4 md:p-8 flex-1 flex flex-col overflow-x-hidden">
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {stats.map(({ label, value, badge }, i) => {
               const StatIcon = statIcons[i];
               return (
@@ -109,7 +113,7 @@ export default function FoodbankDashboard() {
                 {pinsLoading ? '…' : `${barangays.length} barangay${barangays.length !== 1 ? 's' : ''}`}
               </span>
             </div>
-            <div className="rounded-xl overflow-hidden relative" style={{ height: '500px' }}>
+            <div className="rounded-xl overflow-hidden relative h-[400px] md:h-[500px]">
               {pinsLoading && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
                   <span className="text-sm text-[#888]">Loading map…</span>
@@ -128,8 +132,8 @@ export default function FoodbankDashboard() {
                 ))}
               </MapContainer>
               {selectedPin && (
-                <div className="absolute inset-0 flex items-center justify-center z-[1000] pointer-events-none">
-                  <div className="pointer-events-auto">
+                <div className="absolute inset-0 flex items-center justify-center z-[1000] pointer-events-none p-4">
+                  <div className="pointer-events-auto w-full max-w-sm">
                     <BarangayPopup pin={selectedPin} onClose={() => setSelectedPin(null)} />
                   </div>
                 </div>

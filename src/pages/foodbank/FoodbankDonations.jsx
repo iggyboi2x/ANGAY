@@ -102,6 +102,7 @@ function DistCard({ dist }) {
 }
 
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
+import NotificationBell from '../../components/foodbank/NotificationBell';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FoodbankDonations() {
@@ -199,10 +200,7 @@ export default function FoodbankDonations() {
               className="bg-transparent text-sm outline-none w-full placeholder:text-[#AAAAAA]" />
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
-              <Bell size={18} />
-              {pendingDonors > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />}
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
               <span className="text-sm font-medium text-[#333]">{profileLoading ? '…' : displayName}</span>
               {avatarUrl
