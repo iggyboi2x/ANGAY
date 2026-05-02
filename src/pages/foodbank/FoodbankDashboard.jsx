@@ -3,6 +3,7 @@ import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import CalendarPanel from '../../components/CalendarPanel';
 import BarangayPopup from '../../components/barangay/BarangayPopup';
+import NotificationBell from '../../components/foodbank/NotificationBell';
 import { useMapPins } from '../../hooks/useMapPins';
 import { useProfile } from '../../hooks/useProfile';
 import { Package, AlertTriangle, Truck, Clock, Bell, Search, CalendarDays, Menu } from 'lucide-react';
@@ -64,10 +65,7 @@ export default function FoodbankDashboard() {
               className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
               <CalendarDays size={18} />
             </button>
-            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />
-            </button>
+            <NotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
               <span className="hidden sm:inline text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}
