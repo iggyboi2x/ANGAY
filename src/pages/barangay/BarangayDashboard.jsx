@@ -3,6 +3,7 @@ import BarangaySidebar from '../../components/barangay/BarangaySidebar';
 import Card from '../../components/Card';
 import FoodbankPopup from '../../components/foodbank/FoodbankPopup';
 import CalendarPanel from '../../components/CalendarPanel';
+import BarangayNotificationBell from '../../components/barangay/BarangayNotificationBell';
 import { useMapPins } from '../../hooks/useMapPins';
 import { useProfile } from '../../hooks/useProfile';
 import { Bell, CalendarDays } from 'lucide-react';
@@ -44,10 +45,7 @@ export default function BarangayDashboard() {
               className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
               <CalendarDays size={18} />
             </button>
-            <button className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full" />
-            </button>
+            <BarangayNotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
               <span className="text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}

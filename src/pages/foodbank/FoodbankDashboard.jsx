@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import CalendarPanel from '../../components/CalendarPanel';
@@ -10,7 +10,7 @@ import { Package, AlertTriangle, Truck, Clock, Bell, Search, CalendarDays, Menu 
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
+import { supabase } from '../../../supabase';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -28,19 +28,71 @@ const philippinesBounds = [[4.5, 116.0], [21.5, 127.0]];
 
 // Stat icons in order matching stats array below
 const statIcons = [Package, AlertTriangle, Truck, Clock];
-const stats = [
-  { label: 'Total Items',            value: '500', badge: null                        },
-  { label: 'Nearing Expiry',         value: '3',   badge: { label: 'Action Needed' } },
-  { label: 'Distributed This Month', value: '24',  badge: null                        },
-  { label: 'Pending Pickups',        value: '7',   badge: null                        },
-];
 
 export default function FoodbankDashboard() {
   const [selectedPin,  setSelectedPin]  = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pins: barangays, loading: pinsLoading } = useMapPins('barangay');
-  const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  const { id: foodbankId, displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+
+  const [statsData, setStatsData] = useState({
+     totalItems: 0,
+     nearingExpiry: 0,
+     distributedMonth: 0,
+     pendingPickups: 0
+  });
+
+  useEffect(() => {
+     if (!foodbankId) return;
+
+     const fetchStats = async () => {
+        // 1. Total Items & Expiry
+        const { data: invData } = await supabase.from('foodbank_inventory').select('quantity, status').eq('foodbank_id', foodbankId);
+        let totalItems = 0;
+        let nearingExpiry = 0;
+        if (invData) {
+           invData.forEach(item => {
+              totalItems += Number(item.quantity) || 0;
+              if (item.status === 'expiring' || item.status === 'expired') {
+                 nearingExpiry += 1;
+              }
+           });
+        }
+
+        // 2. Distributed This Month
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0,0,0,0);
+        
+        const { count: distMonth } = await supabase.from('distributions')
+           .select('*', { count: 'exact', head: true })
+           .eq('foodbank_id', foodbankId)
+           .gte('created_at', startOfMonth.toISOString());
+           
+        // 3. Pending Pickups (Distributions waiting)
+        const { count: pendingDists } = await supabase.from('distributions')
+           .select('*', { count: 'exact', head: true })
+           .eq('foodbank_id', foodbankId)
+           .eq('status', 'pending');
+
+        setStatsData({
+           totalItems,
+           nearingExpiry,
+           distributedMonth: distMonth || 0,
+           pendingPickups: pendingDists || 0
+        });
+     };
+
+     fetchStats();
+  }, [foodbankId]);
+
+  const stats = [
+    { label: 'Total Items',            value: statsData.totalItems.toLocaleString(), badge: null },
+    { label: 'Nearing Expiry',         value: statsData.nearingExpiry.toString(),    badge: statsData.nearingExpiry > 0 ? { label: 'Action Needed' } : null },
+    { label: 'Distributed This Month', value: statsData.distributedMonth.toString(), badge: null },
+    { label: 'Pending Pickups',        value: statsData.pendingPickups.toString(),   badge: null },
+  ];
 
   return (
     <div className="flex min-h-screen bg-white">

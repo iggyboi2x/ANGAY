@@ -1,3 +1,5 @@
+import { Users, Home, Activity, HeartPulse, Baby, User } from 'lucide-react';
+
 export default function BarangayPopup({ pin, onClose }) {
   // Support both legacy static shape and live Supabase profile shape
   const name    = pin.org_name || pin.name  || 'Barangay';
@@ -7,7 +9,7 @@ export default function BarangayPopup({ pin, onClose }) {
   const hasDemographics = pin.demographics;
 
   return (
-    <div className="bg-white rounded-xl shadow-xl w-52 p-3 relative">
+    <div className="bg-white rounded-xl shadow-xl w-60 p-4 relative">
 
       {/* Close */}
       <button
@@ -30,18 +32,22 @@ export default function BarangayPopup({ pin, onClose }) {
           <p className="text-[9px] font-semibold text-[#AAAAAA] tracking-widest uppercase mb-1.5">
             Demographics
           </p>
-          <div className="grid grid-cols-2 gap-y-1.5 mb-3">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             {[
-              ['Population', pin.demographics.population],
-              ['Households', pin.demographics.households],
-              ['PWD',        pin.demographics.pwd],
-              ['Seniors',    pin.demographics.seniors],
-              ['Children',   pin.demographics.children],
-              ['Pregnant',   pin.demographics.pregnant],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] text-[#888888]">{label}</p>
-                <p className="text-xs font-bold text-[#1A1A1A]">{value}</p>
+              ['Members',    pin.demographics.population, Users, 'text-blue-500', 'bg-blue-50'],
+              ['PWD',        pin.demographics.pwd, Activity, 'text-red-500', 'bg-red-50'],
+              ['Seniors',    pin.demographics.seniors, User, 'text-orange-500', 'bg-orange-50'],
+              ['Children',   pin.demographics.children, Baby, 'text-green-500', 'bg-green-50'],
+              ['Pregnant',   pin.demographics.pregnant, HeartPulse, 'text-pink-500', 'bg-pink-50'],
+            ].map(([label, value, Icon, colorClass, bgClass]) => (
+              <div key={label} className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-lg shrink-0 ${bgClass}`}>
+                   <Icon size={12} className={colorClass} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#888888] leading-none mb-0.5">{label}</p>
+                  <p className="text-xs font-bold text-[#1A1A1A] leading-none">{value}</p>
+                </div>
               </div>
             ))}
           </div>

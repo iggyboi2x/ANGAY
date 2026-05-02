@@ -24,9 +24,10 @@ ALTER TABLE demographics ENABLE ROW LEVEL SECURITY;
 
 -- Policies
 DROP POLICY IF EXISTS "Barangays can view their own demographics" ON demographics;
-CREATE POLICY "Barangays can view their own demographics" 
+DROP POLICY IF EXISTS "Authenticated users can view demographics" ON demographics;
+CREATE POLICY "Authenticated users can view demographics" 
 ON demographics FOR SELECT 
-USING (auth.uid() = barangay_id);
+TO authenticated USING (true);
 
 DROP POLICY IF EXISTS "Barangays can insert their own demographics" ON demographics;
 CREATE POLICY "Barangays can insert their own demographics" 
