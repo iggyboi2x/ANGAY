@@ -10,11 +10,11 @@ const features = [
   { title: 'Transparent Reporting', description: 'Distribution history is digitally recorded to improve accountability and transparency.', icon: 'angay-transparent-img.png' }
 ]
 
-const team = [ 
+const team = [
   { name: 'Allyssa Faith Ejares', role: 'Team Lead', motto: 'all or nothing at all there\'s no where left to fall', image: 'images/founders/Ejares.png', github: 'https://github.com/notyurally' },
-  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png', github: 'https://github.com/spinach-clone'},
+  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png', github: 'https://github.com/spinach-clone' },
   { name: 'Miguel Diano', role: 'Solution Architect', motto: 'innovation drives progress', image: 'images/founders/Diano.jpg', github: 'https://github.com/iggyboi2x' },
-  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg', github: 'https://github.com/kakeeroams'}
+  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg', github: 'https://github.com/kakeeroams' }
 ]
 
 const faqsData = [
@@ -118,11 +118,41 @@ const LandingPage = () => {
             </div>
 
             {/* Right */}
-            <div className="reveal w-full lg:w-1/2 flex justify-end">
+            <div className="reveal w-full lg:w-1/2 flex justify-center lg:justify-end items-center relative pb-10 lg:pb-0 min-h-[400px] sm:min-h-[500px]">
+              <div className="absolute inset-0 bg-gradient-to-tr from-orange-100/40 to-transparent rounded-[3rem] -z-10 transform rotate-3 scale-95 opacity-50"></div>
+              
+              {/* Floating Diamonds */}
+              <div className="absolute top-10 right-20 w-5 h-5 bg-orange-300 rounded-[4px] rotate-45 animate-[float_4s_ease-in-out_infinite]"></div>
+              <div className="absolute bottom-20 left-10 w-3 h-3 bg-blue-300 rounded-[2px] rotate-45 animate-[float_5s_ease-in-out_infinite_1s]"></div>
+              <div className="absolute top-40 left-0 w-8 h-8 bg-orange-400 rounded-[6px] rotate-45 opacity-40 animate-[float_6s_ease-in-out_infinite_2s]"></div>
+              <div className="absolute bottom-10 right-32 w-4 h-4 bg-[#FE9800] rounded-[3px] rotate-45 opacity-60 animate-[float_3.5s_ease-in-out_infinite_0.5s]"></div>
+              
+              {/* Floating Stats Cards */}
+              <div className="absolute top-16 -left-4 sm:left-4 z-20 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_5s_ease-in-out_infinite_0.5s] border border-orange-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-[#FE9800]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-slate-800 leading-tight">120+</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Partners</p>
+                </div>
+              </div>
+
+              <div className="absolute bottom-12 -right-4 sm:right-4 z-20 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_6s_ease-in-out_infinite_1.5s] border border-orange-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-slate-800 leading-tight">25k+</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Meals Shared</p>
+                </div>
+              </div>
+
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-2/3 max-w-lg -mt-8 rounded-3xl"
+                className="w-[90%] sm:w-[80%] lg:w-[95%] max-w-[600px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain mix-blend-darken"
+                style={{ filter: 'contrast(1.08) saturate(1.15) brightness(1.03)' }}
               />
             </div>
           </div>
