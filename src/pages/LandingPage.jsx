@@ -41,6 +41,8 @@ const LandingPage = () => {
     style.textContent = `
       .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.6s ease, transform 0.6s ease; }
       .revealed { opacity: 1; transform: translateY(0); }
+      .pop-in { opacity: 0; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+      @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
     `
     document.head.appendChild(style)
 
@@ -133,31 +135,69 @@ const LandingPage = () => {
               <div className="absolute top-40 left-0 w-8 h-8 bg-orange-400 rounded-[6px] rotate-45 opacity-40 animate-[float_6s_ease-in-out_infinite_2s]"></div>
               <div className="absolute bottom-10 right-32 w-4 h-4 bg-[#FE9800] rounded-[3px] rotate-45 opacity-60 animate-[float_3.5s_ease-in-out_infinite_0.5s]"></div>
 
-              {/* Floating Stats Cards */}
-              <div className="absolute top-16 -left-4 sm:left-4 z-20 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_5s_ease-in-out_infinite_0.5s] border border-orange-100 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-[#FE9800]">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-slate-800 leading-tight">120+</p>
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Partners</p>
+              {/* Vegetable Transmission Simulation */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full z-20 pointer-events-none">
+                <svg viewBox="0 0 500 500" className="w-[120%] h-[120%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <path id="veg-path-1" d="M 120,350 Q 250,120 380,220" fill="none" stroke="none" />
+                  <path id="veg-path-2" d="M 380,180 Q 250,100 120,280" fill="none" stroke="none" />
+                  <path id="veg-path-3" d="M 150,200 Q 250,380 350,300" fill="none" stroke="none" />
+
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-1" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="4s" repeatCount="indefinite" />
+                      <tspan fill="rgba(254,152,0,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥕
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-2" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="5s" repeatCount="indefinite" />
+                      <tspan fill="rgba(59,130,246,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥦
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-3" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="4.5s" repeatCount="indefinite" />
+                      <tspan fill="rgba(16,185,129,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🍅
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-1" startOffset="50%">
+                      <animate attributeName="startOffset" from="30%" to="170%" dur="4s" repeatCount="indefinite" />
+                      <tspan fill="rgba(254,152,0,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥬
+                    </textPath>
+                  </text>
+                </svg>
+              </div>
+
+              {/* Floating Stats Cards with Pop-In */}
+              <div className="absolute top-16 -left-4 sm:left-4 z-30 pop-in" style={{ animationDelay: '0.1s' }}>
+                <div className="bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_5s_ease-in-out_infinite_0.5s] border border-orange-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-[#FE9800]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-slate-800 leading-tight">120+</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Partners</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="absolute bottom-12 -right-4 sm:right-4 z-20 bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_6s_ease-in-out_infinite_1.5s] border border-orange-100 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-slate-800 leading-tight">25k+</p>
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Meals Shared</p>
+              <div className="absolute bottom-12 -right-4 sm:right-4 z-30 pop-in" style={{ animationDelay: '0.3s' }}>
+                <div className="bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_6s_ease-in-out_infinite_1.5s] border border-orange-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-slate-800 leading-tight">25k+</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Meals Shared</p>
+                  </div>
                 </div>
               </div>
 
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain mix-blend-darken"
+                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain mix-blend-darken relative"
                 style={{ filter: 'contrast(1.08) saturate(1.15) brightness(1.03)' }}
               />
             </div>
