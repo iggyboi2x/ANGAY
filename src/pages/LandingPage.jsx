@@ -27,6 +27,9 @@ const faqsData = [
 
 const LandingPage = () => {
   const [activeFaq, setActiveFaq] = useState(null)
+  const [wordIndex, setWordIndex] = useState(0)
+  const heroWords = ["World Hunger", "Food Waste", "Inequality"]
+
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
@@ -43,6 +46,8 @@ const LandingPage = () => {
       .revealed { opacity: 1; transform: translateY(0); }
       .pop-in { opacity: 0; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
       @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+      .animate-word { animation: slideLeftFade 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+      @keyframes slideLeftFade { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
     `
     document.head.appendChild(style)
 
@@ -59,7 +64,15 @@ const LandingPage = () => {
     }, { threshold: 0.15 })
 
     revealEls.forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
+
+    const wordInterval = setInterval(() => {
+      setWordIndex(prev => (prev + 1) % 3)
+    }, 3000)
+
+    return () => {
+      observer.disconnect()
+      clearInterval(wordInterval)
+    }
   }, [])
 
   const stats = useMemo(() => [
@@ -105,8 +118,10 @@ const LandingPage = () => {
 
               <h1 className="reveal text-6xl sm:text-7xl md:text-[5rem] lg:text-[5.5rem] font-semibold tracking-tight text-slate-900 leading-[1.05]">
                 Let's End <br />
-                <span className="text-[#FE9800] relative">
-                  World Hunger
+                <span className="text-[#FE9800] relative inline-block min-w-[280px] sm:min-w-[340px] md:min-w-[380px] lg:min-w-[420px]">
+                  <span key={wordIndex} className="animate-word inline-block">
+                    {heroWords[wordIndex]}
+                  </span>
                   <svg className="absolute w-full h-4 -bottom-1.5 left-0 text-orange-200 opacity-60" viewBox="0 0 100 10" preserveAspectRatio="none">
                     <path d="M0 5 Q 50 10 100 5" stroke="currentColor" strokeWidth="4" fill="transparent" />
                   </svg>
