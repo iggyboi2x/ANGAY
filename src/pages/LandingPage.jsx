@@ -10,11 +10,11 @@ const features = [
   { title: 'Transparent Reporting', description: 'Distribution history is digitally recorded to improve accountability and transparency.', icon: 'angay-transparent-img.png' }
 ]
 
-const team = [ 
+const team = [
   { name: 'Allyssa Faith Ejares', role: 'Team Lead', motto: 'all or nothing at all there\'s no where left to fall', image: 'images/founders/Ejares.png', github: 'https://github.com/notyurally' },
-  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png', github: 'https://github.com/spinach-clone'},
+  { name: 'Christo Rey Espina', role: 'Documentation', motto: 'knowledge is power', image: 'images/founders/Espina.png', github: 'https://github.com/spinach-clone' },
   { name: 'Miguel Diano', role: 'Solution Architect', motto: 'innovation drives progress', image: 'images/founders/Diano.jpg', github: 'https://github.com/iggyboi2x' },
-  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg', github: 'https://github.com/kakeeroams'}
+  { name: 'Kaycee Roamar', role: 'Business Analyst', motto: 'data speaks louder than words', image: 'images/founders/Roamar.jpg', github: 'https://github.com/kakeeroams' }
 ]
 
 const faqsData = [
@@ -27,6 +27,9 @@ const faqsData = [
 
 const LandingPage = () => {
   const [activeFaq, setActiveFaq] = useState(null)
+  const [wordIndex, setWordIndex] = useState(0)
+  const heroWords = ["World Hunger", "Food Waste", "Inequality"]
+
   const [contactForm, setContactForm] = useState({
     name: '',
     email: '',
@@ -41,6 +44,10 @@ const LandingPage = () => {
     style.textContent = `
       .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.6s ease, transform 0.6s ease; }
       .revealed { opacity: 1; transform: translateY(0); }
+      .pop-in { opacity: 0; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+      @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+      .animate-word { animation: slideLeftFade 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+      @keyframes slideLeftFade { 0% { opacity: 0; transform: translateX(-20px); } 100% { opacity: 1; transform: translateX(0); } }
     `
     document.head.appendChild(style)
 
@@ -57,7 +64,15 @@ const LandingPage = () => {
     }, { threshold: 0.15 })
 
     revealEls.forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
+
+    const wordInterval = setInterval(() => {
+      setWordIndex(prev => (prev + 1) % 3)
+    }, 3000)
+
+    return () => {
+      observer.disconnect()
+      clearInterval(wordInterval)
+    }
   }, [])
 
   const stats = useMemo(() => [
@@ -99,30 +114,105 @@ const LandingPage = () => {
           <div className=" bg-white mx-auto px-4 sm:px-6 lg:px-15 lg:py-10 flex flex-col lg:flex-row  gap-12 lg:gap-16">
 
             {/* Left */}
-            <div className="w-full  lg:w-1/2  flex flex-col items-start justify-center -mt-15">
-              <h1 className="reveal text-5xl sm:text-6xl font-semibold tracking-tight text-slate-900 leading-tight">
+            <div className="w-full lg:w-7/12 flex flex-col items-start justify-center   -mt-15 lg:pt-0">
+
+              <h1 className="reveal text-6xl sm:text-7xl md:text-[5rem] lg:text-[5.5rem] font-semibold tracking-tight text-slate-900 leading-[1.05]">
                 Let's End <br />
-                <span className="text-[#FE9800]">World Hunger</span>
+                <span className="text-[#FE9800] relative inline-block min-w-[280px] sm:min-w-[340px] md:min-w-[380px] lg:min-w-[420px]">
+                  <span key={wordIndex} className="animate-word inline-block">
+                    {heroWords[wordIndex]}
+                  </span>
+                  <svg className="absolute w-full h-4 -bottom-1.5 left-0 text-orange-200 opacity-60" viewBox="0 0 100 10" preserveAspectRatio="none">
+                    <path d="M0 5 Q 50 10 100 5" stroke="currentColor" strokeWidth="4" fill="transparent" />
+                  </svg>
+                </span>
               </h1>
-              <p className="reveal mt-5 max-w-lg text-lg text-slate-500 leading-relaxed">
+              <p className="reveal mt-8 max-w-xl text-xl sm:text-2xl text-slate-500 leading-relaxed font-medium">
                 Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
               </p>
-              <div className="reveal mt-8 flex flex-wrap gap-3">
-                <a href="/login" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-base font-semibold text-white shadow-[0px_5px_0px_#CB8927] bg-[#FE9800] transition hover:opacity-90">
+              <div className="reveal mt-12 flex flex-wrap gap-5">
+                <a href="/login" className="rounded-2xl bg-[#FE9800] px-9 py-4 text-xl font-semibold text-white shadow-[0px_6px_0px_#CB8927] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#CB8927] active:translate-y-1 active:shadow-[0px_2px_0px_#CB8927] transition-all duration-200 flex items-center gap-2">
                   Get Started
                 </a>
-                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-base font-semibold shadow-[0px_5px_0px_#FE9800] text-[#FE9800] transition hover:bg-orange-50 flex items-center gap-2">
-                  Learn More <ArrowRight size={16} />
+                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-9 py-4 text-xl font-semibold shadow-[0px_6px_0px_#FE9800] text-[#FE9800] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#FE9800] active:translate-y-1 active:shadow-[0px_2px_0px_#FE9800] hover:bg-orange-50 transition-all duration-200 flex items-center gap-2 bg-white">
+                  Learn More <ArrowRight size={20} />
                 </a>
               </div>
             </div>
 
             {/* Right */}
-            <div className="reveal w-full lg:w-1/2 flex justify-end">
+            <div className="reveal w-full lg:w-5/12 flex justify-center lg:justify-end items-center relative pb-10 lg:pb-0 min-h-[400px] sm:min-h-[500px]">
+
+              {/* Floating Diamonds */}
+              <div className="absolute top-10 right-20 w-5 h-5 bg-orange-300 rounded-[4px] rotate-45 animate-[float_4s_ease-in-out_infinite]"></div>
+              <div className="absolute bottom-20 left-10 w-3 h-3 bg-blue-300 rounded-[2px] rotate-45 animate-[float_5s_ease-in-out_infinite_1s]"></div>
+              <div className="absolute top-40 left-0 w-8 h-8 bg-orange-400 rounded-[6px] rotate-45 opacity-40 animate-[float_6s_ease-in-out_infinite_2s]"></div>
+              <div className="absolute bottom-10 right-32 w-4 h-4 bg-[#FE9800] rounded-[3px] rotate-45 opacity-60 animate-[float_3.5s_ease-in-out_infinite_0.5s]"></div>
+
+              {/* Vegetable Transmission Simulation */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full z-20 pointer-events-none">
+                <svg viewBox="0 0 500 500" className="w-[120%] h-[120%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <path id="veg-path-1" d="M 120,350 Q 250,120 380,220" fill="none" stroke="none" />
+                  <path id="veg-path-2" d="M 380,180 Q 250,100 120,280" fill="none" stroke="none" />
+                  <path id="veg-path-3" d="M 150,200 Q 250,380 350,300" fill="none" stroke="none" />
+
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-1" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="4s" repeatCount="indefinite" />
+                      <tspan fill="rgba(254,152,0,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥕
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-2" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="5s" repeatCount="indefinite" />
+                      <tspan fill="rgba(59,130,246,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥦
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-3" startOffset="0%">
+                      <animate attributeName="startOffset" from="-20%" to="120%" dur="4.5s" repeatCount="indefinite" />
+                      <tspan fill="rgba(16,185,129,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🍅
+                    </textPath>
+                  </text>
+                  <text fontSize="28" dominantBaseline="middle">
+                    <textPath href="#veg-path-1" startOffset="50%">
+                      <animate attributeName="startOffset" from="30%" to="170%" dur="4s" repeatCount="indefinite" />
+                      <tspan fill="rgba(254,152,0,0.5)" fontSize="18" dy="-4" letterSpacing="4">- - - - - </tspan>🥬
+                    </textPath>
+                  </text>
+                </svg>
+              </div>
+
+              {/* Floating Stats Cards with Pop-In */}
+              <div className="absolute top-16 -left-4 sm:left-4 z-30 pop-in" style={{ animationDelay: '0.1s' }}>
+                <div className="bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_5s_ease-in-out_infinite_0.5s] border border-orange-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-[#FE9800]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-slate-800 leading-tight">120+</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Partners</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute bottom-12 -right-4 sm:right-4 z-30 pop-in" style={{ animationDelay: '0.3s' }}>
+                <div className="bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.08)] animate-[float_6s_ease-in-out_infinite_1.5s] border border-orange-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-slate-800 leading-tight">25k+</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Meals Shared</p>
+                  </div>
+                </div>
+              </div>
+
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-2/3 max-w-lg -mt-8 rounded-3xl"
+                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain  relative"
+                
               />
             </div>
           </div>
