@@ -18,7 +18,7 @@ const LandingNav = () => {
 
   <div className='flex items-center gap-1'>
   <span>{ WheatIcon() }</span>
-  <span className='system-title text-lg font-bold'>
+  <span className='system-title text-2xl font-bold'>
     ANGAY
   </span>
   </div>
@@ -28,7 +28,7 @@ const LandingNav = () => {
       <a
         key={link.name}
         href={link.href}
-        className="text-slate-800 hover:text-[#FE9800] px-3 py-2 rounded-md text-sm font-medium w-full sm:w-auto text-center"
+        className="text-slate-800 hover:text-[#FE9800] px-3 py-2 rounded-md text-lg font-medium w-full sm:w-auto text-center"
       >
         {link.name}
       </a>

@@ -142,7 +142,6 @@ const LandingPage = () => {
 
             {/* Right */}
             <div className="reveal w-full lg:w-5/12 flex justify-center lg:justify-end items-center relative pb-10 lg:pb-0 min-h-[400px] sm:min-h-[500px]">
-              <div className="absolute inset-0 bg-gradient-to-tr from-orange-100/40 to-transparent rounded-[3rem] -z-10 transform rotate-3 scale-95 opacity-50"></div>
 
               {/* Floating Diamonds */}
               <div className="absolute top-10 right-20 w-5 h-5 bg-orange-300 rounded-[4px] rotate-45 animate-[float_4s_ease-in-out_infinite]"></div>
@@ -212,8 +211,8 @@ const LandingPage = () => {
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain mix-blend-darken relative"
-                style={{ filter: 'contrast(1.08) saturate(1.15) brightness(1.03)' }}
+                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain  relative"
+                
               />
             </div>
           </div>

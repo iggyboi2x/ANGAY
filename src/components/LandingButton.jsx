@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 const LandingButton = ({className, size, children}) => {
     const sizeClasses = {
-        short : 'px-5 py-2 text-sm text-white hover:bg-[#FE9800] transition duration-300',  
+        short : 'px-5 py-2 text-lg text-white hover:bg-[#FE9800] transition duration-300',  
         long : 'px-8 py-4 text-lg'
     }
 
