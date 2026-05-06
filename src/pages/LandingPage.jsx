@@ -4,10 +4,26 @@ import { Plus, ArrowRight, Github, Linkedin, Mail, Phone, MapPin, Send } from 'l
 import { Link } from 'react-router-dom'
 
 const features = [
-  { title: 'Demographic Insights', description: 'Foodbanks can view aggregated barangay demographic data to better understand community needs.', icon: 'angay-demo-img.png' },
-  { title: 'Interactive Barangay Map', description: 'A visual map helps foodbanks identify where assistance is needed most.', icon: 'angay-interactive-img.png' },
-  { title: 'Distribution Coordination', description: 'Foodbanks propose distribution schedules while barangays review and approve them.', icon: 'angay-distribution-img.png' },
-  { title: 'Transparent Reporting', description: 'Distribution history is digitally recorded to improve accountability and transparency.', icon: 'angay-transparent-img.png' }
+  {
+    title: 'Demographic Insights',
+    description: <>Foodbanks can view aggregated barangay <span className="text-[#FE9800] font-semibold">demographic data</span> to better understand community needs.</>,
+    icon: 'angay-demo-img.png'
+  },
+  {
+    title: 'Interactive Barangay Map',
+    description: <>A <span className="text-[#FE9800] font-semibold">visual map</span> helps foodbanks identify where assistance is needed most.</>,
+    icon: 'angay-interactive-img.png'
+  },
+  {
+    title: 'Distribution Coordination',
+    description: <>Foodbanks propose <span className="text-[#FE9800] font-semibold">distribution schedules</span> while barangays review and approve them.</>,
+    icon: 'angay-distribution-img.png'
+  },
+  {
+    title: 'Transparent Reporting',
+    description: <><span className="text-[#FE9800] font-semibold">Distribution history</span> is digitally recorded to improve accountability and transparency.</>,
+    icon: 'angay-transparent-img.png'
+  }
 ]
 
 const team = [
@@ -104,19 +120,19 @@ const LandingPage = () => {
   }
 
   return (
-    <div className="font-fredoka bg-[#fffaf1] text-slate-800">
+    <div className="font-fredoka bg-[#fffaf1] text-slate-800 overflow-x-hidden">
       <LandingNav />
 
       <main className='mt-15'>
 
         {/* ── Hero ── */}
         <section id="home" className=" overflow-hidden">
-          <div className=" bg-white mx-auto px-4 sm:px-6 lg:px-15 lg:py-10 flex flex-col lg:flex-row  gap-12 lg:gap-16">
+          <div className=" bg-white mx-auto px-8 sm:px-12 lg:px-24 xl:px-32 lg:py-10 flex flex-col lg:flex-row gap-10 lg:gap-12">
 
             {/* Left */}
             <div className="w-full lg:w-7/12 flex flex-col items-start justify-center   -mt-15 lg:pt-0">
 
-              <h1 className="reveal text-6xl sm:text-7xl md:text-[5rem] lg:text-[5.5rem] font-semibold tracking-tight text-slate-900 leading-[1.05]">
+              <h1 className="reveal text-5xl sm:text-6xl md:text-[4rem] lg:text-[4.5rem] font-semibold tracking-tight text-slate-900 leading-[1.05]">
                 Let's End <br />
                 <span className="text-[#FE9800] relative inline-block min-w-[280px] sm:min-w-[340px] md:min-w-[380px] lg:min-w-[420px]">
                   <span key={wordIndex} className="animate-word inline-block">
@@ -127,14 +143,14 @@ const LandingPage = () => {
                   </svg>
                 </span>
               </h1>
-              <p className="reveal mt-8 max-w-xl text-xl sm:text-2xl text-slate-500 leading-relaxed font-medium">
+              <p className="reveal mt-6 max-w-lg text-lg sm:text-xl text-slate-500 leading-relaxed font-medium">
                 Connecting foodbanks and barangays through a transparent digital system that ensures food assistance reaches the communities that need it most.
               </p>
-              <div className="reveal mt-12 flex flex-wrap gap-5">
-                <a href="/login" className="rounded-2xl bg-[#FE9800] px-9 py-4 text-xl font-semibold text-white shadow-[0px_6px_0px_#CB8927] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#CB8927] active:translate-y-1 active:shadow-[0px_2px_0px_#CB8927] transition-all duration-200 flex items-center gap-2">
+              <div className="reveal mt-10 flex flex-wrap gap-4">
+                <a href="/login" className="rounded-2xl bg-[#FE9800] px-7 py-3 text-lg font-semibold text-white shadow-[0px_6px_0px_#CB8927] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#CB8927] active:translate-y-1 active:shadow-[0px_2px_0px_#CB8927] transition-all duration-500 ease-out flex items-center gap-2">
                   Get Started
                 </a>
-                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-9 py-4 text-xl font-semibold shadow-[0px_6px_0px_#FE9800] text-[#FE9800] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#FE9800] active:translate-y-1 active:shadow-[0px_2px_0px_#FE9800] hover:bg-orange-50 transition-all duration-200 flex items-center gap-2 bg-white">
+                <a href="#faqs" className="rounded-2xl border-2 border-[#FE9800] px-7 py-3 text-lg font-semibold shadow-[0px_6px_0px_#FE9800] text-[#FE9800] hover:-translate-y-1 hover:shadow-[0px_8px_0px_#FE9800] active:translate-y-1 active:shadow-[0px_2px_0px_#FE9800] hover:bg-orange-50 transition-all duration-500 ease-out flex items-center gap-2 bg-white">
                   Learn More <ArrowRight size={20} />
                 </a>
               </div>
@@ -211,31 +227,32 @@ const LandingPage = () => {
               <img
                 src="/images/angay-hero-img.png"
                 alt="ANGAY hero"
-                className="w-[75%] sm:w-[65%] lg:w-[85%] max-w-[450px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain  relative"
-                
+                className="w-[65%] sm:w-[55%] lg:w-[75%] max-w-[400px] z-10 animate-[float_6s_ease-in-out_infinite] object-contain relative"
               />
             </div>
           </div>
         </section>
 
         {/* ── Stats ── */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-          <div className="reveal rounded-3xl bg-[#FE9800] px-8 py-10 shadow-lg text-white text-center">
-            <h3 className="text-3xl font-semibold">Our growing impact</h3>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {stats.map((stat) => (
-                <div key={stat.label} className="rounded-2xl bg-white/95 py-6 px-4 shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:bg-white cursor-pointer">
-                  <p className="text-4xl font-semibold text-[#FE9800]">{stat.value}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">{stat.label}</p>
-                </div>
-              ))}
+        <section className="relative z-20 -mt-[4%] mb-10 bg-[#FE9800] w-full border-0">
+          <div className="reveal pt-12 pb-10 sm:pt-16 sm:pb-12 shadow-lg text-white text-center min-h-[5%]">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <h3 className="text-3xl font-semibold">Our growing impact</h3>
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="rounded-2xl bg-white/95 py-6 px-4 shadow-md transition-all duration-500 ease-out hover:shadow-2xl hover:-translate-y-2 hover:bg-white cursor-pointer">
+                    <p className="text-4xl font-semibold text-[#FE9800]">{stat.value}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-700">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
         {/* ── About ── */}
         <section id="about" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <div className="reveal rounded-3xl bg-white p-8 sm:p-12 shadow-md">
+          <div className="reveal rounded-3xl p-8 sm:p-12">
             <h2 className="text-4xl font-semibold text-center tracking-tight">
               What is <span className="text-[#FE9800]">Angay</span>?
             </h2>
@@ -253,52 +270,100 @@ const LandingPage = () => {
         </section>
 
         {/* ── Features ── */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
-            Innovative Features Powering ANGAY
+        <section id="features" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+          <h2 className="reveal text-4xl sm:text-5xl font-extrabold text-center tracking-tight text-[#FE9800] leading-tight">
+            Innovative Features <br className="hidden sm:block" /> Powering ANGAY
           </h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {features.map((feature) => (
-              <article
-                key={feature.title}
-                className="reveal flex items-start gap-5 rounded-3xl border border-orange-100 bg-white p-6 shadow-sm transition hover:shadow-lg"
-              >
-                <img
-                  className="h-20 w-20 flex-none rounded-2xl object-cover shadow-sm"
-                  src={`/images/${feature.icon}`}
-                  alt={feature.title}
-                />
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-800">{feature.title}</h3>
-                  <p className="mt-2 text-slate-500 text-sm leading-relaxed">{feature.description}</p>
+          <div className="mt-20 flex flex-col gap-24 lg:gap-32">
+            {features.map((feature, idx) => {
+              const isImageRight = idx % 2 === 0;
+              return (
+                <div
+                  key={feature.title}
+                  className={`reveal flex flex-col gap-10 lg:gap-16 items-center ${isImageRight ? 'lg:flex-row' : 'lg:flex-row-reverse'}`}
+                >
+                  <div className={`w-full lg:w-1/2 flex flex-col justify-center ${!isImageRight ? 'lg:items-end lg:text-right' : 'lg:items-start lg:text-left'} text-center`}>
+                    <h3 className="text-3xl sm:text-[2.5rem] font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">{feature.title}</h3>
+                    <p className="text-lg sm:text-xl text-slate-700 leading-relaxed max-w-[420px]">
+                      {feature.description}
+                    </p>
+                  </div>
+                  <div className={`w-full lg:w-1/2 flex justify-center ${isImageRight ? 'lg:justify-end' : 'lg:justify-start'}`}>
+                    <img
+                      src={`/images/${feature.icon}`}
+                      alt={feature.title}
+                      className="w-[85%] sm:w-[65%] lg:w-[85%] max-w-[400px] object-contain animate-[float_6s_ease-in-out_infinite]"
+                      style={{ animationDelay: `${idx * 0.5}s` }}
+                    />
+                  </div>
                 </div>
-              </article>
-            ))}
+              );
+            })}
           </div>
         </section>
 
         {/* ── How it works ── */}
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          <h2 className="reveal text-4xl font-semibold text-center tracking-tight text-slate-900">
-            How FoodBanks Works
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 relative overflow-hidden">
+          <h2 className="reveal text-4xl sm:text-5xl font-extrabold text-center tracking-tight text-[#FE9800] mb-20">
+            How FoodBanks works
           </h2>
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          <div className="relative flex flex-col gap-16 lg:gap-0 mt-10 pb-20">
             {[
               { img: 'first-step-img.png', alt: 'Collect', step: '01', text: 'Foodbanks collect surplus or donated food from factories. This helps prevent waste while securing resources for communities.' },
               { img: 'second-step-img.png', alt: 'Sort', step: '02', text: 'The collected goods are brought back to foodbanks for sorting and storage. They are carefully organized to ensure safe and efficient distribution.' },
               { img: 'barangay-img.png', alt: 'Coordinate', step: '03', text: 'Foodbanks coordinate with barangay officials to share information about available supplies. This ensures proper planning and fair allocation of resources.' },
-              { img: 'family-img.png', alt: 'Distribute', step: '04', text: 'Barangay officials distribute the food to families in need, making sure the aid reaches the right households in an organized and timely manner.' },
-            ].map((item) => (
-              <div key={item.step} className="reveal rounded-3xl bg-white p-6 shadow-md flex flex-col gap-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 cursor-pointer">
-                <div className="relative overflow-hidden rounded-2xl bg-orange-50">
-                  <span className="absolute top-3 left-3 rounded-full bg-[#FE9800] px-3 py-1 text-xs font-semibold text-white shadow">
-                    {item.step}
-                  </span>
-                  <img src={`/images/${item.img}`} alt={item.alt} className="w-full object-cover h-48" />
+              { img: 'family-img.png', alt: 'Distribute', step: '04', text: 'Barangay officials distribute the food to families in need. They make sure the aid reaches the right households in an organized and timely manner.' },
+            ].map((item, idx, arr) => {
+              const isImageLeft = idx % 2 === 0;
+              return (
+                <div key={item.step} className={`relative flex flex-col lg:flex-row items-center justify-center min-h-[300px] sm:min-h-[350px] ${isImageLeft ? '' : 'lg:flex-row-reverse'} mb-12 lg:mb-0`}>
+
+                  {/* Connector Line */}
+                  {idx < arr.length - 1 && (
+                    <div className="hidden lg:block absolute top-[50%] left-[25%] w-[50%] h-[100%] z-0 pointer-events-none">
+                      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {isImageLeft ? (
+                          <path d="M 85,0 C 85,60 15,40 15,100" fill="none" stroke="#FE9800" strokeWidth="9" strokeDasharray="8 8" vectorEffect="non-scaling-stroke" opacity="0.6" />
+                        ) : (
+                          <path d="M 15,0 C 15,60 85,40 85,100" fill="none" stroke="#FE9800" strokeWidth="9" strokeDasharray="8 8" vectorEffect="non-scaling-stroke" opacity="0.6" />
+                        )}
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Text Outside */}
+                  <div className="reveal w-full lg:w-1/2 flex justify-center z-10 p-4 lg:p-8">
+                    <div className={`w-[95%] max-w-[480px] flex items-center justify-center text-center ${!isImageLeft ? 'lg:text-right' : 'lg:text-left'}`}>
+                      <p className="text-lg sm:text-2xl font-medium text-slate-800 leading-relaxed">
+                        {item.text}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Image Bubble */}
+                  <div className="reveal w-full lg:w-1/2 flex justify-center z-10 p-4">
+                    <div className="w-[85%] sm:w-[70%] lg:w-[80%] max-w-[420px] aspect-[1.4] border-[9px] border-dashed border-[#FE9800]/50 rounded-[50%] flex items-center justify-center p-6 sm:p-10 bg-white">
+                      <img src={`/images/${item.img}`} alt={item.alt} className="w-[90%] h-[90%] object-contain animate-[float_6s_ease-in-out_infinite]" style={{ animationDelay: `${idx * 0.5}s` }} />
+                    </div>
+                  </div>
+
+
                 </div>
-                <p className="text-slate-500 text-sm leading-relaxed">{item.text}</p>
+              );
+            })}
+
+            {/* Final Heart Path */}
+            <div className="hidden lg:block absolute bottom-4 left-0 w-full h-[120px] z-0 pointer-events-none">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M 25,0 C 25,50 50,50 50,75" fill="none" stroke="#FE9800" strokeWidth="9" strokeDasharray="8 8" vectorEffect="non-scaling-stroke" opacity="0.6" />
+              </svg>
+              {/* Heart icon at bottom center */}
+              <div className="absolute bottom-0 top-[60%] left-1/2 -translate-x-1/2 text-[#FE9800] opacity-60">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  <path d="M 50,35 C 20,0 0,40 50,90 C 100,40 80,0 50,35 Z" fill="none" stroke="currentColor" strokeWidth="9" strokeDasharray="8 8" />
+                </svg> 
               </div>
-            ))}
+            </div>
           </div>
         </section>
 
@@ -314,7 +379,7 @@ const LandingPage = () => {
             {team.map((person) => (
               <article
                 key={person.name}
-                className="reveal rounded-3xl border border-orange-100 bg-white p-6 shadow-md text-center flex flex-col items-center transition-all duration-300 hover:scale-110 hover:shadow-xl hover:border-orange-200 cursor-pointer"
+                className="reveal rounded-3xl border border-orange-100 bg-white p-6 shadow-md text-center flex flex-col items-center transition-all duration-500 ease-out hover:scale-105 hover:shadow-2xl hover:border-orange-200 cursor-pointer"
               >
                 <div className="h-24 w-24 rounded-full bg-orange-100 border-4 border-orange-200 mb-4 overflow-hidden">
                   <img
