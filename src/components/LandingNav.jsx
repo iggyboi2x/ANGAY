@@ -28,7 +28,7 @@ const LandingNav = () => {
       <a
         key={link.name}
         href={link.href}
-        className="text-slate-800 hover:text-[#FE9800] px-3 py-2 rounded-md text-lg font-medium w-full sm:w-auto text-center"
+        className="text-slate-800 hover:text-[#FE9800] px-3 py-2 rounded-md text-lg font-medium w-full sm:w-auto text-center transition-all duration-300 ease-in-out"
       >
         {link.name}
       </a>
