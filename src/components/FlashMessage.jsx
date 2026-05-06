@@ -15,7 +15,7 @@ export default function FlashMessage({ message, type = "error", onClose, duratio
   const isError = type === "error";
 
   return (
-    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-md">
+    <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-[90%] max-w-md">
       <div
         className={`rounded-xl shadow-lg border px-4 py-3 flex items-start gap-2.5 ${
           isError

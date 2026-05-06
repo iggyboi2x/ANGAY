@@ -14,7 +14,7 @@ export function useMapPins(role) {
       const isFoodbank = role === 'foodbank';
       const table = isFoodbank ? 'foodbanks' : 'barangays';
       const nameCol = isFoodbank ? 'org_name' : 'barangay_name';
-      const extraCols = isFoodbank ? ', operating_hours' : '';
+      const extraCols = isFoodbank ? ', operating_hours, logo_url, website_url' : '';
       const demographicsJoin = !isFoodbank ? ', demographics(member_count, pwd_count, senior_count, children_count, pregnant_count)' : '';
 
       const { data, error } = await supabase
@@ -46,9 +46,12 @@ export function useMapPins(role) {
 
           return {
             ...row,
+            type: isFoodbank ? 'foodbank' : 'barangay',
             org_name: row[nameCol],
             contact: row.profiles?.contact || null,
             hours: row.operating_hours || null,
+            logo_url: row.logo_url || null,
+            website_url: row.website_url || null,
             demographics: demoTotals,
           };
         });

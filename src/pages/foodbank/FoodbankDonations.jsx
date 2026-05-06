@@ -138,8 +138,44 @@ export default function FoodbankDonations() {
   useEffect(() => { void loadAll(); }, []);
 
   const updateDonation = async (id, status) => {
-    await supabase.from('donations').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
-    await loadAll();
+    try {
+      // 1. Fetch donation details to get the donor_id
+      const { data: donation, error: fetchError } = await supabase
+        .from('donations')
+        .select('donor_id, foodbank_name, items')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Update the donation status
+      const { error: updateError } = await supabase
+        .from('donations')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (updateError) throw updateError;
+      
+      // 3. Notify the donor
+      if (donation?.donor_id) {
+        const statusLabel = status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Declined' : 'Updated';
+        const { error: notifError } = await supabase.from('notifications').insert({
+          user_id: donation.donor_id,
+          title: `Donation ${statusLabel}`,
+          body: `Your donation of ${donation.items} to ${donation.foodbank_name} has been ${statusLabel.toLowerCase()}.`,
+          is_read: false
+        });
+        
+        if (notifError) {
+          console.error('[Notification Error]', notifError);
+          // If this fails, it might be an RLS policy issue
+        }
+      }
+
+      await loadAll();
+    } catch (err) {
+      console.error('[Update Donation Error]', err);
+    }
   };
 
   const handleSend = async (form) => {
