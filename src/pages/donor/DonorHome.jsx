@@ -7,6 +7,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "../../../supabase";
 import { useMapPins } from "../../hooks/useMapPins";
+import { useProfile } from "../../hooks/useProfile";
 import FlashMessage from "../../components/FlashMessage";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -43,6 +44,7 @@ const formatDate = (rawDate) => {
 
 export default function DonorHome() {
   const navigate = useNavigate();
+  const { displayName } = useProfile();
   const { pins: foodbanks, loading: fbLoading } = useMapPins("foodbank");
   const { pins: barangays, loading: bLoading } = useMapPins("barangay");
   const [distributions, setDistributions] = useState([]);
@@ -233,6 +235,17 @@ export default function DonorHome() {
     };
 
     const { error } = await supabase.from("donations").insert(payload);
+    
+    if (!error) {
+      // Notify the foodbank
+      await supabase.from("notifications").insert({
+        user_id: donationForm.foodbank_id,
+        title: "New Donation Proposal",
+        body: `${displayName || 'A donor'} has proposed to donate ${itemsString}.`,
+        is_read: false
+      });
+    }
+
     setSavingDonation(false);
 
     if (error) {

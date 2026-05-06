@@ -103,6 +103,17 @@ function DistCard({ dist }) {
 
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 import NotificationBell from '../../components/foodbank/NotificationBell';
+import AcceptDonationModal from '../../components/foodbank/AcceptDonationModal';
+
+function computeStatus(expDate) {
+  if (!expDate) return 'fresh';
+  const d = new Date(expDate);
+  const now = new Date();
+  const days = Math.ceil((d - now) / 86400000);
+  if (days < 0) return 'expired';
+  if (days <= 30) return 'expiring';
+  return 'fresh';
+}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FoodbankDonations() {
@@ -116,6 +127,7 @@ export default function FoodbankDonations() {
   const [packages, setPackages]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
+  const [acceptingDonation, setAcceptingDonation] = useState(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -137,12 +149,13 @@ export default function FoodbankDonations() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void loadAll(); }, []);
 
-  const updateDonation = async (id, status) => {
+  const updateDonation = async (id, status, inventoryItems = null) => {
     try {
-      // 1. Fetch donation details to get the donor_id
+      const { data: { user } } = await supabase.auth.getUser();
+      // 1. Fetch donation details to get the donor_id and barangay_name
       const { data: donation, error: fetchError } = await supabase
         .from('donations')
-        .select('donor_id, foodbank_name, items')
+        .select('donor_id, foodbank_name, items, barangay_name')
         .eq('id', id)
         .single();
 
@@ -155,8 +168,49 @@ export default function FoodbankDonations() {
         .eq('id', id);
       
       if (updateError) throw updateError;
+
+      // 3. Handle Inventory or Package creation if status is 'completed'
+      if (status === 'completed' && inventoryItems && user) {
+        if (donation.barangay_name) {
+          // CASE A: Suggested Barangay present -> Create Package
+          const pkgName = `Direct Donation: ${donation.items.substring(0, 30)}...`;
+          const { data: pkg, error: pkgErr } = await supabase
+            .from('donation_packages')
+            .insert([{ 
+              name: pkgName, 
+              foodbank_id: user.id,
+              status: 'available' 
+            }])
+            .select()
+            .single();
+
+          if (pkgErr) throw pkgErr;
+
+          // Add items to package_items (no inventory_id since it bypasses inventory)
+          const pkgItems = inventoryItems.map(item => ({
+            package_id: pkg.id,
+            item_name: item.item_name,
+            quantity: Number(item.quantity),
+            unit: item.unit || 'pcs'
+          }));
+          await supabase.from('package_items').insert(pkgItems);
+
+        } else {
+          // CASE B: No Suggested Barangay -> Populate Inventory
+          const rows = inventoryItems.map(item => ({
+            foodbank_id: user.id,
+            item_name: item.item_name,
+            category_id: item.category_id || null,
+            quantity: Number(item.quantity),
+            unit: item.unit || 'pcs',
+            expiration_date: item.expiration_date || null,
+            status: computeStatus(item.expiration_date)
+          }));
+          await supabase.from('foodbank_inventory').insert(rows);
+        }
+      }
       
-      // 3. Notify the donor
+      // 4. Notify the donor
       if (donation?.donor_id) {
         const statusLabel = status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Declined' : 'Updated';
         const { error: notifError } = await supabase.from('notifications').insert({
@@ -168,7 +222,6 @@ export default function FoodbankDonations() {
         
         if (notifError) {
           console.error('[Notification Error]', notifError);
-          // If this fails, it might be an RLS policy issue
         }
       }
 
@@ -176,6 +229,12 @@ export default function FoodbankDonations() {
     } catch (err) {
       console.error('[Update Donation Error]', err);
     }
+  };
+
+  const handleConfirmAccept = async (inventoryItems) => {
+    if (!acceptingDonation) return;
+    await updateDonation(acceptingDonation.id, 'completed', inventoryItems);
+    setAcceptingDonation(null);
   };
 
   const handleSend = async (form) => {
@@ -299,7 +358,7 @@ export default function FoodbankDonations() {
                     <DonorCard key={d.id} donation={d}
                       onAccept={() => updateDonation(d.id, 'accepted')}
                       onReject={() => updateDonation(d.id, 'rejected')}
-                      onComplete={() => updateDonation(d.id, 'completed')} />
+                      onComplete={() => setAcceptingDonation(d)} />
                   ))}
                 </div>
               )}
@@ -347,6 +406,13 @@ export default function FoodbankDonations() {
       </div>
 
       {showModal && <SendFoodAidModal barangays={barangays} packages={packages} onClose={() => setShowModal(false)} onSubmit={handleSend} />}
+      {acceptingDonation && (
+        <AcceptDonationModal 
+          donation={acceptingDonation} 
+          onClose={() => setAcceptingDonation(null)} 
+          onConfirm={handleConfirmAccept} 
+        />
+      )}
     </div>
   );
 }

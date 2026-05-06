@@ -88,6 +88,14 @@ export default function BarangayDonations() {
         .eq('id', dist.package_id);
     }
 
+    // 3. Notify the foodbank
+    await supabase.from('notifications').insert({
+      user_id: dist.foodbank_id,
+      title: 'Donation Received',
+      body: `${displayName || 'A barangay'} has successfully received your food aid package.`,
+      is_read: false
+    });
+
     await load();
   };
 

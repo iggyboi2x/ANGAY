@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Package, Box, Gift, Settings, LogOut, Wheat, X } from 'lucide-react';
+import { supabase } from '../../../supabase';
+import { useProfile } from '../../hooks/useProfile';
 
-const navItems = [
+const navItemsList = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/foodbank/dashboard' },
-  { label: 'Messages',  icon: MessageSquare,   to: '/foodbank/messages'  },
+  { label: 'Messages',  icon: MessageSquare,   to: '/foodbank/messages', key: 'messages'  },
   { label: 'Inventory', icon: Package,          to: '/foodbank/inventory' },
   { label: 'Packages',  icon: Box,              to: '/foodbank/packages'  },
   { label: 'Donations', icon: Gift,             to: '/foodbank/donations' },
@@ -11,6 +14,45 @@ const navItems = [
 
 export default function FoodbankSidebar({ mobileOpen, setMobileOpen }) {
   const navigate = useNavigate();
+  const { id: userId } = useProfile();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [lastViewedMsgs, setLastViewedMsgs] = useState(() => {
+    return localStorage.getItem(`fb_last_viewed_msgs_${userId}`) || new Date(0).toISOString();
+  });
+
+  const loadUnreadMessages = async () => {
+    if (!userId) return;
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .neq("user_id", userId)
+      .gt("created_at", lastViewedMsgs);
+    
+    setUnreadMessages(count || 0);
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    loadUnreadMessages();
+
+    const channel = supabase
+      .channel(`fb-unread-msgs-${userId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, () => loadUnreadMessages())
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [userId, lastViewedMsgs]);
+
+  const handleMessagesClick = () => {
+    const now = new Date().toISOString();
+    localStorage.setItem(`fb_last_viewed_msgs_${userId}`, now);
+    setLastViewedMsgs(now);
+    setUnreadMessages(0);
+  };
 
   return (
     <>
@@ -36,22 +78,30 @@ export default function FoodbankSidebar({ mobileOpen, setMobileOpen }) {
 
       {/* Nav */}
       <nav className="flex-1 px-4 pt-2">
-        {navItems.map(({ label, icon: Icon, to }) => (
+        {navItemsList.map(({ label, icon: Icon, to, key }) => (
           <NavLink
             key={to}
             to={to}
+            onClick={() => {
+              if (key === 'messages') handleMessagesClick();
+              if (mobileOpen && setMobileOpen) setMobileOpen(false);
+            }}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 h-12 rounded-lg transition-colors relative mb-1 ${
                 isActive ? 'bg-[#FFF3DC] text-[#FE9800]' : 'text-[#444444] hover:bg-[#F8F8F8]'
               }`
             }
           >
-            {/* FIX: use CSS class on the indicator instead of render prop */}
             <span className="absolute left-0 top-0 bottom-0 w-1 bg-[#FE9800] rounded-r hidden [.active_&]:block" />
             <Icon size={18} />
-            <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>
+            <span className="text-[14px] flex-1" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>
               {label}
             </span>
+            {key === 'messages' && unreadMessages > 0 && (
+              <span className="bg-[#FE9800] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
+                {unreadMessages}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Gift, Send } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
@@ -8,62 +9,41 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasNew, setHasNew] = useState(false);
+  const navigate = useNavigate();
   const ref = useRef();
+
+  const loadNotifications = async () => {
+    if (!foodbankId) return;
+
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', foodbankId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    if (data) {
+      setNotifications(data);
+      setHasNew(data.some(n => !n.is_read));
+    }
+  };
 
   useEffect(() => {
     if (!foodbankId) return;
-
-    const loadNotifications = async () => {
-      // Fetch pending donations (Donor -> Foodbank proposals)
-      const { data: pendingDonations } = await supabase
-        .from('donations')
-        .select('id, donor_name, items, created_at')
-        .eq('foodbank_id', foodbankId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      // Fetch received distributions (Foodbank -> Barangay received updates)
-      const { data: receivedDists } = await supabase
-        .from('distributions')
-        .select('id, barangay_name, updated_at, created_at')
-        .eq('foodbank_id', foodbankId)
-        .eq('status', 'received')
-        .order('updated_at', { ascending: false })
-        .limit(5);
-
-      const notifs = [];
-
-      (pendingDonations || []).forEach(d => {
-        notifs.push({
-          id: `don-${d.id}`,
-          type: 'donation_proposal',
-          title: 'New Donation Proposal',
-          message: `${d.donor_name} proposed to donate ${d.items}.`,
-          time: d.created_at,
-          icon: <Gift size={16} className="text-[#FE9800]" />
-        });
-      });
-
-      (receivedDists || []).forEach(d => {
-        notifs.push({
-          id: `dist-${d.id}`,
-          type: 'distribution_received',
-          title: 'Donation Received',
-          message: `${d.barangay_name} successfully received your food aid package.`,
-          time: d.updated_at || d.created_at,
-          icon: <Send size={16} className="text-green-500" />
-        });
-      });
-
-      // Sort by time descending
-      notifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-      
-      setNotifications(notifs);
-      setUnreadCount(notifs.length); // Assuming they are all unread for simplicity
-    };
-
     loadNotifications();
+
+    const channel = supabase
+      .channel(`fb-notifs-${foodbankId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'notifications', 
+        filter: `user_id=eq.${foodbankId}` 
+      }, () => loadNotifications())
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [foodbankId]);
 
   useEffect(() => {
@@ -76,10 +56,26 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleNotificationClick = async (notif) => {
+    // Mark as read in DB
+    if (!notif.is_read) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
+      loadNotifications();
+    }
+
+    // Redirection logic
+    if (notif.title?.toLowerCase().includes("proposal") || notif.title?.toLowerCase().includes("donation")) {
+      navigate("/foodbank/donations");
+    } else if (notif.title?.toLowerCase().includes("received")) {
+      navigate("/foodbank/packages");
+    }
+    setOpen(false);
+  };
+
   const handleToggle = () => {
     setOpen(!open);
     if (!open) {
-      setUnreadCount(0); // clear badge when opened
+      setHasNew(false); // clear dot when opened
     }
   };
 
@@ -90,46 +86,46 @@ export default function NotificationBell() {
         className="relative p-2 text-[#888888] hover:text-[#FE9800] hover:bg-orange-50 rounded-full transition-colors"
       >
         <Bell size={18} />
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full ring-2 ring-white" />
+        {hasNew && (
+          <span className="absolute top-1 right-1 w-2 h-2 bg-[#FE9800] rounded-full ring-2 ring-white animate-pulse" />
         )}
       </button>
 
       {open && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-white border border-[#F0F0F0] rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="px-4 py-3 border-b border-[#F0F0F0] bg-gray-50 flex justify-between items-center">
-            <span className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Notifications</span>
+          <div className="px-5 py-4 border-b border-[#F0F0F0] bg-gray-50/50 flex justify-between items-center">
+            <span className="text-sm font-black text-[#1A1A1A] tracking-tight">NOTIFICATIONS</span>
           </div>
           
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto custom-scrollbar">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-[#888]">
-                No new notifications
+              <div className="px-5 py-10 text-center text-xs text-[#888] font-medium">
+                No updates yet
               </div>
             ) : (
               notifications.map((n) => (
-                <div key={n.id} className="px-4 py-3 border-b border-[#F0F0F0] last:border-0 hover:bg-gray-50 transition-colors flex gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${n.type === 'donation_proposal' ? 'bg-[#FFF3DC]' : 'bg-green-50'}`}>
-                    {n.icon}
+                <button 
+                  key={n.id} 
+                  onClick={() => handleNotificationClick(n)}
+                  className={`w-full px-5 py-4 border-b border-[#F0F0F0] last:border-0 transition-all text-left flex gap-3 ${!n.is_read ? 'bg-orange-50/70 hover:bg-orange-100/70' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${n.title?.toLowerCase().includes('proposal') ? 'bg-[#FFF3DC] text-[#FE9800]' : 'bg-green-50 text-green-500'}`}>
+                    {n.title?.toLowerCase().includes('proposal') ? <Gift size={15} /> : <Send size={15} />}
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>{n.title}</p>
-                    <p className="text-xs text-[#555] mt-0.5 leading-snug">{n.message}</p>
-                    <p className="text-[10px] text-[#888] mt-1">
-                      {new Date(n.time).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold text-[#1A1A1A] truncate ${!n.is_read ? 'text-[#FE9800]' : ''}`}>{n.title}</p>
+                    <p className="text-[11px] text-[#555] mt-1 leading-snug line-clamp-2">{n.body}</p>
+                    <p className="text-[9px] text-[#888] mt-1.5 font-bold uppercase tracking-wider">
+                      {new Date(n.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
-          {notifications.length > 0 && (
-            <div className="px-4 py-2 border-t border-[#F0F0F0] bg-gray-50 text-center">
-               <a href="/foodbank/donations" className="text-xs font-bold text-[#FE9800] hover:underline">View all in Donations</a>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
+
