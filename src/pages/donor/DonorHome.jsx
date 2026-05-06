@@ -552,65 +552,93 @@ export default function DonorHome() {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Items to Donate *</label>
-                <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Items to Donate *</label>
+                  <span className="text-[10px] bg-[#FE9800] text-white px-2 py-0.5 rounded-full font-black">
+                    {itemsList.length} {itemsList.length === 1 ? 'ITEM' : 'ITEMS'}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                   {itemsList.map((item, idx) => (
-                    <div key={idx} className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-200" style={{ animationDelay: `${idx * 50}ms` }}>
-                      <input
-                        value={item.name}
-                        onChange={(e) => {
-                          const updated = [...itemsList];
-                          updated[idx].name = e.target.value;
-                          setItemsList(updated);
-                        }}
-                        placeholder="Item (e.g. Rice)"
-                        className="flex-1 px-4 py-3 text-sm border-2 border-gray-100 rounded-2xl bg-gray-50 outline-none focus:border-[#FE9800] focus:bg-white transition-all"
-                      />
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const updated = [...itemsList];
-                          updated[idx].qty = e.target.value;
-                          setItemsList(updated);
-                        }}
-                        placeholder="Qty"
-                        className="w-20 px-4 py-3 text-sm border-2 border-gray-100 rounded-2xl bg-gray-50 outline-none focus:border-[#FE9800] focus:bg-white transition-all"
-                      />
-                      <select
-                        value={item.unit}
-                        onChange={(e) => {
-                          const updated = [...itemsList];
-                          updated[idx].unit = e.target.value;
-                          setItemsList(updated);
-                        }}
-                        className="w-24 px-2 py-3 text-sm border-2 border-gray-100 rounded-2xl bg-gray-50 outline-none focus:border-[#FE9800] focus:bg-white transition-all"
-                      >
-                        <option value="kg">kg</option>
-                        <option value="pcs">pcs</option>
-                        <option value="cans">cans</option>
-                        <option value="packs">packs</option>
-                        <option value="sacks">sacks</option>
-                        <option value="boxes">boxes</option>
-                      </select>
-                      {itemsList.length > 1 && (
-                        <button
-                          onClick={() => setItemsList(itemsList.filter((_, i) => i !== idx))}
-                          className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                        >
-                          <X size={18} />
-                        </button>
-                      )}
+                    <div 
+                      key={idx} 
+                      className="group relative flex flex-col sm:flex-row gap-3 p-4 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-orange-100 hover:bg-white hover:shadow-sm transition-all animate-in slide-in-from-right-4 duration-300"
+                      style={{ animationDelay: `${idx * 50}ms` }}
+                    >
+                      <div className="flex-1">
+                        <input
+                          value={item.name}
+                          onChange={(e) => {
+                            const updated = [...itemsList];
+                            updated[idx].name = e.target.value;
+                            setItemsList(updated);
+                          }}
+                          placeholder="Item Name (e.g. Rice, Canned Goods)"
+                          className="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-800 placeholder:text-gray-300 outline-none"
+                        />
+                        <p className="text-[10px] text-gray-400 font-medium uppercase mt-1">Item Description</p>
+                      </div>
+                      
+                      <div className="flex gap-2 items-center">
+                        <div className="w-20">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.qty}
+                            onChange={(e) => {
+                              const updated = [...itemsList];
+                              updated[idx].qty = e.target.value;
+                              setItemsList(updated);
+                            }}
+                            placeholder="Qty"
+                            className="w-full bg-white border-2 border-gray-100 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 focus:border-[#FE9800] transition-all outline-none"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <select
+                            value={item.unit}
+                            onChange={(e) => {
+                              const updated = [...itemsList];
+                              updated[idx].unit = e.target.value;
+                              setItemsList(updated);
+                            }}
+                            className="w-full bg-white border-2 border-gray-100 rounded-xl px-2 py-1.5 text-xs font-bold text-gray-600 focus:border-[#FE9800] transition-all outline-none cursor-pointer"
+                          >
+                            <option value="kg">kg</option>
+                            <option value="pcs">pcs</option>
+                            <option value="cans">cans</option>
+                            <option value="packs">packs</option>
+                            <option value="sacks">sacks</option>
+                            <option value="boxes">boxes</option>
+                          </select>
+                        </div>
+                        {itemsList.length > 1 && (
+                          <button
+                            onClick={() => setItemsList(itemsList.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
-                  <button
-                    onClick={() => setItemsList([...itemsList, { name: "", qty: "", unit: "kg" }])}
-                    className="text-sm text-[#FE9800] font-bold hover:text-orange-600 transition-colors flex items-center gap-1 mt-2"
-                  >
-                    + Add another item
-                  </button>
                 </div>
+                
+                <button
+                  onClick={() => {
+                    const lastItem = itemsList[itemsList.length - 1];
+                    if (lastItem.name.trim() && lastItem.qty) {
+                      setItemsList([...itemsList, { name: "", qty: "", unit: "kg" }]);
+                    }
+                  }}
+                  disabled={!itemsList[itemsList.length - 1]?.name.trim() || !itemsList[itemsList.length - 1]?.qty}
+                  className="w-full mt-3 py-3 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-[#FE9800] hover:text-[#FE9800] hover:bg-orange-50/30 transition-all text-xs font-bold flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-100 disabled:hover:text-gray-400 disabled:hover:bg-transparent"
+                >
+                  <Package size={14} className="group-hover:scale-110 transition-transform" />
+                  + Add Item to List
+                </button>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

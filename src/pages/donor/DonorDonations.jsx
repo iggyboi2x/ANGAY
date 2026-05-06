@@ -19,10 +19,18 @@ const STATUS_STYLE = {
 
 const fmt = d => d ? new Date(d).toLocaleDateString("en-US",{ month:"short", day:"numeric", year:"numeric" }) : "—";
 
+import { useSearchParams } from "react-router-dom";
+
 export default function DonorDonations() {
-  const [activeTab, setActiveTab] = useState("pending");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "pending");
   const [donations, setDonations] = useState([]);
   const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   const load = async () => {
     setLoading(true);
