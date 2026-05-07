@@ -55,7 +55,7 @@ export default function LogisticProgressBar({ status, steps = [], onShowProof })
                 {stageStatus === 'completed' ? <CheckCircle2 size={18} /> : stage.icon}
               </div>
 
-              {/* Label */}
+              {/* Stage Label */}
               <div className="absolute -bottom-6 w-max">
                 <span className={`text-[10px] font-black uppercase tracking-tighter ${
                   stageStatus === 'completed' ? 'text-[#FE9800]' : 'text-gray-400'
@@ -64,10 +64,15 @@ export default function LogisticProgressBar({ status, steps = [], onShowProof })
                 </span>
               </div>
 
-              {/* Tooltip for proof */}
-              {idx === 3 && stageStatus === 'completed' && (
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold uppercase tracking-wider">
-                  View Proof of Distribution
+              {/* Hover Badge (Only for Distributed with Proof) */}
+              {idx === 3 && stageStatus === 'completed' && onShowProof && (
+                <div className="absolute -top-9 right-[-10px] invisible group-hover:visible group-hover:-top-11 transition-all duration-300 z-50">
+                  <div className="bg-[#1A1A1A] text-white text-[9px] px-3 py-1.5 rounded-lg shadow-2xl whitespace-nowrap font-black uppercase tracking-widest border border-white/10 flex items-center gap-2">
+                    <ImageIcon size={10} className="text-[#FE9800]" />
+                    View Proof
+                  </div>
+                  {/* Arrow anchored to the circle */}
+                  <div className="w-1.5 h-1.5 bg-[#1A1A1A] rotate-45 absolute -bottom-0.5 right-[18px] border-r border-b border-white/10" />
                 </div>
               )}
             </div>

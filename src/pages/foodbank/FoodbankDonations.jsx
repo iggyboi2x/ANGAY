@@ -244,9 +244,14 @@ export default function FoodbankDonations() {
           await supabase.from('package_items').insert(pkgItems);
         } else {
           const rows = inventoryItems.map(item => ({
-            foodbank_id: user.id, item_name: item.item_name, category_id: item.category_id || null,
-            quantity: Number(item.quantity), unit: item.unit || 'pcs', expiration_date: item.expiration_date || null,
-            status: computeStatus(item.expiration_date)
+            foodbank_id: user.id, 
+            item_name: item.item_name, 
+            category_id: item.category_id || null,
+            quantity: Number(item.quantity), 
+            unit: item.unit || 'pcs', 
+            expiration_date: item.expiration_date || null,
+            status: computeStatus(item.expiration_date),
+            source_donation_id: donation.id // NEW: Track the source
           }));
           await supabase.from('foodbank_inventory').insert(rows);
         }

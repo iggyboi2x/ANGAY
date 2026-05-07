@@ -3,7 +3,7 @@ import BarangaySidebar from '../../components/barangay/BarangaySidebar';
 import BarangayNotificationBell from '../../components/barangay/BarangayNotificationBell';
 import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../../supabase';
-import { Package, CheckCircle, Clock, RotateCcw, Camera, Image as ImageIcon, X, Send, ChevronRight } from 'lucide-react';
+import { Package, CheckCircle, Clock, RotateCcw, Camera, Image as ImageIcon, X, Send, ChevronRight, MessageSquare } from 'lucide-react';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
@@ -18,6 +18,7 @@ const TABS = [
 
 function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
   const [description, setDescription] = useState('');
+  const [distributionDate, setDistributionDate] = useState(new Date().toISOString().split('T')[0]);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
@@ -46,66 +47,78 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
       return;
     }
     setUploading(true);
-    
-    // In a real app, we'd upload to Supabase Storage. For this demo, we'll store the base64 or just URLs
     const imageUrls = images.map(img => img.url); 
-    
     await onConfirm({
       proof_description: description,
       proof_images: imageUrls,
-      distributed_at: new Date().toISOString()
+      distributed_at: new Date(distributionDate).toISOString()
     });
     setUploading(false);
   };
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Confirm Distribution" width="lg">
-      <div className="space-y-4">
-        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3 items-start">
-          <Camera className="text-blue-500 mt-1" size={18} />
-          <div>
-            <p className="text-sm font-bold text-blue-900">Proof of Distribution</p>
-            <p className="text-xs text-blue-700 mt-0.5">Please upload 1-3 photos showing the items being distributed to your community members.</p>
+      <div className="space-y-3.5">
+        <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-2xl flex gap-3 items-center">
+          <Camera className="text-blue-500" size={16} />
+          <p className="text-[11px] font-bold text-blue-800 leading-tight">Please upload 1-3 photos showing the distribution to community members.</p>
+        </div>
+
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-5">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Distribution Date</label>
+            <input 
+              type="date"
+              value={distributionDate}
+              onChange={e => setDistributionDate(e.target.value)}
+              className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:border-[#FE9800] transition-all font-bold"
+            />
+          </div>
+          <div className="col-span-7">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Items Summary</label>
+            <div className="p-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-500 line-clamp-1">
+              {dist.items}
+            </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Description</label>
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Impact Description</label>
           <textarea 
             value={description}
             onChange={e => setDescription(e.target.value)}
-            placeholder="Describe the distribution (e.g. distributed to 50 households in Sitio Maligaya)"
-            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm min-h-[100px] outline-none focus:border-[#FE9800] transition-all"
+            placeholder="Describe the distribution impact..."
+            className="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs min-h-[80px] max-h-[120px] outline-none focus:border-[#FE9800] transition-all font-medium"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Photos (Max 3)</label>
-          <div className="grid grid-cols-3 gap-3">
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Proof Photos (Max 3)</label>
+          <div className="grid grid-cols-4 gap-3">
             {images.map((img, i) => (
-              <div key={i} className="aspect-square rounded-xl border border-gray-100 overflow-hidden relative group">
+              <div key={i} className="aspect-square rounded-2xl border border-gray-100 overflow-hidden relative group shadow-sm">
                 <img src={img.url} className="w-full h-full object-cover" />
-                <button onClick={() => removeImg(i)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                  <X size={12} />
+                <button onClick={() => removeImg(i)} className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                  <X size={10} />
                 </button>
               </div>
             ))}
             {images.length < 3 && (
               <button 
                 onClick={() => fileRef.current?.click()}
-                className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-[#FE9800] hover:text-[#FE9800] transition-all"
+                className="aspect-square rounded-2xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-[#FE9800] hover:text-[#FE9800] hover:bg-orange-50/30 transition-all group"
               >
-                <Camera size={24} />
-                <span className="text-[10px] font-bold uppercase">Add Photo</span>
+                <Camera size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] font-black uppercase tracking-tighter">Add Photo</span>
               </button>
             )}
           </div>
           <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={handleFile} />
         </div>
 
-        <div className="pt-4 flex gap-3">
-          <Button variant="ghost" onClick={onClose} className="flex-1">Cancel</Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={uploading} className="flex-1" icon={<Send size={16} />}>
+        <div className="pt-3 flex gap-3">
+          <Button variant="ghost" onClick={onClose} className="flex-1 h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest">Cancel</Button>
+          <Button variant="primary" onClick={handleSubmit} disabled={uploading} className="flex-[1.5] h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest" icon={<Send size={14} />}>
             {uploading ? 'Confirming...' : 'Complete Distribution'}
           </Button>
         </div>
@@ -114,7 +127,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
   );
 }
 
-function AidCard({ dist, onConfirmReceived, onConfirmDistributed }) {
+function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof }) {
   const [acting, setActing] = useState(false);
   const isPending = dist.status === 'pending';
   const isReceived = dist.status === 'received';
@@ -123,8 +136,10 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed }) {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-[#FE9800]/30 transition-all duration-300">
       {isDistributed && (
-        <div className="absolute -right-8 top-4 rotate-45 bg-green-500 text-white px-10 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm">
-          Distributed
+        <div className="absolute top-0 right-0 w-28 h-28 overflow-hidden pointer-events-none z-20">
+          <div className="absolute top-[27px] right-[-35px] bg-green-500 text-white text-[9px] font-black uppercase tracking-widest py-1.5 w-44 text-center rotate-45 shadow-sm border-b border-white/10">
+            Distributed
+          </div>
         </div>
       )}
 
@@ -156,23 +171,16 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed }) {
           <p className="text-xs text-[#888] font-bold uppercase tracking-wider mb-1">Items Included</p>
           <p className="text-sm text-[#1A1A1A] font-medium leading-relaxed">{dist.items}</p>
         </div>
-        
-        {dist.notes && (
-          <div className="flex gap-2 items-start px-1">
-            <span className="text-[10px] font-black uppercase text-gray-300 mt-0.5">Notes:</span>
-            <p className="text-xs text-gray-500 leading-tight">{dist.notes}</p>
-          </div>
-        )}
       </div>
 
-      {/* Progress Bar integration */}
-      <div className="py-2 border-y border-gray-50">
+      <div className="py-4 border-y border-gray-50">
         <LogisticProgressBar 
           status={
             isDistributed ? 'distributed' : 
             isReceived ? 'at_barangay' : 
             dist.status === 'pending' ? 'at_fb' : 'pending_fb'
           } 
+          onShowProof={() => isDistributed && onShowProof && onShowProof(dist)}
         />
       </div>
 
@@ -197,16 +205,6 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed }) {
             <ImageIcon size={14} /> Mark as Distributed
           </button>
         )}
-
-        {isDistributed && dist.proof_images?.length > 0 && (
-          <div className="flex -space-x-2">
-            {dist.proof_images.slice(0, 3).map((img, i) => (
-              <div key={i} className="w-6 h-6 rounded-full border-2 border-white overflow-hidden shadow-sm">
-                <img src={img} className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -218,129 +216,100 @@ export default function BarangayDonations() {
   const [dists, setDists]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [distributing, setDistributing] = useState(null);
+  const [viewingProof, setViewingProof] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Direct query using user.id as barangay_id
-    const { data, error } = await supabase
-      .from('distributions')
-      .select('*')
-      .eq('barangay_id', user.id)
-      .order('created_at', { ascending: false });
+      // Fetch distributions assigned to this barangay
+      // We check both the direct ID and potential profile matches
+      const { data, error } = await supabase
+        .from('distributions')
+        .select(`
+          *,
+          donation_packages!package_id(
+            id, name, status,
+            package_items(item_name, quantity, unit)
+          )
+        `)
+        .eq('barangay_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("Error loading distributions:", error.message);
+      if (error) throw error;
+      setDists(data || []);
+    } catch (err) {
+      console.error("Error loading barangay distributions:", err);
+    } finally {
+      setLoading(false);
     }
-    
-    setDists(data || []);
-    setLoading(false);
   };
 
   useEffect(() => { void load(); }, []);
 
   const confirmReceived = async (dist) => {
-    // 1. Update distribution status
-    await supabase.from('distributions')
-      .update({ status: 'received', updated_at: new Date().toISOString() })
-      .eq('id', dist.id);
-    
-    // NOTE: We no longer mark the package as 'donated' automatically here
-    // to guarantee that history only shows actually distributed items.
-
-    // 2. Notify the foodbank
-    await supabase.from('notifications').insert({
-      user_id: dist.foodbank_id,
-      title: 'Aid Package Received',
-      body: `${displayName || 'A barangay'} has received the aid package. It is now awaiting distribution.`,
-      is_read: false
-    });
-
-    await load();
+    try {
+      await supabase.from('distributions').update({ 
+        status: 'received',
+        updated_at: new Date().toISOString() 
+      }).eq('id', dist.id);
+      
+      if (dist.package_id) {
+        await supabase.from('donation_packages').update({ status: 'at_barangay' }).eq('id', dist.package_id);
+      }
+      await load();
+    } catch (err) { console.error(err); }
   };
 
   const confirmDistributed = async (payload) => {
     if (!distributing) return;
-    
-    // 1. Update distribution status with proof
-    const { error: dErr } = await supabase.from('distributions')
-      .update({ 
+    try {
+      // 1. Update the distribution record
+      await supabase.from('distributions').update({ 
         status: 'distributed', 
-        ...payload,
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', distributing.id);
+        distributed_at: new Date().toISOString(),
+        ...payload 
+      }).eq('id', distributing.id);
 
-    if (dErr) {
-      alert("Error updating distribution: " + dErr.message);
-      return;
-    }
-    
-    // 2. Mark the package as 'donated' ONLY now
-    if (distributing.package_id) {
-      await supabase.from('donation_packages')
-        .update({ status: 'donated', updated_at: new Date().toISOString() })
-        .eq('id', distributing.package_id);
-    }
-
-    // 3. Notify the foodbank and Donor (if original_donation_id exists)
-    // First, find the donor_id if possible
-    let donorId = null;
-    if (distributing.package_id) {
-      const { data: pkg } = await supabase.from('donation_packages').select('original_donation_id').eq('id', distributing.package_id).single();
-      if (pkg?.original_donation_id) {
-        const { data: don } = await supabase.from('donations').select('donor_id').eq('id', pkg.original_donation_id).single();
-        donorId = don?.donor_id;
+      // 2. Update the package status
+      if (distributing.package_id) {
+        await supabase.from('donation_packages').update({ status: 'donated' }).eq('id', distributing.package_id);
       }
-    }
 
-    const notifications = [
-      {
-        user_id: distributing.foodbank_id,
-        title: 'Package Distributed!',
-        body: `Your food aid has been distributed by ${displayName}. Proof of distribution is now available.`,
-        is_read: false
-      }
-    ];
+      // 3. Send notifications to donors whose items were in this package
+      // (This will be handled by the database triggers or handled in the Donor query)
 
-    if (donorId) {
-      notifications.push({
-        user_id: donorId,
-        title: 'Donation Distributed!',
-        body: `Great news! Your donation has reached its destination and was distributed by ${displayName}.`,
-        is_read: false
-      });
-    }
-
-    await supabase.from('notifications').insert(notifications);
-
-    setDistributing(null);
-    await load();
+      setDistributing(null);
+      await load();
+    } catch (err) { console.error(err); }
   };
 
-  const filtered   = dists.filter(d => d.status === activeTab);
+  const filtered = dists.filter(d => {
+    if (activeTab === 'pending') return d.status === 'pending';
+    if (activeTab === 'received') return d.status === 'received';
+    if (activeTab === 'distributed') return d.status === 'distributed';
+    return false;
+  });
+
   const incomingCount = dists.filter(d => d.status === 'pending').length;
+  const stockCount = dists.filter(d => d.status === 'received').length;
   const toDistributeCount = dists.filter(d => d.status === 'received').length;
 
   return (
     <div className="flex min-h-screen bg-white">
       <BarangaySidebar />
       <div className="ml-60 flex-1 flex flex-col">
-
-        {/* Top Bar */}
         <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <Package size={20} className="text-[#FE9800]" />
-            <h1 className="text-[20px] font-black text-[#1A1A1A] uppercase tracking-tighter" style={{ fontFamily: 'DM Sans' }}>Logistic Hub</h1>
+            <h1 className="text-[20px] font-black text-[#1A1A1A] uppercase tracking-tighter">Logistic Hub</h1>
           </div>
           <div className="flex items-center gap-2">
             <BarangayNotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
-              <span className="text-sm font-bold text-[#333]" style={{ fontFamily: 'DM Sans' }}>
-                {profileLoading ? '…' : displayName}
-              </span>
+              <span className="text-sm font-bold text-[#333]">{profileLoading ? '…' : displayName}</span>
               {avatarUrl
                 ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover border-2 border-[#FE9800]" />
                 : <div className="w-9 h-9 rounded-full bg-[#FE9800] text-white text-sm font-bold flex items-center justify-center">{profileLoading ? '…' : initials}</div>
@@ -350,7 +319,6 @@ export default function BarangayDonations() {
         </div>
 
         <div className="p-8 flex-1">
-          {/* Tabs */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex gap-1.5 bg-gray-100 p-1.5 rounded-2xl">
               {TABS.map(({ key, label }) => {
@@ -358,23 +326,15 @@ export default function BarangayDonations() {
                 return (
                   <button key={key} onClick={() => setActiveTab(key)}
                     className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
-                      ${activeTab === key
-                        ? 'bg-white text-[#FE9800] shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    style={{ fontFamily: 'DM Sans' }}>
+                      ${activeTab === key ? 'bg-white text-[#FE9800] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                     {label}
-                    {count > 0 && (
-                      <span className="ml-2 bg-[#FE9800] text-white px-2 py-0.5 rounded-full text-[10px]">
-                        {count}
-                      </span>
-                    )}
+                    {count > 0 && <span className="ml-2 bg-[#FE9800] text-white px-2 py-0.5 rounded-full text-[10px]">{count}</span>}
                   </button>
                 );
               })}
             </div>
             <button onClick={load} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#888] hover:text-[#FE9800] transition-colors">
-              <RotateCcw size={14} /> Refresh System
+              <RotateCcw size={14} /> Refresh
             </button>
           </div>
 
@@ -383,10 +343,17 @@ export default function BarangayDonations() {
               {[1,2].map(i => <div key={i} className="h-64 bg-gray-100 rounded-[2rem] animate-pulse" />)}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
-              <Package size={48} className="mb-4 text-gray-100" />
-              <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">
-                {activeTab === 'pending' ? 'No incoming food aid' : activeTab === 'received' ? 'Inventory clear' : 'History empty'}
+            <div className="flex flex-col items-center justify-center py-32 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-100">
+              <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm mb-4">
+                <Package size={32} className="text-gray-200" />
+              </div>
+              <h3 className="text-lg font-black text-gray-400 uppercase tracking-tight">
+                {activeTab === 'pending' ? 'No Incoming Aid' : 
+                 activeTab === 'received' ? 'Reserve Empty' : 'No History Recorded'}
+              </h3>
+              <p className="text-sm text-gray-400 mt-1 max-w-xs text-center leading-relaxed">
+                {activeTab === 'pending' ? 'You have no incoming food aid packages from the Foodbank at this moment.' : 
+                 activeTab === 'received' ? 'You have distributed all items in your stock. Ready for the next batch!' : 'Distribution records and proof of impact will appear here.'}
               </p>
             </div>
           ) : (
@@ -397,6 +364,7 @@ export default function BarangayDonations() {
                   dist={d} 
                   onConfirmReceived={() => confirmReceived(d)}
                   onConfirmDistributed={() => setDistributing(d)}
+                  onShowProof={(p) => setViewingProof(p)}
                 />
               ))}
             </div>
@@ -404,12 +372,35 @@ export default function BarangayDonations() {
         </div>
       </div>
 
-      {distributing && (
-        <ConfirmDistributionModal 
-          dist={distributing} 
-          onClose={() => setDistributing(null)} 
-          onConfirm={confirmDistributed}
-        />
+      {distributing && <ConfirmDistributionModal dist={distributing} onClose={() => setDistributing(null)} onConfirm={confirmDistributed} />}
+      
+      {viewingProof && (
+        <Modal isOpen={true} onClose={() => setViewingProof(null)} title="Journey Log" width="lg">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {viewingProof.proof_images?.map((img, i) => (
+                <div key={i} className="aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                  <img src={img} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100">
+              <div className="flex items-center gap-2 mb-2 text-[#FE9800]">
+                <MessageSquare size={16} />
+                <p className="text-xs font-bold uppercase tracking-wider">Distribution Feedback</p>
+              </div>
+              <p className="text-sm text-gray-600 italic leading-relaxed">"{viewingProof.proof_description}"</p>
+              <div className="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distributed on {fmt(viewingProof.distributed_at)}</p>
+                <div className="flex items-center gap-1.5 text-green-500 bg-green-50 px-3 py-1 rounded-full">
+                  <CheckCircle size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Verified Journey</span>
+                </div>
+              </div>
+            </div>
+            <Button variant="primary" onClick={() => setViewingProof(null)} className="w-full h-12 rounded-2xl">Close Details</Button>
+          </div>
+        </Modal>
       )}
     </div>
   );
