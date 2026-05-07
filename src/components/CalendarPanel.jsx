@@ -52,17 +52,45 @@ export default function CalendarPanel({ isOpen, onClose }) {
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
 
     try {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq(idField, userId)
-        .gte('event_date', startDate)
-        .lte('event_date', endDate)
-        .order('event_date', { ascending: true })
-        .order('start_time', { ascending: true });
+      // 1. Fetch manual events
+      let manualEvents = [];
+      if (role !== 'donor') {
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq(idField, userId)
+          .gte('event_date', startDate)
+          .lte('event_date', endDate)
+          .order('event_date', { ascending: true });
+        if (!error) manualEvents = (data || []).map(e => ({ ...e, type: 'manual' }));
+      }
 
-      if (error) throw error;
-      setEvents(data || []);
+      // 2. Fetch Donation Proposals
+      let donationEvents = [];
+      let donationQuery = supabase.from('donations').select('*').gte('scheduled_date', startDate).lte('scheduled_date', endDate);
+
+      if (role === 'donor') donationQuery = donationQuery.eq('donor_id', userId);
+      else if (role === 'foodbank') donationQuery = donationQuery.eq('foodbank_id', userId);
+      else {
+        // For barangays, we need their name
+        const { data: profile } = await supabase.from('barangays').select('barangay_name').eq('id', userId).single();
+        if (profile) donationQuery = donationQuery.eq('barangay_name', profile.barangay_name);
+      }
+
+      const { data: donations } = await donationQuery;
+      if (donations) {
+        donationEvents = donations.map(d => ({
+          id: `don-${d.id}`,
+          title: `Donation: ${d.items}`,
+          description: `From: ${d.foodbank_name || 'Donor'}`,
+          event_date: d.scheduled_date,
+          start_time: '08:00:00', // Default time for proposals
+          type: 'donation',
+          status: d.status
+        }));
+      }
+
+      setEvents([...manualEvents, ...donationEvents]);
     } catch (err) {
       console.error('Error fetching events:', err);
     } finally {
@@ -238,21 +266,28 @@ export default function CalendarPanel({ isOpen, onClose }) {
           ) : (
             <div className="space-y-3">
               {selectedDateEvents.map(e => (
-                <div key={e.id} className="group relative bg-[#F9FAFB] border border-[#F0F0F0] rounded-xl p-3 hover:border-[#FE9800]/30 transition-all">
+                <div key={e.id} className={`group relative bg-[#F9FAFB] border rounded-xl p-3 transition-all ${e.type === 'donation' ? 'border-orange-100 hover:border-orange-300 bg-orange-50/10' : 'border-[#F0F0F0] hover:border-[#FE9800]/30'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-[#1A1A1A] mb-0.5" style={{ fontFamily: 'DM Sans' }}>{e.title}</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-xs font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>{e.title}</p>
+                        {e.type === 'donation' && (
+                          <span className="text-[8px] font-black bg-[#FE9800] text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">Donation</span>
+                        )}
+                      </div>
                       {e.description && <p className="text-[10px] text-[#888888] line-clamp-2 mb-1.5">{e.description}</p>}
                       <div className="flex items-center gap-1.5 text-[10px] text-[#FE9800] font-medium">
                         <Clock size={10} />
-                        {e.start_time ? e.start_time.slice(0, 5) : 'Anytime'} 
-                        {e.end_time ? ` - ${e.end_time.slice(0, 5)}` : ''}
+                        {e.type === 'donation' ? 'Scheduled' : (e.start_time ? e.start_time.slice(0, 5) : 'Anytime')} 
+                        {e.type !== 'donation' && e.end_time ? ` - ${e.end_time.slice(0, 5)}` : ''}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(e)} className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><Pencil size={12} /></button>
-                      <button onClick={() => handleDelete(e.id)} className="p-1 text-[#888888] hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                    </div>
+                    {e.type !== 'donation' && (
+                      <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEdit(e)} className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><Pencil size={12} /></button>
+                        <button onClick={() => handleDelete(e.id)} className="p-1 text-[#888888] hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
