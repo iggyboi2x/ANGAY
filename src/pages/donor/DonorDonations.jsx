@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import DonorLayout from "../../components/donor/DonorLayout";
 import { supabase } from "../../../supabase";
-import { Gift, Clock, CheckCircle2, XCircle, RotateCcw } from "lucide-react";
+import { Gift, Clock, CheckCircle2, XCircle, RotateCcw, Package, Image as ImageIcon, MessageSquare, MapPin } from "lucide-react";
+import LogisticProgressBar from "../../components/LogisticProgressBar";
+import Modal from "../../components/Modal";
+import Button from "../../components/Button";
 
 const TABS = [
   { key: "pending",   label: "Pending"   },
   { key: "accepted",  label: "Accepted"  },
-  { key: "completed", label: "Completed" },
+  { key: "completed", label: "History" },
   { key: "rejected",  label: "Rejected"  },
 ];
 
@@ -26,6 +29,7 @@ export default function DonorDonations() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "pending");
   const [donations, setDonations] = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [viewingProof, setViewingProof] = useState(null);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -36,17 +40,49 @@ export default function DonorDonations() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase
+    
+    // Complex query: Get donation -> matching package -> matching distribution
+    // This allows us to track the progress accurately
+    const { data, error } = await supabase
       .from("donations")
-      .select("id, foodbank_id, foodbank_name, items, notes, scheduled_date, status, created_at")
+      .select(`
+        *,
+        donation_packages(
+          id,
+          status,
+          distributions(
+            status,
+            proof_images,
+            proof_description,
+            distributed_at
+          )
+        )
+      `)
       .eq("donor_id", user.id)
       .order("created_at", { ascending: false });
 
-    setDonations((data || []).map(d => ({ ...d, foodbank_name: d.foodbank_name || "Foodbank" })));
+    if (error) console.error("Error loading donations:", error);
+
+    setDonations((data || []).map(d => {
+      // Find the distribution status if it exists
+      const pkg = d.donation_packages?.[0];
+      const dist = pkg?.distributions?.[0];
+      
+      let logisticStatus = 'pending_fb'; // Default: waiting for FB to receive
+      if (d.status === 'completed') logisticStatus = 'at_fb';
+      if (dist?.status === 'received') logisticStatus = 'at_barangay';
+      if (dist?.status === 'distributed') logisticStatus = 'distributed';
+
+      return { 
+        ...d, 
+        foodbank_name: d.foodbank_name || "Foodbank",
+        logisticStatus,
+        proof: dist?.status === 'distributed' ? dist : null
+      };
+    }));
     setLoading(false);
   };
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, []);
 
   const filtered = donations.filter(d => d.status === activeTab);
@@ -55,24 +91,27 @@ export default function DonorDonations() {
   return (
     <DonorLayout>
       <div className="px-10 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-[#1A1A1A]">My Donations</h1>
-          <button onClick={load} className="flex items-center gap-1.5 text-sm text-[#888] hover:text-[#FE9800] transition-colors">
-            <RotateCcw size={13} /> Refresh
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-black text-[#1A1A1A] tracking-tight">My Donations</h1>
+            <p className="text-sm text-gray-400 font-medium">Track your contributions to the community</p>
+          </div>
+          <button onClick={load} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#888] hover:text-[#FE9800] transition-colors">
+            <RotateCcw size={14} /> Refresh Tracker
           </button>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-8">
           {TABS.map(({ key, label }) => (
             <button key={key} onClick={() => setActiveTab(key)}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold border transition-all ${
+              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
                 activeTab === key
-                  ? "bg-[#FE9800] text-white border-[#FE9800]"
-                  : "bg-white text-[#555] border-[#DDD] hover:border-[#FE9800] hover:text-[#FE9800]"
+                  ? "bg-[#FE9800] text-white border-[#FE9800] shadow-lg shadow-orange-100"
+                  : "bg-white text-gray-400 border-gray-100 hover:border-[#FE9800]/50 hover:text-[#FE9800]"
               }`}>
               {label}
               {key === "pending" && pendingCount > 0 && (
-                <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${activeTab === key ? "bg-white text-[#FE9800]" : "bg-[#FFF3DC] text-[#C97700]"}`}>
+                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === key ? "bg-white text-[#FE9800]" : "bg-[#FE9800] text-white"}`}>
                   {pendingCount}
                 </span>
               )}
@@ -81,44 +120,107 @@ export default function DonorDonations() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-5">
-            {[1,2].map(i => <div key={i} className="h-44 bg-gray-100 rounded-2xl animate-pulse" />)}
+          <div className="grid grid-cols-2 gap-6">
+            {[1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2rem] animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 p-10 text-center text-sm text-gray-400">
-            <Gift size={36} className="mx-auto mb-3 opacity-30" />
-            No {activeTab} donations yet.
+          <div className="bg-white rounded-[2.5rem] border-2 border-dashed border-gray-50 py-24 text-center">
+            <Gift size={48} className="mx-auto mb-4 text-gray-100" />
+            <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">No {activeTab} activity found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-6">
             {filtered.map(d => {
               const s = STATUS_STYLE[d.status] || STATUS_STYLE.pending;
+              const isDirect = !!d.barangay_name;
+
               return (
-                <div key={d.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+                <div key={d.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-7 flex flex-col gap-4 relative group hover:border-[#FE9800]/20 transition-all duration-300">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
-                        <s.Icon size={15} className={s.text} />
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0 shadow-sm`}>
+                        <s.Icon size={20} className={s.text} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-[#1A1A1A]">{d.foodbank_name || "Foodbank"}</p>
-                        <p className="text-[11px] text-gray-400">Recipient Foodbank</p>
+                        <p className="text-base font-bold text-[#1A1A1A] leading-tight">{d.foodbank_name}</p>
+                        <p className="text-[11px] text-gray-400 font-medium">Verified Foodbank</p>
                       </div>
                     </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${s.bg} ${s.text}`}>
+                      {s.label}
+                    </span>
                   </div>
-                  <p className="text-sm text-[#555]"><span className="text-[#888]">Items: </span>{d.items}</p>
-                  {d.notes && <p className="text-sm text-[#555]"><span className="text-[#888]">Notes: </span>{d.notes}</p>}
-                  <p className="text-xs text-[#888]">Drop-off: {fmt(d.scheduled_date)} · Submitted: {fmt(d.created_at)}</p>
-                  {d.status === "rejected" && (
-                    <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">This donation was declined by the foodbank.</p>
+
+                  <div className="space-y-3">
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <p className="text-xs text-[#888] font-bold uppercase tracking-wider mb-1.5">Items Sent</p>
+                      <p className="text-sm text-[#1A1A1A] font-semibold leading-relaxed">{d.items}</p>
+                    </div>
+
+                    {isDirect && (
+                      <div className="px-4 py-3 bg-orange-50/50 border border-orange-100 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-[#FE9800]" />
+                          <span className="text-xs font-bold text-orange-900">Destination: {d.barangay_name}</span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-tighter text-orange-400 bg-white px-2 py-0.5 rounded-full border border-orange-100 shadow-sm">Direct Donation</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar integration */}
+                  {isDirect && d.status !== 'rejected' && (
+                    <div className="py-2 border-y border-gray-50">
+                      <LogisticProgressBar 
+                        status={d.logisticStatus} 
+                        onShowProof={() => setViewingProof(d.proof)}
+                      />
+                    </div>
                   )}
+
+                  <div className="flex items-center justify-between mt-2 pt-1">
+                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
+                      Submitted: {fmt(d.created_at)}
+                    </p>
+                    {d.status === "rejected" && (
+                      <span className="text-[10px] font-black uppercase text-red-500 bg-red-50 px-2 py-1 rounded-lg">Declined</span>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {viewingProof && (
+        <Modal isOpen={true} onClose={() => setViewingProof(null)} title="Proof of Distribution" width="lg">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {viewingProof.proof_images?.map((img, i) => (
+                <div key={i} className="aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                  <img src={img} className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+            <div className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100">
+              <div className="flex items-center gap-2 mb-2 text-[#FE9800]">
+                <MessageSquare size={16} />
+                <p className="text-xs font-bold uppercase tracking-wider">Barangay Feedback</p>
+              </div>
+              <p className="text-sm text-gray-600 italic leading-relaxed">"{viewingProof.proof_description}"</p>
+              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Distributed on {fmt(viewingProof.distributed_at)}</p>
+                <div className="flex items-center gap-1.5 text-green-500">
+                  <CheckCircle2 size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Verified Journey</span>
+                </div>
+              </div>
+            </div>
+            <Button variant="primary" onClick={() => setViewingProof(null)} className="w-full h-12 rounded-2xl">Close Proof</Button>
+          </div>
+        </Modal>
+      )}
     </DonorLayout>
   );
 }
