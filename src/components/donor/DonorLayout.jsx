@@ -11,10 +11,25 @@ export default function DonorLayout({ children }) {
   const { id: userId, displayName: userName, initials, avatarUrl, loading: profileLoading } = useProfile();
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [lastViewedMsgs, setLastViewedMsgs] = useState(() => {
+    return localStorage.getItem(`last_viewed_msgs_${userId}`) || new Date(0).toISOString();
+  });
   const notifRef = useRef(null);
   const profileRef = useRef(null);
 
   const [hasNew, setHasNew] = useState(false);
+
+  const loadUnreadMessages = async () => {
+    if (!userId) return;
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .neq("user_id", userId)
+      .gt("created_at", lastViewedMsgs);
+    
+    setUnreadMessages(count || 0);
+  };
 
   const loadNotifications = async () => {
     if (!userId) return;
@@ -27,7 +42,6 @@ export default function DonorLayout({ children }) {
     
     if (data) {
       setNotifications(data);
-      // Show dot if any notifications are unread
       setHasNew(data.some(n => !n.is_read));
     }
   };
@@ -35,8 +49,9 @@ export default function DonorLayout({ children }) {
   useEffect(() => {
     if (!userId) return;
     loadNotifications();
+    loadUnreadMessages();
 
-    const channel = supabase
+    const notifChannel = supabase
       .channel(`notifs-${userId}`)
       .on('postgres_changes', { 
         event: '*', 
@@ -46,8 +61,27 @@ export default function DonorLayout({ children }) {
       }, () => loadNotifications())
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [userId]);
+    const msgChannel = supabase
+      .channel(`unread-msgs-${userId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, () => loadUnreadMessages())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+      supabase.removeChannel(msgChannel);
+    };
+  }, [userId, lastViewedMsgs]);
+
+  const handleMessagesClick = () => {
+    const now = new Date().toISOString();
+    localStorage.setItem(`last_viewed_msgs_${userId}`, now);
+    setLastViewedMsgs(now);
+    setUnreadMessages(0);
+  };
 
   useEffect(() => {
     const onClickOutside = (event) => {
@@ -105,20 +139,32 @@ export default function DonorLayout({ children }) {
           {[
             { label: "Home", to: "/donor/home" },
             { label: "Donations", to: "/donor/donations" },
-            { label: "Messages", to: "/donor/messages" },
-          ].map(({ label, to }) => (
+            { label: "Messages", to: "/donor/messages", count: unreadMessages },
+          ].map(({ label, to, count }) => (
             <NavLink
               key={to}
               to={to}
+              onClick={() => {
+                if (label === "Messages") {
+                  handleMessagesClick();
+                }
+              }}
               className={({ isActive }) =>
-                `text-sm font-medium transition-colors pb-0.5 ${
+                `text-sm font-medium transition-colors pb-0.5 flex items-center gap-1 ${
                   isActive
                     ? "text-[#FE9800] border-b-2 border-[#FE9800]"
                     : "text-gray-500 hover:text-[#FE9800]"
                 }`
               }
             >
-              {label}
+              <span className="relative">
+                {label}
+                {count > 0 && (
+                  <span className="absolute -top-2 -right-4 bg-[#FE9800] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                    {count}
+                  </span>
+                )}
+              </span>
             </NavLink>
           ))}
         </div>

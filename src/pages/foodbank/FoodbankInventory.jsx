@@ -238,13 +238,14 @@ export default function FoodbankInventory() {
 
       // 2. Add items to the package and deduct from inventory
       for (const p of pkgItems) {
-        // Add to package_items
+        // Add to package_items with source tracking
         await supabase.from('package_items').insert([{
           package_id: pkg.id,
           inventory_id: p.item.id,
           item_name: p.item.item_name,
           quantity: p.qty,
-          unit: p.item.unit
+          unit: p.item.unit,
+          source_donation_id: p.item.source_donation_id // Preserving the donor link
         }]);
 
         // Deduct from inventory
