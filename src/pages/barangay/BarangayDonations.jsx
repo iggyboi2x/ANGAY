@@ -223,11 +223,18 @@ export default function BarangayDonations() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase
+
+    // Direct query using user.id as barangay_id
+    const { data, error } = await supabase
       .from('distributions')
       .select('*')
       .eq('barangay_id', user.id)
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error loading distributions:", error.message);
+    }
+    
     setDists(data || []);
     setLoading(false);
   };

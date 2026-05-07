@@ -187,7 +187,13 @@ export default function FoodbankDonations() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const [{ data: don }, { data: dis }, { data: bays }, { data: pkgs }] = await Promise.all([
-      supabase.from('donations').select('*, donation_packages(*, distributions(*))').eq('foodbank_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('donations').select(`
+        *,
+        donation_packages!original_donation_id(
+          *,
+          distributions!package_id(*)
+        )
+      `).eq('foodbank_id', user.id).order('created_at', { ascending: false }),
       supabase.from('distributions').select('*').eq('foodbank_id', user.id).order('created_at', { ascending: false }),
       supabase.from('barangays').select('id, barangay_name').not('latitude', 'is', null),
       supabase.from('donation_packages').select('*, package_items(*)').eq('foodbank_id', user.id).eq('status', 'available'),
