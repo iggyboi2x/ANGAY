@@ -79,8 +79,8 @@ export default function DonorHome() {
   const searchResults = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const term = searchTerm.toLowerCase();
-    return [...foodbanks, ...barangays].filter(p => 
-      (p.org_name || "").toLowerCase().includes(term) || 
+    return [...foodbanks, ...barangays].filter(p =>
+      (p.org_name || "").toLowerCase().includes(term) ||
       (p.address || "").toLowerCase().includes(term)
     ).slice(0, 8);
   }, [foodbanks, barangays, searchTerm]);
@@ -102,9 +102,9 @@ export default function DonorHome() {
   };
 
   const handleDonateToPin = (pin) => {
-    setDonationForm((prev) => ({ 
-      ...prev, 
-      foodbank_id: pin.id 
+    setDonationForm((prev) => ({
+      ...prev,
+      foodbank_id: pin.id
     }));
     setFormOpen(true);
   };
@@ -131,7 +131,7 @@ export default function DonorHome() {
 
     const loadDetails = async () => {
       setLoadingDetails(true);
-      
+
       if (selectedPin.type === "foodbank") {
         // Fetch distribution history for foodbank
         const { data: history } = await supabase
@@ -152,19 +152,19 @@ export default function DonorHome() {
           setPinDetails({ history: history || [], helped: uniqueBarangays });
         }
       } else {
-        // Fetch history for barangay
+        // Fetch history for barangay from distributions table (Distributed Only)
         const { data: history } = await supabase
-          .from("donations")
-          .select("id, foodbank_name, items, scheduled_date, status")
-          .eq("barangay_name", selectedPin.org_name)
-          .eq("status", "completed")
-          .order("scheduled_date", { ascending: false });
+          .from("distributions")
+          .select("id, foodbank_name, items, created_at, status")
+          .eq("barangay_id", selectedPin.id)
+          .eq("status", "distributed")
+          .order("created_at", { ascending: false });
 
         if (!cancelled) {
           setPinDetails({ history: history || [], helped: [] });
         }
       }
-      
+
       if (!cancelled) setLoadingDetails(false);
     };
 
@@ -235,7 +235,7 @@ export default function DonorHome() {
     };
 
     const { error } = await supabase.from("donations").insert(payload);
-    
+
     if (!error) {
       // Notify the foodbank
       await supabase.from("notifications").insert({
@@ -268,7 +268,7 @@ export default function DonorHome() {
           onClose={() => setFlash(null)}
         />
       )}
-      
+
       {/* Floating Donate Button */}
       <button
         onClick={() => setFormOpen(true)}
@@ -279,7 +279,7 @@ export default function DonorHome() {
       </button>
 
       <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden bg-gray-50">
-        
+
         {/* Search and Filter Overlay */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-2xl px-4 flex flex-col gap-3">
           <div className="flex gap-2">
@@ -292,7 +292,7 @@ export default function DonorHome() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3.5 bg-white border-none rounded-2xl shadow-xl outline-none ring-2 ring-transparent focus:ring-[#FE9800]/30 transition-all text-sm font-medium"
               />
-              
+
               {/* Search Results Dropdown */}
               {searchResults.length > 0 && (
                 <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -315,7 +315,7 @@ export default function DonorHome() {
                 </div>
               )}
             </div>
-            
+
             <div className="flex bg-white rounded-2xl shadow-xl p-1.5 ring-2 ring-transparent">
               <button
                 onClick={() => setFilterType("all")}
@@ -340,7 +340,7 @@ export default function DonorHome() {
         </div>
 
         {/* Details Slide-in Panel */}
-        <div 
+        <div
           ref={cardRef}
           className={`absolute top-0 left-0 h-full w-[400px] bg-white z-[1100] shadow-2xl transition-transform duration-500 ease-in-out border-r border-gray-100 flex flex-col ${selectedPin ? 'translate-x-0' : '-translate-x-full'}`}
         >
@@ -358,13 +358,13 @@ export default function DonorHome() {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <button 
+                <button
                   onClick={() => setSelectedPin(null)}
                   className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white transition-all"
                 >
                   <X size={20} />
                 </button>
-                
+
                 <div className="absolute bottom-4 left-6 pr-10">
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-white font-bold text-2xl truncate drop-shadow-md">
@@ -380,7 +380,7 @@ export default function DonorHome() {
 
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
-                
+
                 {/* Bio / Description */}
                 <section>
                   <div className="flex items-center gap-2 mb-3 text-gray-400">
@@ -475,7 +475,7 @@ export default function DonorHome() {
                             <p className="text-xs text-gray-500 mt-1 line-clamp-1">{h.items}</p>
                             <div className="flex items-center justify-between mt-3">
                               <span className="text-[10px] text-gray-400 font-bold">{formatDate(h.scheduled_date)}</span>
-                              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">RECEIVED</span>
+                              <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">DISTRIBUTED</span>
                             </div>
                           </div>
                         )) : (
@@ -490,14 +490,14 @@ export default function DonorHome() {
               {/* Floating Action Buttons at Bottom */}
               {selectedPin.type === 'foodbank' && (
                 <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-white via-white to-transparent pt-10 flex gap-3">
-                  <button 
+                  <button
                     onClick={() => navigate(`/donor/messages?recipient=${selectedPin.id}&name=${encodeURIComponent(selectedPin.org_name || "Foodbank")}`)}
                     className="flex-1 py-4 bg-white border-2 border-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                   >
                     <MessageSquare size={18} />
                     Message
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDonateToPin(selectedPin)}
                     className="flex-[2] py-4 bg-[#FE9800] text-white font-bold rounded-2xl shadow-lg shadow-orange-100 hover:bg-orange-500 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                   >
@@ -563,7 +563,7 @@ export default function DonorHome() {
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Items to Donate *</label>
@@ -571,11 +571,11 @@ export default function DonorHome() {
                     {itemsList.length} {itemsList.length === 1 ? 'ITEM' : 'ITEMS'}
                   </span>
                 </div>
-                
+
                 <div className="space-y-2 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
                   {itemsList.map((item, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       className="group relative flex flex-col sm:flex-row gap-3 p-4 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-orange-100 hover:bg-white hover:shadow-sm transition-all animate-in slide-in-from-right-4 duration-300"
                       style={{ animationDelay: `${idx * 50}ms` }}
                     >
@@ -592,7 +592,7 @@ export default function DonorHome() {
                         />
                         <p className="text-[10px] text-gray-400 font-medium uppercase mt-1">Item Description</p>
                       </div>
-                      
+
                       <div className="flex gap-2 items-center">
                         <div className="w-20">
                           <input
@@ -638,7 +638,7 @@ export default function DonorHome() {
                     </div>
                   ))}
                 </div>
-                
+
                 <button
                   onClick={() => {
                     const lastItem = itemsList[itemsList.length - 1];
@@ -653,7 +653,7 @@ export default function DonorHome() {
                   + Add Item to List
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Proposed Date *</label>
@@ -680,7 +680,7 @@ export default function DonorHome() {
                   </select>
                 </div>
               </div>
-              
+
               <button
                 onClick={handleDonationSubmit}
                 disabled={savingDonation}

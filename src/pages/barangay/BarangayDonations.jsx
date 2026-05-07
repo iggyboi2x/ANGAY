@@ -8,11 +8,11 @@ import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
 
-const fmt = d => d ? new Date(d).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' }) : '—';
+const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 const TABS = [
-  { key: 'pending',     label: 'Incoming'  },
-  { key: 'received',    label: 'To Distribute' },
+  { key: 'pending', label: 'Incoming' },
+  { key: 'received', label: 'To Distribute' },
   { key: 'distributed', label: 'History' },
 ];
 
@@ -29,7 +29,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
       alert("Maximum 3 images allowed");
       return;
     }
-    
+
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -47,7 +47,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
       return;
     }
     setUploading(true);
-    const imageUrls = images.map(img => img.url); 
+    const imageUrls = images.map(img => img.url);
     await onConfirm({
       proof_description: description,
       proof_images: imageUrls,
@@ -67,7 +67,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-5">
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Distribution Date</label>
-            <input 
+            <input
               type="date"
               value={distributionDate}
               onChange={e => setDistributionDate(e.target.value)}
@@ -84,7 +84,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
 
         <div>
           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Impact Description</label>
-          <textarea 
+          <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="Describe the distribution impact..."
@@ -104,7 +104,7 @@ function ConfirmDistributionModal({ dist, onClose, onConfirm }) {
               </div>
             ))}
             {images.length < 3 && (
-              <button 
+              <button
                 onClick={() => fileRef.current?.click()}
                 className="aspect-square rounded-2xl border-2 border-dashed border-gray-100 flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:border-[#FE9800] hover:text-[#FE9800] hover:bg-orange-50/30 transition-all group"
               >
@@ -145,11 +145,10 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-            isPending ? 'bg-[#FFF3DC] text-[#FE9800]' : 
-            isReceived ? 'bg-blue-50 text-blue-500' : 
-            'bg-green-50 text-green-500'
-          }`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${isPending ? 'bg-[#FFF3DC] text-[#FE9800]' :
+              isReceived ? 'bg-blue-50 text-blue-500' :
+                'bg-green-50 text-green-500'
+            }`}>
             {isPending ? <Clock size={20} /> : isReceived ? <Package size={20} /> : <CheckCircle size={20} />}
           </div>
           <div>
@@ -158,9 +157,8 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
           </div>
         </div>
         {!isDistributed && (
-          <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${
-            isPending ? 'bg-[#FFF3DC] text-[#C97700]' : 'bg-blue-50 text-blue-600'
-          }`}>
+          <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${isPending ? 'bg-[#FFF3DC] text-[#C97700]' : 'bg-blue-50 text-blue-600'
+            }`}>
             {isPending ? 'Incoming' : 'In Stock'}
           </span>
         )}
@@ -174,12 +172,12 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
       </div>
 
       <div className="py-4 border-y border-gray-50">
-        <LogisticProgressBar 
+        <LogisticProgressBar
           status={
-            isDistributed ? 'distributed' : 
-            isReceived ? 'at_barangay' : 
-            dist.status === 'pending' ? 'at_fb' : 'pending_fb'
-          } 
+            isDistributed ? 'distributed' :
+              isReceived ? 'at_barangay' :
+                dist.status === 'pending' ? 'at_fb' : 'pending_fb'
+          }
           onShowProof={() => isDistributed && onShowProof && onShowProof(dist)}
         />
       </div>
@@ -188,7 +186,7 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
           {isDistributed ? `Distributed: ${fmt(dist.distributed_at)}` : `Sent: ${fmt(dist.created_at)}`}
         </p>
-        
+
         {isPending && (
           <button
             onClick={async () => { setActing(true); await onConfirmReceived(); setActing(false); }}
@@ -197,7 +195,7 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
             <CheckCircle size={14} /> Mark as Received
           </button>
         )}
-        
+
         {isReceived && (
           <button
             onClick={() => onConfirmDistributed()}
@@ -213,8 +211,8 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
 export default function BarangayDonations() {
   const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
   const [activeTab, setActiveTab] = useState('pending');
-  const [dists, setDists]         = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [dists, setDists] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [distributing, setDistributing] = useState(null);
   const [viewingProof, setViewingProof] = useState(null);
 
@@ -251,11 +249,11 @@ export default function BarangayDonations() {
 
   const confirmReceived = async (dist) => {
     try {
-      await supabase.from('distributions').update({ 
+      await supabase.from('distributions').update({
         status: 'received',
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       }).eq('id', dist.id);
-      
+
       if (dist.package_id) {
         await supabase.from('donation_packages').update({ status: 'at_barangay' }).eq('id', dist.package_id);
       }
@@ -267,10 +265,10 @@ export default function BarangayDonations() {
     if (!distributing) return;
     try {
       // 1. Update the distribution record
-      await supabase.from('distributions').update({ 
-        status: 'distributed', 
+      await supabase.from('distributions').update({
+        status: 'distributed',
         distributed_at: new Date().toISOString(),
-        ...payload 
+        ...payload
       }).eq('id', distributing.id);
 
       // 2. Update the package status
@@ -340,7 +338,7 @@ export default function BarangayDonations() {
 
           {loading ? (
             <div className="grid grid-cols-2 gap-6">
-              {[1,2].map(i => <div key={i} className="h-64 bg-gray-100 rounded-[2rem] animate-pulse" />)}
+              {[1, 2].map(i => <div key={i} className="h-64 bg-gray-100 rounded-[2rem] animate-pulse" />)}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-100">
@@ -348,20 +346,20 @@ export default function BarangayDonations() {
                 <Package size={32} className="text-gray-200" />
               </div>
               <h3 className="text-lg font-black text-gray-400 uppercase tracking-tight">
-                {activeTab === 'pending' ? 'No Incoming Aid' : 
-                 activeTab === 'received' ? 'Reserve Empty' : 'No History Recorded'}
+                {activeTab === 'pending' ? 'No Incoming Aid' :
+                  activeTab === 'received' ? 'Reserve Empty' : 'No History Recorded'}
               </h3>
               <p className="text-sm text-gray-400 mt-1 max-w-xs text-center leading-relaxed">
-                {activeTab === 'pending' ? 'You have no incoming food aid packages from the Foodbank at this moment.' : 
-                 activeTab === 'received' ? 'You have distributed all items in your stock. Ready for the next batch!' : 'Distribution records and proof of impact will appear here.'}
+                {activeTab === 'pending' ? 'You have no incoming food aid packages from the Foodbank at this moment.' :
+                  activeTab === 'received' ? 'You have distributed all items in your stock. Ready for the next batch!' : 'Distribution records and proof of impact will appear here.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-6">
               {filtered.map(d => (
-                <AidCard 
-                  key={d.id} 
-                  dist={d} 
+                <AidCard
+                  key={d.id}
+                  dist={d}
                   onConfirmReceived={() => confirmReceived(d)}
                   onConfirmDistributed={() => setDistributing(d)}
                   onShowProof={(p) => setViewingProof(p)}
@@ -373,7 +371,7 @@ export default function BarangayDonations() {
       </div>
 
       {distributing && <ConfirmDistributionModal dist={distributing} onClose={() => setDistributing(null)} onConfirm={confirmDistributed} />}
-      
+
       {viewingProof && (
         <Modal isOpen={true} onClose={() => setViewingProof(null)} title="Journey Log" width="lg">
           <div className="space-y-4">
