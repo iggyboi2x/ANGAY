@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Settings, Wheat, X, CheckCircle } from "lucide-react";
+import { Bell, LogOut, Settings, Wheat, X, CheckCircle, Calendar } from "lucide-react";
 import { supabase } from "../../../supabase";
 
 import { useProfile } from "../../hooks/useProfile";
+import CalendarPanel from "../../components/CalendarPanel";
 
 export default function DonorLayout({ children }) {
   const navigate = useNavigate();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const { id: userId, displayName: userName, initials, avatarUrl, loading: profileLoading } = useProfile();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [activeCrises, setActiveCrises] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [lastViewedMsgs, setLastViewedMsgs] = useState(() => {
     return localStorage.getItem(`last_viewed_msgs_${userId}`) || new Date(0).toISOString();
@@ -20,6 +23,16 @@ export default function DonorLayout({ children }) {
 
   const [hasNew, setHasNew] = useState(false);
 
+  const loadCrises = async () => {
+    const { data } = await supabase
+      .from('barangays')
+      .select('id, barangay_name, crisis_type, is_in_crisis')
+      .eq('is_in_crisis', true);
+    if (data) {
+      setActiveCrises(data);
+    }
+  };
+
   const loadUnreadMessages = async () => {
     if (!userId) return;
     const { count } = await supabase
@@ -27,7 +40,7 @@ export default function DonorLayout({ children }) {
       .select("*", { count: "exact", head: true })
       .neq("user_id", userId)
       .gt("created_at", lastViewedMsgs);
-    
+
     setUnreadMessages(count || 0);
   };
 
@@ -39,10 +52,9 @@ export default function DonorLayout({ children }) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(10);
-    
+
     if (data) {
       setNotifications(data);
-      setHasNew(data.some(n => !n.is_read));
     }
   };
 
@@ -50,31 +62,44 @@ export default function DonorLayout({ children }) {
     if (!userId) return;
     loadNotifications();
     loadUnreadMessages();
+    loadCrises();
 
     const notifChannel = supabase
       .channel(`notifs-${userId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'notifications', 
-        filter: `user_id=eq.${userId}` 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
       }, () => loadNotifications())
       .subscribe();
 
     const msgChannel = supabase
       .channel(`unread-msgs-${userId}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
         table: 'messages'
       }, () => loadUnreadMessages())
+      .subscribe();
+
+    const crisisChannel = supabase
+      .channel('global-crisis')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'barangays' }, () => loadCrises())
       .subscribe();
 
     return () => {
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(msgChannel);
+      supabase.removeChannel(crisisChannel);
     };
   }, [userId, lastViewedMsgs]);
+
+  useEffect(() => {
+    const hasUnreadNotif = notifications.some(n => !n.is_read);
+    const hasCrises = activeCrises.length > 0;
+    setHasNew(hasUnreadNotif || hasCrises);
+  }, [notifications, activeCrises]);
 
   const handleMessagesClick = () => {
     const now = new Date().toISOString();
@@ -150,10 +175,9 @@ export default function DonorLayout({ children }) {
                 }
               }}
               className={({ isActive }) =>
-                `text-sm font-medium transition-colors pb-0.5 flex items-center gap-1 ${
-                  isActive
-                    ? "text-[#FE9800] border-b-2 border-[#FE9800]"
-                    : "text-gray-500 hover:text-[#FE9800]"
+                `text-sm font-medium transition-colors pb-0.5 flex items-center gap-1 ${isActive
+                  ? "text-[#FE9800] border-b-2 border-[#FE9800]"
+                  : "text-gray-500 hover:text-[#FE9800]"
                 }`
               }
             >
@@ -170,6 +194,14 @@ export default function DonorLayout({ children }) {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCalendarOpen(true)}
+            className="p-2 text-gray-400 hover:text-[#FE9800] transition-colors rounded-full hover:bg-orange-50"
+            title="View Calendar"
+          >
+            <Calendar size={18} />
+          </button>
+
           <div className="relative" ref={notifRef}>
             <button
               onClick={handleToggleNotif}
@@ -186,14 +218,39 @@ export default function DonorLayout({ children }) {
                   <p className="text-sm font-black text-gray-800 tracking-tight">Notifications</p>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {notifications.length === 0 ? (
+                  {activeCrises.map((c) => (
+                    <button
+                      key={`crisis-${c.id}`}
+                      onClick={() => { 
+                        setNotifOpen(false); 
+                        navigate(`/donor/home?focus=${c.id}`); 
+                      }}
+                      className="w-full px-5 py-4 border-b-2 border-red-100 bg-red-50/50 hover:bg-red-50 transition-all text-left flex gap-3 group"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-100 animate-pulse">
+                        <Flame size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Live Emergency</p>
+                          <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping" />
+                        </div>
+                        <p className="text-xs font-black text-gray-900 leading-tight">
+                          {c.barangay_name} is facing a {c.crisis_type}
+                        </p>
+                        <p className="text-[10px] text-red-500/70 font-bold mt-1 uppercase tracking-tighter italic">Support needed immediately</p>
+                      </div>
+                    </button>
+                  ))}
+
+                  {notifications.length === 0 && activeCrises.length === 0 ? (
                     <div className="px-5 py-10 text-center">
-                       <p className="text-xs text-gray-400 font-medium">No updates to show.</p>
+                      <p className="text-xs text-gray-400 font-medium">No updates to show.</p>
                     </div>
                   ) : (
                     notifications.map((item) => (
-                      <button 
-                        key={item.id} 
+                      <button
+                        key={item.id}
                         onClick={() => handleNotificationClick(item)}
                         className={`w-full px-5 py-4 border-b border-gray-50 transition-all text-left flex gap-3 ${!item.is_read ? 'bg-orange-50/70 hover:bg-orange-100/70' : 'bg-white hover:bg-gray-50'}`}
                       >
@@ -252,6 +309,7 @@ export default function DonorLayout({ children }) {
       </nav>
 
       <main>{children}</main>
+      <CalendarPanel isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
     </div>
   );
 }

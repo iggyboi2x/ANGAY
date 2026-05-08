@@ -391,7 +391,7 @@ export default function FoodbankMessages() {
                         : "bg-white text-[#333] border border-[#F0F0F0] shadow-sm rounded-bl-sm"
                     }`}
                   >
-                    <p style={{ fontFamily: "DM Sans" }}>{msg.text}</p>
+                    <p className="whitespace-pre-wrap" style={{ fontFamily: "DM Sans" }}>{msg.text}</p>
                     <p
                       className={`text-xs mt-1 ${msg.from === "me" ? "text-orange-100" : "text-[#AAAAAA]"}`}
                       style={{ fontFamily: "DM Sans" }}

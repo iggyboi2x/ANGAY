@@ -569,7 +569,7 @@ export default function DonorMessages() {
                         : "bg-white text-gray-700 border border-gray-100 shadow-sm rounded-bl-sm"
                     }`}
                   >
-                    <p>{msg.text}</p>
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
                     <p className={`text-xs mt-1 ${msg.from === "me" ? "text-orange-100" : "text-gray-400"}`}>
                       {msg.time}
                     </p>

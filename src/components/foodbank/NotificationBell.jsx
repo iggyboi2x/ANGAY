@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Gift, Send } from 'lucide-react';
+import { Bell, Gift, Send, AlertTriangle, Flame } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 
@@ -8,14 +8,13 @@ export default function NotificationBell() {
   const { id: foodbankId } = useProfile();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [activeCrises, setActiveCrises] = useState([]);
   const [hasNew, setHasNew] = useState(false);
   const navigate = useNavigate();
   const ref = useRef();
 
   const loadNotifications = async () => {
     if (!foodbankId) return;
-
     const { data } = await supabase
       .from('notifications')
       .select('*')
@@ -25,26 +24,45 @@ export default function NotificationBell() {
     
     if (data) {
       setNotifications(data);
-      setHasNew(data.some(n => !n.is_read));
+    }
+  };
+
+  const loadCrises = async () => {
+    const { data } = await supabase
+      .from('barangays')
+      .select('id, barangay_name, crisis_type, is_in_crisis')
+      .eq('is_in_crisis', true);
+    if (data) {
+      setActiveCrises(data);
     }
   };
 
   useEffect(() => {
     if (!foodbankId) return;
     loadNotifications();
+    loadCrises();
 
-    const channel = supabase
+    const notifChannel = supabase
       .channel(`fb-notifs-${foodbankId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'notifications', 
-        filter: `user_id=eq.${foodbankId}` 
-      }, () => loadNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${foodbankId}` }, () => loadNotifications())
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    const crisisChannel = supabase
+      .channel('global-crisis')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'barangays' }, () => loadCrises())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+      supabase.removeChannel(crisisChannel);
+    };
   }, [foodbankId]);
+
+  useEffect(() => {
+    const hasUnreadNotif = notifications.some(n => !n.is_read);
+    const hasCrises = activeCrises.length > 0;
+    setHasNew(hasUnreadNotif || hasCrises);
+  }, [notifications, activeCrises]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -98,7 +116,32 @@ export default function NotificationBell() {
           </div>
           
           <div className="max-h-80 overflow-y-auto custom-scrollbar">
-            {notifications.length === 0 ? (
+            {activeCrises.map((c) => (
+              <button 
+                key={`crisis-${c.id}`}
+                onClick={() => { 
+                  setOpen(false); 
+                  navigate(`/foodbank/dashboard?focus=${c.id}`);
+                }}
+                className="w-full px-5 py-4 border-b-2 border-red-100 bg-red-50/50 hover:bg-red-50 transition-all text-left flex gap-3 group"
+              >
+                <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-red-100 animate-pulse">
+                  <Flame size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Live Emergency</p>
+                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-ping" />
+                  </div>
+                  <p className="text-xs font-black text-gray-900 leading-tight">
+                    Barangay {c.barangay_name.replace(/^barangay\s+/i, '')} is facing a {c.crisis_type}
+                  </p>
+                  <p className="text-[10px] text-red-500/70 font-bold mt-1 uppercase tracking-tighter italic">Responders needed immediately</p>
+                </div>
+              </button>
+            ))}
+
+            {notifications.length === 0 && activeCrises.length === 0 ? (
               <div className="px-5 py-10 text-center text-xs text-[#888] font-medium">
                 No updates yet
               </div>

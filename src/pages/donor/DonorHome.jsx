@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
-import { ArrowRight, Calendar, Package, X, ChevronLeft, ChevronRight, Heart, Search, Filter, CheckCircle, Info, Users, MapPin, MessageSquare } from "lucide-react";
+import { ArrowRight, Calendar, Package, X, ChevronLeft, ChevronRight, Heart, Search, Filter, CheckCircle, Info, Users, MapPin, MessageSquare, Flame } from "lucide-react";
 import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -9,7 +9,6 @@ import { supabase } from "../../../supabase";
 import { useMapPins } from "../../hooks/useMapPins";
 import { useProfile } from "../../hooks/useProfile";
 import FlashMessage from "../../components/FlashMessage";
-import CalendarPanel from "../../components/CalendarPanel";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -34,6 +33,15 @@ const blueIcon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
+// Custom DivIcon for rippling effect
+const crisisIcon = L.divIcon({
+  className: "crisis-marker-ripple",
+  html: `<img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" style="width: 25px; height: 41px;" />`,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 const philippinesBounds = [[4.5, 116.0], [21.5, 127.0]];
 
 const formatDate = (rawDate) => {
@@ -45,13 +53,13 @@ const formatDate = (rawDate) => {
 
 export default function DonorHome() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { displayName } = useProfile();
   const { pins: foodbanks, loading: fbLoading } = useMapPins("foodbank");
   const { pins: barangays, loading: bLoading } = useMapPins("barangay");
   const [distributions, setDistributions] = useState([]);
   const [loadingDistributions, setLoadingDistributions] = useState(true);
   const [selectedPin, setSelectedPin] = useState(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [pinDetails, setPinDetails] = useState({ history: [], helped: [] });
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [donationStats, setDonationStats] = useState({});
@@ -115,7 +123,7 @@ export default function DonorHome() {
     const loadBarangays = async () => {
       const { data, error } = await supabase
         .from("barangays")
-        .select("id, barangay_name")
+        .select("id, barangay_name, is_in_crisis, crisis_type")
         .order("barangay_name", { ascending: true });
       if (!error && data) {
         setBarangayOptions(data.map((b) => ({ id: b.id, label: b.barangay_name || "Unnamed Barangay" })));
@@ -123,6 +131,22 @@ export default function DonorHome() {
     };
     loadBarangays();
   }, []);
+
+  // Handle URL focus parameter (from notifications)
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    if (focusId && (foodbanks.length > 0 || barangays.length > 0)) {
+      const combined = [...foodbanks, ...barangays];
+      const target = combined.find(p => p.id === focusId);
+      if (target) {
+        handleSelectResult(target);
+        // Clear param after focusing so it doesn't re-trigger
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('focus');
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [searchParams, foodbanks, barangays, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -239,13 +263,48 @@ export default function DonorHome() {
     const { error } = await supabase.from("donations").insert(payload);
 
     if (!error) {
-      // Notify the foodbank
+      // 1. Notify the foodbank
       await supabase.from("notifications").insert({
         user_id: donationForm.foodbank_id,
         title: "New Donation Proposal",
         body: `${displayName || 'A donor'} has proposed to donate ${itemsString}.`,
         is_read: false
       });
+
+      // 2. Automatically send a Message Box in the chat
+      try {
+        const recipientUserId = donationForm.foodbank_id;
+        if (user?.id && recipientUserId) {
+          // Find or create room
+          const { data: myRooms } = await supabase.from('room_members').select('room_id').eq('user_id', user.id);
+          const { data: theirRooms } = await supabase.from('room_members').select('room_id').eq('user_id', recipientUserId);
+          
+          const myIds = new Set((myRooms || []).map(r => r.room_id));
+          let roomId = (theirRooms || []).find(r => myIds.has(r.room_id))?.room_id;
+
+          if (!roomId) {
+            const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${selectedFoodbankLabel || "Foodbank"}__auth__${recipientUserId}` }]).select().single();
+            if (newRoom) {
+              roomId = newRoom.id;
+              await supabase.from('room_members').insert([
+                { room_id: roomId, user_id: user.id },
+                { room_id: roomId, user_id: recipientUserId }
+              ]);
+            }
+          }
+
+          if (roomId) {
+            const messageContent = `📦 NEW DONATION PROPOSAL\n\nItems: ${itemsString}\nScheduled Date: ${formatDate(donationForm.scheduled_date)}\n\nHello! I have just submitted a donation proposal. Looking forward to your confirmation.`;
+            await supabase.from('messages').insert({
+              room_id: roomId,
+              user_id: user.id,
+              content: messageContent
+            });
+          }
+        }
+      } catch (msgErr) {
+        console.error("Auto-message error:", msgErr);
+      }
     }
 
     setSavingDonation(false);
@@ -320,14 +379,6 @@ export default function DonorHome() {
 
             <div className="flex bg-white rounded-2xl shadow-xl p-1.5 ring-2 ring-transparent shrink-0">
               <button
-                onClick={() => setCalendarOpen(true)}
-                className="px-4 py-2 rounded-xl text-gray-500 hover:bg-orange-50 hover:text-[#FE9800] transition-all flex items-center gap-2"
-                title="View Calendar"
-              >
-                <Calendar size={18} />
-              </button>
-              <div className="w-px h-6 bg-gray-100 self-center mx-1" />
-              <button
                 onClick={() => setFilterType("all")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterType === 'all' ? 'bg-[#FE9800] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
               >
@@ -348,8 +399,6 @@ export default function DonorHome() {
             </div>
           </div>
         </div>
-
-        <CalendarPanel isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
         {/* Details Slide-in Panel */}
         <div
@@ -543,7 +592,11 @@ export default function DonorHome() {
               <Marker
                 key={`${pin.type}-${pin.id}`}
                 position={[pin.latitude, pin.longitude]}
-                icon={pin.type === 'foodbank' ? orangeIcon : blueIcon}
+                icon={
+                  pin.is_in_crisis 
+                    ? crisisIcon 
+                    : (pin.type === 'foodbank' ? orangeIcon : blueIcon)
+                }
                 eventHandlers={{ click: () => setSelectedPin(pin) }}
               />
             ))}
@@ -707,3 +760,5 @@ export default function DonorHome() {
     </DonorLayout>
   );
 }
+
+

@@ -10,7 +10,7 @@ import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 import {
   Package, AlertTriangle, CloudUpload, Search,
-  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check
+  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check, ChevronDown, MoreVertical
 } from 'lucide-react';
 import FlashMessage from '../../components/FlashMessage';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -52,16 +52,22 @@ export default function FoodbankInventory() {
   const [showReview, setShowReview] = useState(false);
   const [reviewErrors, setReviewErrors] = useState({});
 
-  // Pack modal
-  const [showPack, setShowPack] = useState(false);
-  const [pkgName, setPkgName] = useState('');
-  const [pkgItems, setPkgItems] = useState([]);
-  const [pkgSearch, setPkgSearch] = useState('');
-  const [isSavingPkg, setIsSavingPkg] = useState(false);
   const [flash, setFlash] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const fileRef = useRef();
+  const dropdownRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (foodbankId) { fetchCategories(); fetchItems(); }
@@ -139,6 +145,22 @@ export default function FoodbankInventory() {
   }
 
   // ─── Excel Download ───
+  function exportToExcel() {
+    const data = items.map(item => ({
+      'Item Name': item.item_name,
+      'Category': item.category,
+      'Quantity': Number(item.quantity),
+      'Unit': item.unit,
+      'Expiration Date': item.expiration_date || 'N/A',
+      'Status': item.status.toUpperCase()
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Current Inventory');
+    XLSX.writeFile(wb, `ANGAY_Inventory_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
   function downloadTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([COLUMNS, ['White Rice', 'Grains', 100, 'kg', '2026-12-31']]);
     const wb = XLSX.utils.book_new();
@@ -210,65 +232,7 @@ export default function FoodbankInventory() {
     fetchItems();
   }
 
-  // ─── Pack ───
-  function addToPkg(item) {
-    const ex = pkgItems.find(p => p.item.id === item.id);
-    if (ex) setPkgItems(pkgItems.map(p => p.item.id === item.id ? { ...p, qty: Math.min(p.qty + 1, item.quantity) } : p));
-    else setPkgItems([...pkgItems, { item, qty: 1 }]);
-  }
-  function changeQty(id, q) { setPkgItems(pkgItems.map(p => p.item.id === id ? { ...p, qty: Math.max(1, Math.min(q, p.item.quantity)) } : p)); }
-  function removePkg(id) { setPkgItems(pkgItems.filter(p => p.item.id !== id)); }
-  async function savePkg() {
-    if (!pkgItems.length || !pkgName.trim() || !foodbankId || isSavingPkg) return;
-    setIsSavingPkg(true);
-    
-    try {
-      // 1. Create the package
-      const { data: pkg, error: pkgErr } = await supabase
-        .from('donation_packages')
-        .insert([{ 
-          name: pkgName, 
-          foodbank_id: foodbankId,
-          status: 'available' 
-        }])
-        .select()
-        .single();
-      
-      if (pkgErr) throw pkgErr;
 
-      // 2. Add items to the package and deduct from inventory
-      for (const p of pkgItems) {
-        // Add to package_items with source tracking
-        await supabase.from('package_items').insert([{
-          package_id: pkg.id,
-          inventory_id: p.item.id,
-          item_name: p.item.item_name,
-          quantity: p.qty,
-          unit: p.item.unit,
-          source_donation_id: p.item.source_donation_id // Preserving the donor link
-        }]);
-
-        // Deduct from inventory
-        const newQty = Number(p.item.quantity) - p.qty;
-        if (newQty <= 0) {
-          await supabase.from('foodbank_inventory').delete().eq('id', p.item.id);
-        } else {
-          await supabase.from('foodbank_inventory').update({ quantity: newQty }).eq('id', p.item.id);
-        }
-      }
-
-      setFlash({ type: 'success', message: `Package "${pkgName}" has been packed and saved!` });
-      setShowPack(false);
-      setPkgItems([]);
-      setPkgName('');
-      fetchItems(); // Refresh inventory list
-    } catch (err) {
-      console.error('Error saving package:', err);
-      setFlash({ type: 'error', message: 'Failed to save package.' });
-    } finally {
-      setIsSavingPkg(false);
-    }
-  }
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -299,9 +263,43 @@ export default function FoodbankInventory() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
           <div className="flex gap-2">
-            <Button variant="secondary" icon={<Box size={16} />} onClick={() => setShowPack(true)}>Pack Donation</Button>
-            <Button variant="secondary" icon={<Download size={16} />} onClick={downloadTemplate}>Download Template</Button>
-            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileRef.current?.click()}>Upload Excel</Button>
+            <div className="relative" ref={dropdownRef}>
+              <Button 
+                variant="secondary" 
+                icon={<ChevronDown size={16} />} 
+                onClick={() => setShowDropdown(!showDropdown)}
+              >
+                Inventory Actions
+              </Button>
+              
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-[#F0F0F0] rounded-xl shadow-[0px_10px_30px_rgba(0,0,0,0.08)] z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button 
+                    onClick={() => { exportToExcel(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={15} className="text-[#888]" />
+                    <span className="font-medium">Export Inventory</span>
+                  </button>
+                  <button 
+                    onClick={() => { downloadTemplate(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={15} className="text-[#888]" />
+                    <span className="font-medium">Download Template</span>
+                  </button>
+                  <div className="h-px bg-[#F0F0F0] my-1 mx-2" />
+                  <button 
+                    onClick={() => { fileRef.current?.click(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Upload size={15} className="text-[#888]" />
+                    <span className="font-medium">Upload Excel</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>Add Item</Button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
           </div>
@@ -487,73 +485,7 @@ export default function FoodbankInventory() {
         </div>
       )}
 
-      {/* ── Pack Modal ── */}
-      <Modal isOpen={showPack} onClose={() => { setShowPack(false); setPkgItems([]); setPkgName(''); }} title="Pack Donation Package" width="xl">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold mb-1">Package Name</label>
-            <input value={pkgName} onChange={e => setPkgName(e.target.value)} placeholder="e.g. Family Relief Package"
-              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
-          </div>
 
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
-            <input 
-              type="text" 
-              placeholder="Search items to add..." 
-              value={pkgSearch} 
-              onChange={e => setPkgSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg text-xs focus:outline-none focus:border-[#FE9800]"
-              style={{ fontFamily: 'DM Sans' }}
-            />
-          </div>
-
-          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-            {items
-              .filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase()))
-              .map(item => {
-                const inPkg = pkgItems.find(p => p.item.id === item.id);
-                return (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-[#FE9800]/20 transition-all">
-                    <div>
-                      <p className="text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
-                      <p className="text-[11px] text-[#888]">Available: {Number(item.quantity).toLocaleString()} {item.unit}</p>
-                    </div>
-                    {inPkg ? (
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => changeQty(item.id, inPkg.qty - 1)} className="w-7 h-7 bg-gray-200 text-[#555] rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"><Minus size={13} /></button>
-                        <span className="w-8 text-center text-sm font-bold">{inPkg.qty}</span>
-                        <button onClick={() => changeQty(item.id, inPkg.qty + 1)} className="w-7 h-7 bg-[#FE9800] text-white rounded-lg flex items-center justify-center hover:bg-[#e58a00] transition-colors"><Plus size={13} /></button>
-                        <button onClick={() => removePkg(item.id)} className="text-[10px] text-red-500 ml-1 font-bold uppercase tracking-wider">Remove</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => addToPkg(item)} className="px-4 py-1.5 bg-[#FE9800] text-white text-xs rounded-lg font-bold hover:bg-[#e58a00] transition-colors">Add</button>
-                    )}
-                  </div>
-                );
-              })}
-            {items.filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && (
-              <div className="py-8 text-center text-xs text-gray-400">No items matching "{pkgSearch}"</div>
-            )}
-          </div>
-          {pkgItems.length > 0 && (
-            <div className="bg-[#FFF3DC] rounded-lg p-3 space-y-1">
-              <p className="text-xs font-bold mb-2">Summary ({pkgItems.length} items)</p>
-              {pkgItems.map(p => (
-                <div key={p.item.id} className="flex justify-between text-xs">
-                  <span>{p.item.item_name}</span><span className="font-bold">{p.qty} {p.item.unit}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex justify-end gap-3 border-t pt-3">
-            <Button variant="ghost" onClick={() => { setShowPack(false); setPkgItems([]); setPkgName(''); setPkgSearch(''); }} disabled={isSavingPkg}>Cancel</Button>
-            <Button variant="primary" onClick={savePkg} disabled={!pkgItems.length || !pkgName.trim() || isSavingPkg}>
-              {isSavingPkg ? 'Saving...' : 'Save Package'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <ConfirmModal
         isOpen={confirm.open}

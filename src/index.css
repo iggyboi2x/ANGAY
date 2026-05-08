@@ -59,3 +59,35 @@
 .leaflet-container {
   z-index: 0;
 }
+
+.crisis-marker-ripple {
+  position: relative;
+  overflow: visible !important;
+}
+
+.crisis-marker-ripple::after {
+  content: '';
+  position: absolute;
+  top: 100%; /* Anchor to bottom */
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  transform: translate(-50%, -50%);
+  background: rgba(239, 68, 68, 0.4);
+  border: 2px solid rgb(239, 68, 68);
+  border-radius: 50%;
+  animation: crisis-ripple 2s infinite ease-out;
+  pointer-events: none;
+  display: block;
+}
+
+@keyframes crisis-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(5);
+    opacity: 0;
+  }
+}

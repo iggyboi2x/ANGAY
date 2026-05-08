@@ -4,7 +4,8 @@ import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../../supabase';
 import {
   Gift, Clock, CheckCircle, XCircle, Bell, Search,
-  RotateCcw, Plus, X, ChevronDown, Send, MessageSquare, MapPin, CheckCircle2
+  RotateCcw, Plus, X, ChevronDown, Send, MessageSquare, MapPin, CheckCircle2,
+  LayoutGrid, List, Package
 } from 'lucide-react';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
 import Modal from '../../components/Modal';
@@ -13,25 +14,34 @@ import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 import NotificationBell from '../../components/foodbank/NotificationBell';
 import AcceptDonationModal from '../../components/foodbank/AcceptDonationModal';
 
-const fmt = d => d ? new Date(d).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' }) : '—';
+const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 const STATUS_STYLE = {
-  pending:   { bg: 'bg-[#FFF3DC]', text: 'text-[#C97700]',  label: 'Pending'   },
-  accepted:  { bg: 'bg-blue-50',   text: 'text-blue-600',   label: 'Accepted'  },
-  completed: { bg: 'bg-green-50',  text: 'text-green-600',  label: 'Completed' },
-  rejected:  { bg: 'bg-red-50',    text: 'text-red-500',    label: 'Rejected'  },
-  received:  { bg: 'bg-green-50',  text: 'text-green-600',  label: 'Received'  },
+  pending: { bg: 'bg-[#FFF3DC]', text: 'text-[#C97700]', label: 'Pending' },
+  accepted: { bg: 'bg-blue-50', text: 'text-blue-600', label: 'Accepted' },
+  completed: { bg: 'bg-green-50', text: 'text-green-600', label: 'Completed' },
+  rejected: { bg: 'bg-red-50', text: 'text-red-500', label: 'Rejected' },
+  received: { bg: 'bg-green-50', text: 'text-green-600', label: 'Received' },
+};
+
+const StatusBadge = ({ status }) => {
+  const s = STATUS_STYLE[status] || STATUS_STYLE.pending;
+  return (
+    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-current/10 ${s.bg} ${s.text}`} style={{ fontFamily: 'DM Sans' }}>
+      {s.label}
+    </span>
+  );
 };
 
 const DONOR_TABS = [
-  { key: 'pending',   label: 'Incoming'  },
-  { key: 'accepted',  label: 'Accepted'  },
+  { key: 'pending', label: 'Incoming' },
+  { key: 'accepted', label: 'Accepted' },
   { key: 'completed', label: 'History' },
-  { key: 'rejected',  label: 'Rejected'  },
+  { key: 'rejected', label: 'Rejected' },
 ];
 
 const DIST_TABS = [
-  { key: 'pending',  label: 'Sent'     },
+  { key: 'pending', label: 'Sent' },
   { key: 'received', label: 'Received' },
   { key: 'distributed', label: 'Distributed' },
 ];
@@ -88,8 +98,8 @@ function DonorCard({ donation, onAccept, onReject, onComplete, onShowProof }) {
       {/* Progress Tracker for Direct Donations */}
       {isDirect && donation.status !== 'rejected' && (
         <div className="py-2 border-y border-gray-50">
-          <LogisticProgressBar 
-            status={donation.logisticStatus} 
+          <LogisticProgressBar
+            status={donation.logisticStatus}
             onShowProof={onShowProof}
           />
         </div>
@@ -147,20 +157,93 @@ function DistCard({ dist, onShowProof }) {
       </div>
 
       <div className="py-2 border-y border-gray-50">
-        <LogisticProgressBar 
-          status={dist.status === 'distributed' ? 'distributed' : dist.status === 'received' ? 'at_barangay' : 'at_fb'} 
+        <LogisticProgressBar
+          status={dist.status === 'distributed' ? 'distributed' : dist.status === 'received' ? 'at_barangay' : 'at_fb'}
           onShowProof={() => dist.status === 'distributed' && onShowProof(dist)}
         />
       </div>
 
-      <div className="flex items-center justify-between mt-1">
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest px-1">
-          Sent: {fmt(dist.created_at)}
-        </p>
+      <div className="ml-4">
         {dist.status === 'distributed' && (
-          <button onClick={() => onShowProof(dist)} className="text-[10px] font-black uppercase text-blue-500 hover:underline">
-            View Distribution Proof
-          </button>
+          <button onClick={() => onShowProof(dist)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><CheckCircle2 size={16} /></button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── List View Row Components ────────────────────────────────────────────────
+function DonorListRow({ donation, onAccept, onReject, onComplete, onShowProof, onClick }) {
+  const [acting, setActing] = useState(false);
+  const act = async fn => { setActing(true); await fn(); setActing(false); };
+  const s = STATUS_STYLE[donation.status] || STATUS_STYLE.pending;
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between group hover:border-[#FE9800]/30 transition-all cursor-pointer"
+    >
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="w-10 h-10 rounded-xl bg-[#FFF3DC] flex items-center justify-center shrink-0 shadow-sm">
+          <Gift size={20} className="text-[#FE9800]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-[#1A1A1A] truncate">{donation.donor_name || 'Donor'}</p>
+            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
+          </div>
+          <p className="text-xs text-gray-500 truncate mt-0.5">{donation.items}</p>
+        </div>
+        <div className="hidden lg:block px-6 border-l border-gray-100">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Scheduled</p>
+          <p className="text-xs font-semibold text-[#1A1A1A] mt-0.5">{fmt(donation.scheduled_date)}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 ml-4" onClick={e => e.stopPropagation()}>
+        {donation.status === 'pending' && (
+          <div className="flex gap-2">
+            <button onClick={() => act(onReject)} disabled={acting} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><X size={16} /></button>
+            <button onClick={() => act(onAccept)} disabled={acting} className="px-4 py-2 bg-[#FE9800] text-white text-[10px] font-black uppercase rounded-lg">Accept</button>
+          </div>
+        )}
+        {donation.status === 'accepted' && (
+          <button onClick={() => act(onComplete)} disabled={acting} className="px-4 py-2 bg-green-500 text-white text-[10px] font-black uppercase rounded-lg">Receive</button>
+        )}
+        {donation.status === 'completed' && donation.proof && (
+          <button onClick={onShowProof} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><MapPin size={16} /></button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DistListRow({ dist, onShowProof, onClick }) {
+  const s = STATUS_STYLE[dist.status] || STATUS_STYLE.pending;
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center justify-between group hover:border-blue-200 transition-all cursor-pointer"
+    >
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 shadow-sm">
+          <Send size={18} className="text-blue-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-[#1A1A1A] truncate">{dist.barangay_name || 'Barangay'}</p>
+            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
+          </div>
+          <p className="text-xs text-gray-500 truncate mt-0.5">{dist.items}</p>
+        </div>
+        <div className="hidden lg:block px-6 border-l border-gray-100">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Dispatched</p>
+          <p className="text-xs font-semibold text-[#1A1A1A] mt-0.5">{fmt(dist.created_at)}</p>
+        </div>
+      </div>
+      <div className="ml-4" onClick={e => e.stopPropagation()}>
+        {dist.status === 'distributed' && (
+          <button onClick={() => onShowProof(dist)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><CheckCircle2 size={16} /></button>
         )}
       </div>
     </div>
@@ -170,17 +253,19 @@ function DistCard({ dist, onShowProof }) {
 // ─── Main Foodbank Donations Page ─────────────────────────────────────────────
 export default function FoodbankDonations() {
   const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
-  const [section, setSection]       = useState('donors');
-  const [donorTab, setDonorTab]     = useState('pending');
-  const [distTab, setDistTab]       = useState('pending');
-  const [donations, setDonations]   = useState([]);
-  const [dists, setDists]           = useState([]);
-  const [barangays, setBarangays]   = useState([]);
-  const [packages, setPackages]     = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [showModal, setShowModal]   = useState(false);
+  const [section, setSection] = useState('donors');
+  const [donorTab, setDonorTab] = useState('pending');
+  const [distTab, setDistTab] = useState('pending');
+  const [donations, setDonations] = useState([]);
+  const [dists, setDists] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [acceptingDonation, setAcceptingDonation] = useState(null);
   const [viewingProof, setViewingProof] = useState(null);
+  const [viewingItem, setViewingItem] = useState(null); // { type: 'donor' | 'dist', data: any }
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
   const loadAll = async () => {
     setLoading(true);
@@ -202,14 +287,14 @@ export default function FoodbankDonations() {
     const mappedDonations = (don || []).map(d => {
       const pkg = d.donation_packages?.[0];
       const dist = pkg?.distributions?.[0];
-      
+
       let logisticStatus = 'pending_fb';
       if (d.status === 'completed') logisticStatus = 'at_fb';
       if (dist?.status === 'received') logisticStatus = 'at_barangay';
       if (dist?.status === 'distributed') logisticStatus = 'distributed';
 
-      return { 
-        ...d, 
+      return {
+        ...d,
         logisticStatus,
         proof: dist?.status === 'distributed' ? dist : null
       };
@@ -234,8 +319,8 @@ export default function FoodbankDonations() {
       if (status === 'completed' && inventoryItems && user) {
         if (donation.barangay_name) {
           const pkgName = `Direct Donation: ${donation.items.substring(0, 30)}...`;
-          const { data: pkg } = await supabase.from('donation_packages').insert([{ 
-            name: pkgName, foodbank_id: user.id, status: 'available', original_donation_id: donation.id 
+          const { data: pkg } = await supabase.from('donation_packages').insert([{
+            name: pkgName, foodbank_id: user.id, status: 'available', original_donation_id: donation.id
           }]).select().single();
 
           const pkgItems = inventoryItems.map(item => ({
@@ -244,11 +329,11 @@ export default function FoodbankDonations() {
           await supabase.from('package_items').insert(pkgItems);
         } else {
           const rows = inventoryItems.map(item => ({
-            foodbank_id: user.id, 
-            item_name: item.item_name, 
+            foodbank_id: user.id,
+            item_name: item.item_name,
             category_id: item.category_id || null,
-            quantity: Number(item.quantity), 
-            unit: item.unit || 'pcs', 
+            quantity: Number(item.quantity),
+            unit: item.unit || 'pcs',
             expiration_date: item.expiration_date || null,
             status: computeStatus(item.expiration_date),
             source_donation_id: donation.id // NEW: Track the source
@@ -256,7 +341,7 @@ export default function FoodbankDonations() {
           await supabase.from('foodbank_inventory').insert(rows);
         }
       }
-      
+
       if (donation?.donor_id) {
         const label = status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Declined' : 'Received';
         await supabase.from('notifications').insert({
@@ -286,6 +371,42 @@ export default function FoodbankDonations() {
       scheduled_date: form.scheduled_date, status: 'pending', package_id: form.package_id || null
     });
     if (error) return { error: error.message };
+
+    // Automatically send a Message Box to the Barangay chat
+    try {
+      const recipientUserId = form.barangay_id;
+      if (user.id && recipientUserId) {
+        // Find or create room
+        const { data: myRooms } = await supabase.from('room_members').select('room_id').eq('user_id', user.id);
+        const { data: theirRooms } = await supabase.from('room_members').select('room_id').eq('user_id', recipientUserId);
+
+        const myIds = new Set((myRooms || []).map(r => r.room_id));
+        let roomId = (theirRooms || []).find(r => myIds.has(r.room_id))?.room_id;
+
+        if (!roomId) {
+          const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${bay?.barangay_name || "Barangay"}__auth__${recipientUserId}` }]).select().single();
+          if (newRoom) {
+            roomId = newRoom.id;
+            await supabase.from('room_members').insert([
+              { room_id: roomId, user_id: user.id },
+              { room_id: roomId, user_id: recipientUserId }
+            ]);
+          }
+        }
+
+        if (roomId) {
+          const messageContent = `🚚 AID PACKAGE DISPATCHED\n\nItems: ${form.items}\nExpected Arrival: ${fmt(form.scheduled_date)}\n\nHello! We have dispatched an aid package to your barangay. Please coordinate with us for the turnover.`;
+          await supabase.from('messages').insert({
+            room_id: roomId,
+            user_id: user.id,
+            content: messageContent
+          });
+        }
+      }
+    } catch (msgErr) {
+      console.error("Auto-message error:", msgErr);
+    }
+
     if (form.package_id) await supabase.from('donation_packages').update({ status: 'pending' }).eq('id', form.package_id);
     setShowModal(false);
     await loadAll();
@@ -294,7 +415,7 @@ export default function FoodbankDonations() {
 
   const pendingDonorsCount = donations.filter(d => d.status === 'pending').length;
   const filteredDonations = donations.filter(d => d.status === donorTab);
-  const filteredDists     = dists.filter(d => d.status === distTab);
+  const filteredDists = dists.filter(d => d.status === distTab);
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -326,17 +447,28 @@ export default function FoodbankDonations() {
             </button>
           </div>
 
-          <div className="flex gap-1.5 mb-8 bg-gray-100 p-1.5 rounded-2xl w-fit">
-            {[['donors','Incoming Aid'],['barangays','Aid Dispatched']].map(([key, label]) => (
-              <button key={key} onClick={() => setSection(key)}
-                className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
-                  ${section === key ? 'bg-white text-[#FE9800] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                {label}
-                {key === 'donors' && pendingDonorsCount > 0 && (
-                  <span className="ml-2 bg-[#FE9800] text-white px-2 py-0.5 rounded-full text-[10px]">{pendingDonorsCount}</span>
-                )}
+          <div className="flex items-center justify-between gap-3 mb-8">
+            <div className="flex gap-1.5 bg-gray-100 p-1.5 rounded-2xl w-fit">
+              {[['donors', 'Incoming Aid'], ['barangays', 'Aid Dispatched']].map(([key, label]) => (
+                <button key={key} onClick={() => setSection(key)}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
+                      ${section === key ? 'bg-white text-[#FE9800] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                  {label}
+                  {key === 'donors' && pendingDonorsCount > 0 && (
+                    <span className="ml-2 bg-[#FE9800] text-white px-2 py-0.5 rounded-full text-[10px]">{pendingDonorsCount}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex bg-[#F5F5F5] p-1.5 rounded-[18px]">
+              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}>
+                <LayoutGrid size={18} />
               </button>
-            ))}
+              <button onClick={() => setViewMode('list')} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}>
+                <List size={18} />
+              </button>
+            </div>
           </div>
 
           {section === 'donors' ? (
@@ -351,16 +483,27 @@ export default function FoodbankDonations() {
                 ))}
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-2 gap-6">{[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDonations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Gift size={48} className="mb-4 text-gray-100" />
                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">No donor activity</p>
                 </div>
-              ) : (
+              ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 gap-6">
                   {filteredDonations.map(d => (
                     <DonorCard key={d.id} donation={d}
+                      onAccept={() => updateDonation(d.id, 'accepted')}
+                      onReject={() => updateDonation(d.id, 'rejected')}
+                      onComplete={() => setAcceptingDonation(d)}
+                      onShowProof={() => setViewingProof(d.proof)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredDonations.map(d => (
+                    <DonorListRow key={d.id} donation={d}
+                      onClick={() => setViewingItem({ type: 'donor', data: d })}
                       onAccept={() => updateDonation(d.id, 'accepted')}
                       onReject={() => updateDonation(d.id, 'rejected')}
                       onComplete={() => setAcceptingDonation(d)}
@@ -387,15 +530,19 @@ export default function FoodbankDonations() {
                 </button>
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1,2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-2 gap-6">{[1, 2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDists.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Send size={48} className="mb-4 text-gray-100" />
                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">No dispatched aid</p>
                 </div>
-              ) : (
+              ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 gap-6">
                   {filteredDists.map(d => <DistCard key={d.id} dist={d} onShowProof={(dist) => setViewingProof(dist)} />)}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredDists.map(d => <DistListRow key={d.id} dist={d} onClick={() => setViewingItem({ type: 'dist', data: d })} onShowProof={(dist) => setViewingProof(dist)} />)}
                 </div>
               )}
             </>
@@ -406,6 +553,54 @@ export default function FoodbankDonations() {
       {showModal && <SendFoodAidModal barangays={barangays} packages={packages} onClose={() => setShowModal(false)} onSubmit={handleSend} />}
       {acceptingDonation && (
         <AcceptDonationModal donation={acceptingDonation} onClose={() => setAcceptingDonation(null)} onConfirm={handleConfirmAccept} />
+      )}
+      {viewingItem && (
+        <div 
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto" 
+          onClick={() => setViewingItem(null)}
+        >
+          <div 
+            className="w-full max-w-[500px] animate-in fade-in zoom-in duration-300"
+            onClick={e => e.stopPropagation()}
+          >
+            {viewingItem.type === 'donor' ? (
+              <DonorCard
+                donation={viewingItem.data}
+                onAccept={() => {
+                  updateDonation(viewingItem.data.id, 'accepted');
+                  setViewingItem(null);
+                }}
+                onReject={() => {
+                  updateDonation(viewingItem.data.id, 'rejected');
+                  setViewingItem(null);
+                }}
+                onComplete={() => {
+                  setAcceptingDonation(viewingItem.data);
+                  setViewingItem(null);
+                }}
+                onShowProof={() => {
+                  setViewingProof(viewingItem.data.proof);
+                  setViewingItem(null);
+                }}
+              />
+            ) : (
+              <DistCard
+                dist={viewingItem.data}
+                onShowProof={(dist) => {
+                  setViewingProof(dist);
+                  setViewingItem(null);
+                }}
+              />
+            )}
+
+            <button
+              onClick={() => setViewingItem(null)}
+              className="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest rounded-2xl border border-white/20 transition-all backdrop-blur-md"
+            >
+              Close Preview
+            </button>
+          </div>
+        </div>
       )}
       {viewingProof && (
         <Modal isOpen={true} onClose={() => setViewingProof(null)} title="Journey Verified" width="lg">

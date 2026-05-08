@@ -6,10 +6,12 @@ import CalendarPanel from '../../components/CalendarPanel';
 import BarangayNotificationBell from '../../components/barangay/BarangayNotificationBell';
 import { useMapPins } from '../../hooks/useMapPins';
 import { useProfile } from '../../hooks/useProfile';
-import { Bell, CalendarDays } from 'lucide-react';
+import { Bell, CalendarDays, AlertTriangle, Flame, Waves, X, CheckCircle2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import Modal from '../../components/Modal';
+import Button from '../../components/Button';
+import { useEffect } from 'react';
+import { supabase } from '../../../supabase';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -30,7 +32,38 @@ export default function BarangayDashboard() {
   const [selectedPin,  setSelectedPin]  = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const { pins: foodbanks, loading: pinsLoading } = useMapPins('foodbank');
-  const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  const { id: myId, displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  
+  const [crisisData, setCrisisData] = useState({ is_in_crisis: false, crisis_type: null });
+  const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [acting, setActing] = useState(false);
+
+  useEffect(() => {
+    if (myId) {
+      fetchCrisisStatus();
+    }
+  }, [myId]);
+
+  async function fetchCrisisStatus() {
+    const { data } = await supabase.from('barangays').select('is_in_crisis, crisis_type').eq('id', myId).maybeSingle();
+    if (data) setCrisisData(data);
+  }
+
+  async function toggleCrisis(type = null) {
+    setActing(true);
+    const active = type !== null;
+    const { error } = await supabase.from('barangays').update({
+      is_in_crisis: active,
+      crisis_type: type,
+      crisis_started_at: active ? new Date().toISOString() : null
+    }).eq('id', myId);
+
+    if (!error) {
+      setCrisisData({ is_in_crisis: active, crisis_type: type });
+      setShowCrisisModal(false);
+    }
+    setActing(false);
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -39,8 +72,32 @@ export default function BarangayDashboard() {
 
         {/* Top Bar */}
         <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
-          <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Dashboard</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <h1 className="text-[22px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>Dashboard</h1>
+            {crisisData.is_in_crisis && (
+              <div className="flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-100 animate-pulse">
+                <div className="w-2 h-2 bg-red-500 rounded-full" />
+                <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">Active Signal: {crisisData.crisis_type}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {crisisData.is_in_crisis ? (
+              <button 
+                onClick={() => toggleCrisis(null)}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-green-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-green-600 transition-all shadow-sm"
+              >
+                <CheckCircle2 size={14} /> Mark as Controlled
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowCrisisModal(true)}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-sm shadow-red-100"
+              >
+                <AlertTriangle size={14} /> Signal Emergency
+              </button>
+            )}
+            
             <button onClick={() => setCalendarOpen(true)}
               className="relative p-2 text-[#888888] hover:text-[#FE9800] transition-colors">
               <CalendarDays size={18} />
@@ -112,6 +169,52 @@ export default function BarangayDashboard() {
             </div>
           </Card>
         </div>
+
+        {/* Crisis Signal Modal */}
+        {showCrisisModal && (
+          <Modal isOpen={true} onClose={() => setShowCrisisModal(false)} title="Signal Emergency" width="md">
+            <div className="space-y-6">
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex gap-3">
+                <AlertTriangle className="text-red-600 shrink-0" size={20} />
+                <p className="text-xs text-red-900 leading-relaxed font-medium">
+                  Select a crisis type to broadcast a distress signal. This will be visible to all Donors and Foodbanks on their maps to prioritize aid to your community.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {[
+                  { id: 'Fire', icon: <Flame className="text-red-500" />, desc: 'Structural or wildfire in the community' },
+                  { id: 'Flood', icon: <Waves className="text-blue-500" />, desc: 'Rising waters due to storm or overflow' },
+                  { id: 'Calamity', icon: <AlertTriangle className="text-orange-500" />, desc: 'General disaster requiring immediate aid' }
+                ].map(type => (
+                  <button 
+                    key={type.id}
+                    onClick={() => toggleCrisis(type.id)}
+                    disabled={acting}
+                    className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl hover:border-red-500 hover:bg-red-50/30 transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                        {type.icon}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black text-gray-800 uppercase tracking-tight">{type.id}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">{type.desc}</p>
+                      </div>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm">
+                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-red-500 transition-colors" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <Button variant="ghost" onClick={() => setShowCrisisModal(false)} className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                Cancel / Safe
+              </Button>
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );
