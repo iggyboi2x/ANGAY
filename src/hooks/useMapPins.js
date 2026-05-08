@@ -15,11 +15,12 @@ export function useMapPins(role) {
       const table = isFoodbank ? 'foodbanks' : 'barangays';
       const nameCol = isFoodbank ? 'org_name' : 'barangay_name';
       const extraCols = isFoodbank ? ', operating_hours, logo_url, website_url' : '';
+      const crisisCols = !isFoodbank ? ', is_in_crisis, crisis_type' : '';
       const demographicsJoin = !isFoodbank ? ', demographics(member_count, pwd_count, senior_count, children_count, pregnant_count)' : '';
 
       const { data, error } = await supabase
         .from(table)
-        .select(`id, ${nameCol}, address, latitude, longitude${extraCols}, profiles(contact)${demographicsJoin}`);
+        .select(`id, ${nameCol}, address, latitude, longitude${extraCols}${crisisCols}, profiles(contact)${demographicsJoin}`);
 
       if (error) {
         console.error(`[useMapPins] Error fetching ${table}:`, error.message);
@@ -61,7 +62,19 @@ export function useMapPins(role) {
     }
 
     load();
-    return () => { cancelled = true; };
+
+    const table = role === 'foodbank' ? 'foodbanks' : 'barangays';
+    const channel = supabase
+      .channel(`map-pins-realtime-${role}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => { 
+      cancelled = true; 
+      channel.unsubscribe();
+    };
   }, [role]);
 
   return { pins, loading };

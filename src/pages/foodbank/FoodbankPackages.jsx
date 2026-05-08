@@ -50,6 +50,8 @@ export default function FoodbankPackages() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [pkgItems, setPkgItems] = useState([]);
   const [pkgSearch, setPkgSearch] = useState('');
+  const [showPack, setShowPack] = useState(false);
+  const [pkgName, setPkgName] = useState('');
   const [isSavingPkg, setIsSavingPkg] = useState(false);
 
   useEffect(() => {
@@ -128,6 +130,15 @@ export default function FoodbankPackages() {
     setInventoryItems(Object.values(invMap));
     setPkgItems(loadedPkgItems);
   };
+  
+  const openPackModal = async () => {
+    setPkgName('');
+    setPkgItems([]);
+    setPkgSearch('');
+    const { data: inv } = await supabase.from('foodbank_inventory').select('*').eq('foodbank_id', foodbankId);
+    setInventoryItems(inv || []);
+    setShowPack(true);
+  };
 
   function addToPkg(item) {
     const ex = pkgItems.find(p => p.item.id === item.id);
@@ -193,6 +204,52 @@ export default function FoodbankPackages() {
     } catch (err) {
       console.error(err);
       setFlash({ type: 'error', message: 'Error updating package.' });
+    } finally {
+      setIsSavingPkg(false);
+    }
+  };
+  
+  const savePkg = async () => {
+    if (!pkgItems.length || !pkgName.trim() || !foodbankId || isSavingPkg) return;
+    setIsSavingPkg(true);
+    
+    try {
+      const { data: pkg, error: pkgErr } = await supabase
+        .from('donation_packages')
+        .insert([{ 
+          name: pkgName, 
+          foodbank_id: foodbankId,
+          status: 'available' 
+        }])
+        .select()
+        .single();
+      
+      if (pkgErr) throw pkgErr;
+
+      for (const p of pkgItems) {
+        await supabase.from('package_items').insert([{
+          package_id: pkg.id,
+          inventory_id: p.item.id,
+          item_name: p.item.item_name,
+          quantity: p.qty,
+          unit: p.item.unit,
+          source_donation_id: p.item.source_donation_id
+        }]);
+
+        const newQty = Number(p.item.quantity) - p.qty;
+        if (newQty <= 0) {
+          await supabase.from('foodbank_inventory').delete().eq('id', p.item.id);
+        } else {
+          await supabase.from('foodbank_inventory').update({ quantity: newQty }).eq('id', p.item.id);
+        }
+      }
+
+      setFlash({ type: 'success', message: `Package "${pkgName}" saved!` });
+      setShowPack(false);
+      fetchPackages();
+    } catch (err) {
+      console.error(err);
+      setFlash({ type: 'error', message: 'Failed to save package.' });
     } finally {
       setIsSavingPkg(false);
     }
@@ -277,7 +334,7 @@ export default function FoodbankPackages() {
               Manage your prepared relief goods and track their distribution status.
             </p>
           </div>
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => window.location.href='/foodbank/inventory'}>
+          <Button variant="primary" icon={<Plus size={16} />} onClick={openPackModal}>
             New Package
           </Button>
         </div>
@@ -431,6 +488,74 @@ export default function FoodbankPackages() {
             <Button variant="ghost" onClick={() => setEditingPkg(null)} disabled={isSavingPkg}>Cancel</Button>
             <Button variant="primary" onClick={handleEditSave} disabled={!pkgItems.length || !editName.trim() || isSavingPkg}>
               {isSavingPkg ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── New Package (Pack) Modal ── */}
+      <Modal isOpen={showPack} onClose={() => setShowPack(false)} title="Pack New Donation Package" width="xl">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold mb-1">Package Name</label>
+            <input value={pkgName} onChange={e => setPkgName(e.target.value)} placeholder="e.g. Family Relief Package"
+              className="w-full h-10 px-3 border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
+          </div>
+
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+            <input 
+              type="text" 
+              placeholder="Search items to add..." 
+              value={pkgSearch} 
+              onChange={e => setPkgSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 bg-[#F5F5F5] border border-[#EEEEEE] rounded-lg text-xs focus:outline-none focus:border-[#FE9800]"
+              style={{ fontFamily: 'DM Sans' }}
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            {inventoryItems
+              .filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase()))
+              .map(item => {
+                const inPkg = pkgItems.find(p => p.item.id === item.id);
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-[#F5F5F5] rounded-lg border border-transparent hover:border-[#FE9800]/20 transition-all">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
+                      <p className="text-[11px] text-[#888]">Available: {Number(item.quantity).toLocaleString()} {item.unit}</p>
+                    </div>
+                    {inPkg ? (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => changeQty(item.id, inPkg.qty - 1)} className="w-7 h-7 bg-gray-200 text-[#555] rounded-lg flex items-center justify-center hover:bg-gray-300 transition-colors"><Minus size={13} /></button>
+                        <span className="w-8 text-center text-sm font-bold">{inPkg.qty}</span>
+                        <button onClick={() => changeQty(item.id, inPkg.qty + 1)} className="w-7 h-7 bg-[#FE9800] text-white rounded-lg flex items-center justify-center hover:bg-[#e58a00] transition-colors"><Plus size={13} /></button>
+                        <button onClick={() => removePkg(item.id)} className="text-[10px] text-red-500 ml-1 font-bold uppercase tracking-wider">Remove</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => addToPkg(item)} className="px-4 py-1.5 bg-[#FE9800] text-white text-xs rounded-lg font-bold hover:bg-[#e58a00] transition-colors">Add</button>
+                    )}
+                  </div>
+                );
+              })}
+            {inventoryItems.filter(i => i.item_name.toLowerCase().includes(pkgSearch.toLowerCase())).length === 0 && (
+              <div className="py-8 text-center text-xs text-gray-400">No items matching "{pkgSearch}"</div>
+            )}
+          </div>
+          {pkgItems.length > 0 && (
+            <div className="bg-[#FFF3DC] rounded-lg p-3 space-y-1">
+              <p className="text-xs font-bold mb-2">Summary ({pkgItems.length} items)</p>
+              {pkgItems.map(p => (
+                <div key={p.item.id} className="flex justify-between text-xs">
+                  <span>{p.item.item_name}</span><span className="font-bold">{p.qty} {p.item.unit}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 border-t pt-3">
+            <Button variant="ghost" onClick={() => { setShowPack(false); setPkgItems([]); setPkgName(''); setPkgSearch(''); }} disabled={isSavingPkg}>Cancel</Button>
+            <Button variant="primary" onClick={savePkg} disabled={!pkgItems.length || !pkgName.trim() || isSavingPkg}>
+              {isSavingPkg ? 'Saving...' : 'Save Package'}
             </Button>
           </div>
         </div>

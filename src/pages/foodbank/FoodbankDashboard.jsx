@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Menu, Search, CalendarDays, Package, AlertTriangle,
   Truck, Clock, X, MapPin, Users, MessageSquare, Bell
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -28,13 +29,32 @@ const orangeIcon = new L.Icon({
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
 });
 
+const crisisIcon = L.divIcon({
+  className: "crisis-marker-ripple",
+  html: `<img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png" style="width: 25px; height: 41px;" />`,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 const philippinesBounds = [[4.5, 116.0], [21.5, 127.0]];
 
 // Stat icons in order matching stats array below
 const statIcons = [Package, AlertTriangle, Truck, Clock];
 
+function MapController({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, zoom, { duration: 1.5 });
+    }
+  }, [center, zoom, map]);
+  return null;
+}
+
 export default function FoodbankDashboard() {
   const [selectedPin, setSelectedPin] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pins: barangays, loading: pinsLoading } = useMapPins('barangay');
@@ -119,6 +139,21 @@ export default function FoodbankDashboard() {
     loadDetails();
     return () => { cancelled = true; };
   }, [selectedPin, foodbankId]);
+
+  // Handle URL focus parameter
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    if (focusId && barangays.length > 0) {
+      const target = barangays.find(b => b.id === focusId);
+      if (target) {
+        setSelectedPin(target);
+        // Clear param after focusing so it doesn't re-trigger on every click
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('focus');
+        setSearchParams(newParams, { replace: true });
+      }
+    }
+  }, [searchParams, barangays, setSearchParams]);
 
   const stats = [
     { label: 'Total Items', value: statsData.totalItems.toLocaleString(), badge: null },
@@ -325,8 +360,13 @@ export default function FoodbankDashboard() {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <MapController 
+                  center={selectedPin ? [selectedPin.latitude, selectedPin.longitude] : null} 
+                  zoom={15} 
+                />
                 {barangays.map(pin => (
-                  <Marker key={pin.id} position={[pin.latitude, pin.longitude]} icon={orangeIcon}
+                  <Marker key={pin.id} position={[pin.latitude, pin.longitude]} 
+                    icon={pin.is_in_crisis ? crisisIcon : orangeIcon}
                     eventHandlers={{ click: () => setSelectedPin(pin) }} />
                 ))}
               </MapContainer>
