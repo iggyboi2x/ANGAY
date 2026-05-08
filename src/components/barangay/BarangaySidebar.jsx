@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Package, Gift, Settings, LogOut, Wheat, Users } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Package, Gift, Settings, LogOut, Wheat, Users, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import ReportModal from '../ReportModal';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/barangay/dashboard' },
@@ -10,9 +12,11 @@ const navItems = [
 
 export default function BarangaySidebar() {
   const navigate = useNavigate();
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
-    <div className="w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0]">
+    <>
+      <div className="w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0]">
       {/* Logo */}
       <div className="h-16 px-5 flex items-center gap-2">
         <Wheat size={20} className="text-[#FE9800]" />
@@ -57,7 +61,17 @@ export default function BarangaySidebar() {
           <LogOut size={18} className="text-[#888888]" />
           <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Logout</span>
         </button>
+
+        <button
+          onClick={() => setReportOpen(true)}
+          className="flex items-center gap-3 px-4 h-12 text-gray-400 hover:bg-orange-50 hover:text-[#FE9800] rounded-lg transition-colors w-full group mt-1"
+        >
+          <AlertTriangle size={18} className="text-gray-400 group-hover:text-[#FE9800]" />
+          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Report Issue</span>
+        </button>
       </div>
     </div>
+    <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
+    </>
   );
 }

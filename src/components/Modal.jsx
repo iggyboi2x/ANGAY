@@ -5,7 +5,7 @@ const widthClasses = { sm: 'max-w-[400px]', md: 'max-w-[480px]', lg: 'max-w-[640
 export default function Modal({ isOpen, onClose, title, children, className = '', width = 'md' }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-[99999] grid place-items-center bg-black/50 p-4 overflow-y-auto" onClick={onClose}>
       <div
         className={`bg-white rounded-[2.5rem] w-full ${widthClasses[width]} ${className} my-auto flex flex-col overflow-hidden relative shadow-2xl`}
         style={{ boxShadow: '0px 32px 80px rgba(0,0,0,0.25)' }}
