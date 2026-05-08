@@ -13,25 +13,25 @@ import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 import NotificationBell from '../../components/foodbank/NotificationBell';
 import AcceptDonationModal from '../../components/foodbank/AcceptDonationModal';
 
-const fmt = d => d ? new Date(d).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' }) : '—';
+const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 const STATUS_STYLE = {
-  pending:   { bg: 'bg-[#FFF3DC]', text: 'text-[#C97700]',  label: 'Pending'   },
-  accepted:  { bg: 'bg-blue-50',   text: 'text-blue-600',   label: 'Accepted'  },
-  completed: { bg: 'bg-green-50',  text: 'text-green-600',  label: 'Completed' },
-  rejected:  { bg: 'bg-red-50',    text: 'text-red-500',    label: 'Rejected'  },
-  received:  { bg: 'bg-green-50',  text: 'text-green-600',  label: 'Received'  },
+  pending: { bg: 'bg-[#FFF3DC]', text: 'text-[#C97700]', label: 'Pending' },
+  accepted: { bg: 'bg-blue-50', text: 'text-blue-600', label: 'Accepted' },
+  completed: { bg: 'bg-green-50', text: 'text-green-600', label: 'Completed' },
+  rejected: { bg: 'bg-red-50', text: 'text-red-500', label: 'Rejected' },
+  received: { bg: 'bg-green-50', text: 'text-green-600', label: 'Received' },
 };
 
 const DONOR_TABS = [
-  { key: 'pending',   label: 'Incoming'  },
-  { key: 'accepted',  label: 'Accepted'  },
+  { key: 'pending', label: 'Incoming' },
+  { key: 'accepted', label: 'Accepted' },
   { key: 'completed', label: 'History' },
-  { key: 'rejected',  label: 'Rejected'  },
+  { key: 'rejected', label: 'Rejected' },
 ];
 
 const DIST_TABS = [
-  { key: 'pending',  label: 'Sent'     },
+  { key: 'pending', label: 'Sent' },
   { key: 'received', label: 'Received' },
   { key: 'distributed', label: 'Distributed' },
 ];
@@ -88,8 +88,8 @@ function DonorCard({ donation, onAccept, onReject, onComplete, onShowProof }) {
       {/* Progress Tracker for Direct Donations */}
       {isDirect && donation.status !== 'rejected' && (
         <div className="py-2 border-y border-gray-50">
-          <LogisticProgressBar 
-            status={donation.logisticStatus} 
+          <LogisticProgressBar
+            status={donation.logisticStatus}
             onShowProof={onShowProof}
           />
         </div>
@@ -147,8 +147,8 @@ function DistCard({ dist, onShowProof }) {
       </div>
 
       <div className="py-2 border-y border-gray-50">
-        <LogisticProgressBar 
-          status={dist.status === 'distributed' ? 'distributed' : dist.status === 'received' ? 'at_barangay' : 'at_fb'} 
+        <LogisticProgressBar
+          status={dist.status === 'distributed' ? 'distributed' : dist.status === 'received' ? 'at_barangay' : 'at_fb'}
           onShowProof={() => dist.status === 'distributed' && onShowProof(dist)}
         />
       </div>
@@ -170,15 +170,15 @@ function DistCard({ dist, onShowProof }) {
 // ─── Main Foodbank Donations Page ─────────────────────────────────────────────
 export default function FoodbankDonations() {
   const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
-  const [section, setSection]       = useState('donors');
-  const [donorTab, setDonorTab]     = useState('pending');
-  const [distTab, setDistTab]       = useState('pending');
-  const [donations, setDonations]   = useState([]);
-  const [dists, setDists]           = useState([]);
-  const [barangays, setBarangays]   = useState([]);
-  const [packages, setPackages]     = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [showModal, setShowModal]   = useState(false);
+  const [section, setSection] = useState('donors');
+  const [donorTab, setDonorTab] = useState('pending');
+  const [distTab, setDistTab] = useState('pending');
+  const [donations, setDonations] = useState([]);
+  const [dists, setDists] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [acceptingDonation, setAcceptingDonation] = useState(null);
   const [viewingProof, setViewingProof] = useState(null);
 
@@ -202,14 +202,14 @@ export default function FoodbankDonations() {
     const mappedDonations = (don || []).map(d => {
       const pkg = d.donation_packages?.[0];
       const dist = pkg?.distributions?.[0];
-      
+
       let logisticStatus = 'pending_fb';
       if (d.status === 'completed') logisticStatus = 'at_fb';
       if (dist?.status === 'received') logisticStatus = 'at_barangay';
       if (dist?.status === 'distributed') logisticStatus = 'distributed';
 
-      return { 
-        ...d, 
+      return {
+        ...d,
         logisticStatus,
         proof: dist?.status === 'distributed' ? dist : null
       };
@@ -234,8 +234,8 @@ export default function FoodbankDonations() {
       if (status === 'completed' && inventoryItems && user) {
         if (donation.barangay_name) {
           const pkgName = `Direct Donation: ${donation.items.substring(0, 30)}...`;
-          const { data: pkg } = await supabase.from('donation_packages').insert([{ 
-            name: pkgName, foodbank_id: user.id, status: 'available', original_donation_id: donation.id 
+          const { data: pkg } = await supabase.from('donation_packages').insert([{
+            name: pkgName, foodbank_id: user.id, status: 'available', original_donation_id: donation.id
           }]).select().single();
 
           const pkgItems = inventoryItems.map(item => ({
@@ -244,11 +244,11 @@ export default function FoodbankDonations() {
           await supabase.from('package_items').insert(pkgItems);
         } else {
           const rows = inventoryItems.map(item => ({
-            foodbank_id: user.id, 
-            item_name: item.item_name, 
+            foodbank_id: user.id,
+            item_name: item.item_name,
             category_id: item.category_id || null,
-            quantity: Number(item.quantity), 
-            unit: item.unit || 'pcs', 
+            quantity: Number(item.quantity),
+            unit: item.unit || 'pcs',
             expiration_date: item.expiration_date || null,
             status: computeStatus(item.expiration_date),
             source_donation_id: donation.id // NEW: Track the source
@@ -256,7 +256,7 @@ export default function FoodbankDonations() {
           await supabase.from('foodbank_inventory').insert(rows);
         }
       }
-      
+
       if (donation?.donor_id) {
         const label = status === 'accepted' ? 'Accepted' : status === 'rejected' ? 'Declined' : 'Received';
         await supabase.from('notifications').insert({
@@ -286,7 +286,7 @@ export default function FoodbankDonations() {
       scheduled_date: form.scheduled_date, status: 'pending', package_id: form.package_id || null
     });
     if (error) return { error: error.message };
-    
+
     // Automatically send a Message Box to the Barangay chat
     try {
       const recipientUserId = form.barangay_id;
@@ -294,7 +294,7 @@ export default function FoodbankDonations() {
         // Find or create room
         const { data: myRooms } = await supabase.from('room_members').select('room_id').eq('user_id', user.id);
         const { data: theirRooms } = await supabase.from('room_members').select('room_id').eq('user_id', recipientUserId);
-        
+
         const myIds = new Set((myRooms || []).map(r => r.room_id));
         let roomId = (theirRooms || []).find(r => myIds.has(r.room_id))?.room_id;
 
@@ -330,7 +330,7 @@ export default function FoodbankDonations() {
 
   const pendingDonorsCount = donations.filter(d => d.status === 'pending').length;
   const filteredDonations = donations.filter(d => d.status === donorTab);
-  const filteredDists     = dists.filter(d => d.status === distTab);
+  const filteredDists = dists.filter(d => d.status === distTab);
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -363,7 +363,7 @@ export default function FoodbankDonations() {
           </div>
 
           <div className="flex gap-1.5 mb-8 bg-gray-100 p-1.5 rounded-2xl w-fit">
-            {[['donors','Incoming Aid'],['barangays','Aid Dispatched']].map(([key, label]) => (
+            {[['donors', 'Incoming Aid'], ['barangays', 'Aid Dispatched']].map(([key, label]) => (
               <button key={key} onClick={() => setSection(key)}
                 className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
                   ${section === key ? 'bg-white text-[#FE9800] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -387,7 +387,7 @@ export default function FoodbankDonations() {
                 ))}
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1,2,3,4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-2 gap-6">{[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDonations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Gift size={48} className="mb-4 text-gray-100" />
@@ -423,7 +423,7 @@ export default function FoodbankDonations() {
                 </button>
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1,2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-2 gap-6">{[1, 2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDists.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Send size={48} className="mb-4 text-gray-100" />

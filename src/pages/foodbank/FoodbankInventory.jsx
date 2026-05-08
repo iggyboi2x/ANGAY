@@ -139,6 +139,22 @@ export default function FoodbankInventory() {
   }
 
   // ─── Excel Download ───
+  function exportToExcel() {
+    const data = items.map(item => ({
+      'Item Name': item.item_name,
+      'Category': item.category,
+      'Quantity': Number(item.quantity),
+      'Unit': item.unit,
+      'Expiration Date': item.expiration_date || 'N/A',
+      'Status': item.status.toUpperCase()
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Current Inventory');
+    XLSX.writeFile(wb, `ANGAY_Inventory_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
   function downloadTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([COLUMNS, ['White Rice', 'Grains', 100, 'kg', '2026-12-31']]);
     const wb = XLSX.utils.book_new();
@@ -300,6 +316,7 @@ export default function FoodbankInventory() {
           <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
           <div className="flex gap-2">
             <Button variant="secondary" icon={<Box size={16} />} onClick={() => setShowPack(true)}>Pack Donation</Button>
+            <Button variant="secondary" icon={<Download size={16} />} onClick={exportToExcel}>Export Inventory</Button>
             <Button variant="secondary" icon={<Download size={16} />} onClick={downloadTemplate}>Download Template</Button>
             <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileRef.current?.click()}>Upload Excel</Button>
             <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>Add Item</Button>
