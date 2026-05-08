@@ -293,7 +293,7 @@ export default function BarangayMessages() {
                 <div key={msg.id} className={`flex flex-col ${msg.user_id === myId ? 'items-end' : 'items-start'}`}>
                   <div className={`max-w-md px-4 py-3 rounded-2xl text-sm shadow-sm
                     ${msg.user_id === myId ? 'bg-[#FE9800] text-white rounded-tr-none' : 'bg-white border border-gray-100 text-[#333] rounded-tl-none'}`}>
-                    <p>{msg.content}</p>
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
                   </div>
                   <span className="text-[10px] text-[#AAAAAA] mt-1.5 font-medium">
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -286,6 +286,42 @@ export default function FoodbankDonations() {
       scheduled_date: form.scheduled_date, status: 'pending', package_id: form.package_id || null
     });
     if (error) return { error: error.message };
+    
+    // Automatically send a Message Box to the Barangay chat
+    try {
+      const recipientUserId = form.barangay_id;
+      if (user.id && recipientUserId) {
+        // Find or create room
+        const { data: myRooms } = await supabase.from('room_members').select('room_id').eq('user_id', user.id);
+        const { data: theirRooms } = await supabase.from('room_members').select('room_id').eq('user_id', recipientUserId);
+        
+        const myIds = new Set((myRooms || []).map(r => r.room_id));
+        let roomId = (theirRooms || []).find(r => myIds.has(r.room_id))?.room_id;
+
+        if (!roomId) {
+          const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${bay?.barangay_name || "Barangay"}__auth__${recipientUserId}` }]).select().single();
+          if (newRoom) {
+            roomId = newRoom.id;
+            await supabase.from('room_members').insert([
+              { room_id: roomId, user_id: user.id },
+              { room_id: roomId, user_id: recipientUserId }
+            ]);
+          }
+        }
+
+        if (roomId) {
+          const messageContent = `🚚 AID PACKAGE DISPATCHED\n\nItems: ${form.items}\nExpected Arrival: ${fmt(form.scheduled_date)}\n\nHello! We have dispatched an aid package to your barangay. Please coordinate with us for the turnover.`;
+          await supabase.from('messages').insert({
+            room_id: roomId,
+            user_id: user.id,
+            content: messageContent
+          });
+        }
+      }
+    } catch (msgErr) {
+      console.error("Auto-message error:", msgErr);
+    }
+
     if (form.package_id) await supabase.from('donation_packages').update({ status: 'pending' }).eq('id', form.package_id);
     setShowModal(false);
     await loadAll();

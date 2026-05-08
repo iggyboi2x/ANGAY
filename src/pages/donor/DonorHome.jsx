@@ -239,13 +239,48 @@ export default function DonorHome() {
     const { error } = await supabase.from("donations").insert(payload);
 
     if (!error) {
-      // Notify the foodbank
+      // 1. Notify the foodbank
       await supabase.from("notifications").insert({
         user_id: donationForm.foodbank_id,
         title: "New Donation Proposal",
         body: `${displayName || 'A donor'} has proposed to donate ${itemsString}.`,
         is_read: false
       });
+
+      // 2. Automatically send a Message Box in the chat
+      try {
+        const recipientUserId = donationForm.foodbank_id;
+        if (user?.id && recipientUserId) {
+          // Find or create room
+          const { data: myRooms } = await supabase.from('room_members').select('room_id').eq('user_id', user.id);
+          const { data: theirRooms } = await supabase.from('room_members').select('room_id').eq('user_id', recipientUserId);
+          
+          const myIds = new Set((myRooms || []).map(r => r.room_id));
+          let roomId = (theirRooms || []).find(r => myIds.has(r.room_id))?.room_id;
+
+          if (!roomId) {
+            const { data: newRoom } = await supabase.from('rooms').insert([{ name: `${selectedFoodbankLabel || "Foodbank"}__auth__${recipientUserId}` }]).select().single();
+            if (newRoom) {
+              roomId = newRoom.id;
+              await supabase.from('room_members').insert([
+                { room_id: roomId, user_id: user.id },
+                { room_id: roomId, user_id: recipientUserId }
+              ]);
+            }
+          }
+
+          if (roomId) {
+            const messageContent = `📦 NEW DONATION PROPOSAL\n\nItems: ${itemsString}\nScheduled Date: ${formatDate(donationForm.scheduled_date)}\n\nHello! I have just submitted a donation proposal. Looking forward to your confirmation.`;
+            await supabase.from('messages').insert({
+              room_id: roomId,
+              user_id: user.id,
+              content: messageContent
+            });
+          }
+        }
+      } catch (msgErr) {
+        console.error("Auto-message error:", msgErr);
+      }
     }
 
     setSavingDonation(false);
