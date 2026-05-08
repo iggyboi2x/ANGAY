@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Package, Box, Gift, Settings, LogOut, Wheat, X } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Package, Box, Gift, Settings, LogOut, Wheat, X, AlertTriangle } from 'lucide-react';
+import ReportModal from '../ReportModal';
 import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 
@@ -14,6 +15,7 @@ const navItemsList = [
 
 export default function FoodbankSidebar({ mobileOpen, setMobileOpen }) {
   const navigate = useNavigate();
+  const [reportOpen, setReportOpen] = useState(false);
   const { id: userId } = useProfile();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [lastViewedMsgs, setLastViewedMsgs] = useState(() => {
@@ -133,8 +135,18 @@ export default function FoodbankSidebar({ mobileOpen, setMobileOpen }) {
           <LogOut size={18} className="text-[#888888]" />
           <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Logout</span>
         </button>
+
+        <button
+          onClick={() => setReportOpen(true)}
+          className="flex items-center gap-3 px-4 h-12 text-gray-400 hover:bg-orange-50 hover:text-[#FE9800] rounded-lg transition-colors w-full group mt-1"
+        >
+          <AlertTriangle size={18} className="text-gray-400 group-hover:text-[#FE9800]" />
+          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Report Issue</span>
+        </button>
       </div>
       </div>
+
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
     </>
   );
 }

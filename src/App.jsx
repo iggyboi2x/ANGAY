@@ -18,6 +18,12 @@ import BarangayMessages from "./pages/barangay/BarangayMessages";
 import BarangayDemographics from "./pages/barangay/BarangayDemographics";
 import BarangayDonations from "./pages/barangay/BarangayDonations";
 import BarangayAccountSettings from './pages/barangay/BarangayAccountSettings';
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminVerification from "./pages/admin/AdminVerification";
+import AdminLogistics from "./pages/admin/AdminLogistics";
+import AdminEmergency from "./pages/admin/AdminEmergency";
+import AdminLogs from "./pages/admin/AdminLogs";
+import AdminReports from "./pages/admin/AdminReports";
 
 function PresenceTracker() {
   useEffect(() => {
@@ -66,6 +72,7 @@ const ROLE_HOME = {
   donor: "/donor/home",
   foodbank: "/foodbank/dashboard",
   barangay: "/barangay/dashboard",
+  admin: "/admin/dashboard",
 };
 
 function RequireAuth({ children, allowedRoles }) {
@@ -162,6 +169,15 @@ function App() {
           <Route path="/barangay/demographics" element={<RequireAuth allowedRoles={["barangay"]}><BarangayDemographics /></RequireAuth>} />
           <Route path="/barangay/donations" element={<RequireAuth allowedRoles={["barangay"]}><BarangayDonations /></RequireAuth>} />
           <Route path="/barangay/account" element={<RequireAuth allowedRoles={["barangay"]}><BarangayAccountSettings /></RequireAuth>} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
+          <Route path="/admin/verification" element={<RequireAuth allowedRoles={["admin"]}><AdminVerification /></RequireAuth>} />
+          <Route path="/admin/users" element={<RequireAuth allowedRoles={["admin"]}><AdminVerification /></RequireAuth>} />
+          <Route path="/admin/reports" element={<RequireAuth allowedRoles={["admin"]}><AdminReports /></RequireAuth>} />
+          <Route path="/admin/logistics" element={<RequireAuth allowedRoles={["admin"]}><AdminLogistics /></RequireAuth>} />
+          <Route path="/admin/emergency" element={<RequireAuth allowedRoles={["admin"]}><AdminEmergency /></RequireAuth>} />
+          <Route path="/admin/logs" element={<RequireAuth allowedRoles={["admin"]}><AdminLogs /></RequireAuth>} />
         </Routes>
       </BrowserRouter>
     </>

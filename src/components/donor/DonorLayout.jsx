@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Settings, Wheat, X, CheckCircle, Calendar } from "lucide-react";
+import { Bell, LogOut, Settings, Wheat, X, CheckCircle, Calendar, AlertTriangle } from "lucide-react";
+import ReportModal from "../ReportModal";
 import { supabase } from "../../../supabase";
 
 import { useProfile } from "../../hooks/useProfile";
@@ -12,6 +13,7 @@ export default function DonorLayout({ children }) {
   const { id: userId, displayName: userName, initials, avatarUrl, loading: profileLoading } = useProfile();
   const [notifOpen, setNotifOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [activeCrises, setActiveCrises] = useState([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -302,6 +304,17 @@ export default function DonorLayout({ children }) {
                   <LogOut size={14} />
                   Logout
                 </button>
+                <div className="border-t border-gray-50 my-1" />
+                <button
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    setReportOpen(true);
+                  }}
+                  className="w-full px-3.5 py-2.5 text-left text-[11px] text-gray-400 font-bold uppercase tracking-widest hover:bg-orange-50 hover:text-[#FE9800] flex items-center gap-2"
+                >
+                  <AlertTriangle size={14} />
+                  Report Issue
+                </button>
               </div>
             )}
           </div>
@@ -310,6 +323,7 @@ export default function DonorLayout({ children }) {
 
       <main>{children}</main>
       <CalendarPanel isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   );
 }
