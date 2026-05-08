@@ -9,6 +9,7 @@ import { supabase } from "../../../supabase";
 import { useMapPins } from "../../hooks/useMapPins";
 import { useProfile } from "../../hooks/useProfile";
 import FlashMessage from "../../components/FlashMessage";
+import CalendarPanel from "../../components/CalendarPanel";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -50,6 +51,7 @@ export default function DonorHome() {
   const [distributions, setDistributions] = useState([]);
   const [loadingDistributions, setLoadingDistributions] = useState(true);
   const [selectedPin, setSelectedPin] = useState(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [pinDetails, setPinDetails] = useState({ history: [], helped: [] });
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [donationStats, setDonationStats] = useState({});
@@ -281,7 +283,7 @@ export default function DonorHome() {
       <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden bg-gray-50">
 
         {/* Search and Filter Overlay */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-2xl px-4 flex flex-col gap-3">
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-3xl px-4 flex flex-col gap-3">
           <div className="flex gap-2">
             <div className="relative flex-1 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#FE9800] transition-colors" size={20} />
@@ -316,7 +318,15 @@ export default function DonorHome() {
               )}
             </div>
 
-            <div className="flex bg-white rounded-2xl shadow-xl p-1.5 ring-2 ring-transparent">
+            <div className="flex bg-white rounded-2xl shadow-xl p-1.5 ring-2 ring-transparent shrink-0">
+              <button
+                onClick={() => setCalendarOpen(true)}
+                className="px-4 py-2 rounded-xl text-gray-500 hover:bg-orange-50 hover:text-[#FE9800] transition-all flex items-center gap-2"
+                title="View Calendar"
+              >
+                <Calendar size={18} />
+              </button>
+              <div className="w-px h-6 bg-gray-100 self-center mx-1" />
               <button
                 onClick={() => setFilterType("all")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filterType === 'all' ? 'bg-[#FE9800] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
@@ -338,6 +348,8 @@ export default function DonorHome() {
             </div>
           </div>
         </div>
+
+        <CalendarPanel isOpen={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
         {/* Details Slide-in Panel */}
         <div

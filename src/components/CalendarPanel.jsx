@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, X, Plus, Pencil, Trash2, Clock, Calendar as CalIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Plus, Pencil, Trash2, Clock, Calendar as CalIcon, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useProfile } from '../hooks/useProfile';
 
@@ -46,23 +47,74 @@ export default function CalendarPanel({ isOpen, onClose }) {
     }
   }, [isOpen, year, month, userId, role]);
 
+  const navigate = useNavigate();
+
+  const handleRedirect = () => {
+    onClose(); // Close the calendar panel
+    if (role === 'donor') navigate('/donor/donations');
+    else if (role === 'foodbank') navigate('/foodbank/donations');
+    else if (role === 'barangay') navigate('/barangay/donations');
+  };
+
   const fetchEvents = async () => {
     setLoading(true);
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
 
     try {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq(idField, userId)
-        .gte('event_date', startDate)
-        .lte('event_date', endDate)
-        .order('event_date', { ascending: true })
-        .order('start_time', { ascending: true });
+      // 1. Fetch manual events
+      let manualEvents = [];
+      if (role !== 'donor') {
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq(idField, userId)
+          .gte('event_date', startDate)
+          .lte('event_date', endDate);
+        if (!error) manualEvents = (data || []).map(e => ({ ...e, type: 'manual' }));
+      }
 
-      if (error) throw error;
-      setEvents(data || []);
+      // 2. Fetch Donation Proposals
+      let donationEvents = [];
+      let donationQuery = supabase.from('donations').select('*').gte('scheduled_date', startDate).lte('scheduled_date', endDate);
+      if (role === 'donor') donationQuery = donationQuery.eq('donor_id', userId);
+      else if (role === 'foodbank') donationQuery = donationQuery.eq('foodbank_id', userId);
+      
+      const { data: donations } = await donationQuery;
+      if (donations) {
+        donationEvents = donations.map(d => ({
+          id: `don-${d.id}`,
+          title: role === 'foodbank' ? `Pick up: ${d.items}` : `Donation: ${d.items}`,
+          description: `Partner: ${d.foodbank_name || 'Donor'}`,
+          event_date: d.scheduled_date,
+          start_time: '08:00:00',
+          type: 'donation',
+          status: d.status
+        }));
+      }
+
+      // 3. Fetch Distributions (For Foodbanks and Barangays)
+      let distributionEvents = [];
+      if (role === 'foodbank' || role === 'barangay') {
+        let distQuery = supabase.from('distributions').select('*').gte('created_at', startDate).lte('created_at', endDate);
+        if (role === 'foodbank') distQuery = distQuery.eq('foodbank_id', userId);
+        else distQuery = distQuery.eq('barangay_id', userId);
+
+        const { data: dists } = await distQuery;
+        if (dists) {
+          distributionEvents = dists.map(d => ({
+            id: `dist-${d.id}`,
+            title: role === 'barangay' ? `Pickup Aid: ${d.items}` : `Dispatch: ${d.items}`,
+            description: `Location: ${d.barangay_name || 'Barangay'}`,
+            event_date: d.created_at.split('T')[0],
+            start_time: '10:00:00',
+            type: 'distribution',
+            status: d.status
+          }));
+        }
+      }
+
+      setEvents([...manualEvents, ...donationEvents, ...distributionEvents]);
     } catch (err) {
       console.error('Error fetching events:', err);
     } finally {
@@ -238,21 +290,56 @@ export default function CalendarPanel({ isOpen, onClose }) {
           ) : (
             <div className="space-y-3">
               {selectedDateEvents.map(e => (
-                <div key={e.id} className="group relative bg-[#F9FAFB] border border-[#F0F0F0] rounded-xl p-3 hover:border-[#FE9800]/30 transition-all">
+                <div 
+                  key={e.id} 
+                  onClick={() => e.type !== 'manual' && handleRedirect()}
+                  className={`group relative bg-[#F9FAFB] border rounded-xl p-3 transition-all 
+                  ${(e.status === 'completed' || e.status === 'received' || e.status === 'distributed') ? 'border-green-100 bg-green-50/10 opacity-75' : 
+                    e.type !== 'manual' ? 'border-orange-100 hover:border-orange-300 bg-orange-50/10 cursor-pointer' : 'border-[#F0F0F0] hover:border-[#FE9800]/30'}`}>
+                  
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-[#1A1A1A] mb-0.5" style={{ fontFamily: 'DM Sans' }}>{e.title}</p>
-                      {e.description && <p className="text-[10px] text-[#888888] line-clamp-2 mb-1.5">{e.description}</p>}
-                      <div className="flex items-center gap-1.5 text-[10px] text-[#FE9800] font-medium">
-                        <Clock size={10} />
-                        {e.start_time ? e.start_time.slice(0, 5) : 'Anytime'} 
-                        {e.end_time ? ` - ${e.end_time.slice(0, 5)}` : ''}
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className={`text-xs font-bold ${(e.status === 'completed' || e.status === 'received' || e.status === 'distributed') ? 'text-green-700' : 'text-[#1A1A1A]'}`}>
+                          {e.title}
+                        </p>
+                        {e.type !== 'manual' && (
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
+                            (e.status === 'completed' || e.status === 'received' || e.status === 'distributed') ? 'bg-green-500 text-white' : 'bg-[#FE9800] text-white'
+                          }`}>
+                            {(e.status === 'completed' || e.status === 'received' || e.status === 'distributed') ? 'Done' : e.type}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <p className="text-[10px] text-[#888888] line-clamp-1 mb-1.5">{e.description}</p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[10px] text-[#FE9800] font-medium">
+                          <Clock size={10} />
+                          {e.type !== 'manual' ? 'Scheduled' : (e.start_time ? e.start_time.slice(0, 5) : 'Anytime')}
+                        </div>
+
+                        {e.type !== 'manual' && e.status !== 'completed' && e.status !== 'received' && e.status !== 'distributed' && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[#FE9800] group-hover:underline">
+                            Manage in Logistics Hub →
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(e)} className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><Pencil size={12} /></button>
-                      <button onClick={() => handleDelete(e.id)} className="p-1 text-[#888888] hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                    </div>
+
+                    {e.type === 'manual' && (
+                      <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                        <button onClick={(ev) => { ev.stopPropagation(); openEdit(e); }} className="p-1 text-[#888888] hover:text-[#FE9800] transition-colors"><Pencil size={12} /></button>
+                        <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-1 text-[#888888] hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+                      </div>
+                    )}
+
+                    {(e.status === 'completed' || e.status === 'received' || e.status === 'distributed') && (
+                      <div className="ml-2 text-green-500">
+                        <CheckCircle size={14} />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
