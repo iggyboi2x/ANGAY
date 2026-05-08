@@ -10,7 +10,7 @@ import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 import {
   Package, AlertTriangle, CloudUpload, Search,
-  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check
+  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check, ChevronDown, MoreVertical
 } from 'lucide-react';
 import FlashMessage from '../../components/FlashMessage';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -54,8 +54,20 @@ export default function FoodbankInventory() {
 
   const [flash, setFlash] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const fileRef = useRef();
+  const dropdownRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (foodbankId) { fetchCategories(); fetchItems(); }
@@ -251,9 +263,43 @@ export default function FoodbankInventory() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
           <div className="flex gap-2">
-            <Button variant="secondary" icon={<Download size={16} />} onClick={exportToExcel}>Export Inventory</Button>
-            <Button variant="secondary" icon={<Download size={16} />} onClick={downloadTemplate}>Download Template</Button>
-            <Button variant="secondary" icon={<Upload size={16} />} onClick={() => fileRef.current?.click()}>Upload Excel</Button>
+            <div className="relative" ref={dropdownRef}>
+              <Button 
+                variant="secondary" 
+                icon={<ChevronDown size={16} />} 
+                onClick={() => setShowDropdown(!showDropdown)}
+              >
+                Inventory Actions
+              </Button>
+              
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-[#F0F0F0] rounded-xl shadow-[0px_10px_30px_rgba(0,0,0,0.08)] z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button 
+                    onClick={() => { exportToExcel(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={15} className="text-[#888]" />
+                    <span className="font-medium">Export Inventory</span>
+                  </button>
+                  <button 
+                    onClick={() => { downloadTemplate(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Download size={15} className="text-[#888]" />
+                    <span className="font-medium">Download Template</span>
+                  </button>
+                  <div className="h-px bg-[#F0F0F0] my-1 mx-2" />
+                  <button 
+                    onClick={() => { fileRef.current?.click(); setShowDropdown(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                  >
+                    <Upload size={15} className="text-[#888]" />
+                    <span className="font-medium">Upload Excel</span>
+                  </button>
+                </div>
+              )}
+            </div>
+            
             <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>Add Item</Button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
           </div>

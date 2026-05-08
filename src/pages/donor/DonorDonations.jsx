@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import DonorLayout from "../../components/donor/DonorLayout";
 import { 
   Package, Clock, CheckCircle, Gift, ArrowRight, X, Search, 
-  Trash2, MessageSquare, CheckCircle2, ChevronRight, MapPin 
+  Trash2, MessageSquare, CheckCircle2, ChevronRight, MapPin, LayoutGrid, List
 } from "lucide-react";
 import { supabase } from "../../../supabase";
 import Modal from "../../components/Modal";
@@ -34,6 +34,8 @@ export default function DonorDonations() {
   const [loading, setLoading]     = useState(true);
   const [viewingProof, setViewingProof] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
+  const [viewingItem, setViewingItem] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -146,24 +148,19 @@ export default function DonorDonations() {
               ))}
             </div>
 
-            {/* Type Toggles */}
-            <div className="flex gap-3">
-              {[
-                { key: 'all', label: 'All Types' },
-                { key: 'direct', label: 'Direct Aid' },
-                { key: 'reserve', label: 'General Reserve' }
-              ].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setFilterType(t.key)}
-                  className={`text-[9px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-full border transition-all
-                    ${filterType === t.key 
-                      ? "bg-[#1A1A1A] text-white border-[#1A1A1A]" 
-                      : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"}`}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 bg-[#F5F5F5] p-1.5 rounded-[18px] w-fit mt-4">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-[14px] transition-all ${viewMode === 'grid' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888] hover:text-[#FE9800]'}`}
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-[14px] transition-all ${viewMode === 'list' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888] hover:text-[#FE9800]'}`}
+              >
+                <List size={18} />
+              </button>
             </div>
           </div>
         </div>
@@ -183,167 +180,206 @@ export default function DonorDonations() {
             <p className="text-lg font-bold text-gray-400 uppercase tracking-tight">No donations found</p>
             <p className="text-sm text-gray-400 mt-1">Your generosity will show up here.</p>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-2 gap-6">
-            {filteredDonations.map((d) => {
-              const s = STATUS_STYLE[d.status] || STATUS_STYLE.pending;
-              const isDirect = !!d.barangay_name;
-              const hasImpact = d.impact_logs?.length > 0;
-              const pkg = d.donation_packages?.[0];
-              const dist = pkg?.distributions?.[0];
+              {filteredDonations.map((d) => {
+                const isDirect = !!d.barangay_name;
 
-              return (
-                <div key={d.id} className={`bg-white border ${isDirect ? 'border-orange-100' : 'border-blue-100'} rounded-[2rem] shadow-sm p-7 flex flex-col gap-4 relative overflow-hidden group hover:shadow-xl transition-all duration-500`}>
-                  {/* Type Ribbon */}
-                  <div className={`absolute top-0 right-0 px-6 py-1.5 rounded-bl-2xl text-[8px] font-black uppercase tracking-[0.2em] ${isDirect ? 'bg-[#FE9800] text-white' : 'bg-blue-600 text-white'}`}>
-                    {isDirect ? 'Direct Aid' : 'General Reserve'}
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-2xl ${isDirect ? 'bg-[#FFF3DC]' : 'bg-blue-50'} flex items-center justify-center shrink-0 shadow-sm`}>
-                        <Gift size={24} className={isDirect ? 'text-[#FE9800]' : 'text-blue-600'} />
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{d.foodbank_name}</p>
-                        <p className="text-xs text-gray-400 font-medium italic">Partner Foodbank</p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full ${s.bg} ${s.text} border border-transparent`}>
-                      {s.label}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className={`p-4 ${isDirect ? 'bg-orange-50/30' : 'bg-blue-50/30'} rounded-2xl border border-transparent group-hover:border-current/10 transition-colors`}>
-                      <p className={`text-[10px] ${isDirect ? 'text-[#FE9800]' : 'text-blue-600'} font-black uppercase tracking-widest mb-1.5 opacity-70`}>Donated Items</p>
-                      <p className="text-sm text-[#1A1A1A] font-bold leading-relaxed">{d.items}</p>
+                return (
+                  <div key={d.id} className={`bg-white border ${isDirect ? 'border-orange-100' : 'border-blue-100'} rounded-[2rem] shadow-sm p-7 flex flex-col gap-4 relative overflow-hidden group hover:shadow-xl transition-all duration-500`}>
+                    {/* ... (existing DonorCard contents) */}
+                    <div className={`absolute top-0 right-0 px-6 py-1.5 rounded-bl-2xl text-[8px] font-black uppercase tracking-[0.2em] ${isDirect ? 'bg-[#FE9800] text-white' : 'bg-blue-600 text-white'}`}>
+                      {isDirect ? 'Direct Aid' : 'General Reserve'}
                     </div>
 
-                    {isDirect && (
-                      <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <MapPin size={14} />
-                          <span className="text-xs font-bold uppercase tracking-tighter">Destination: {d.barangay_name}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-2xl ${isDirect ? 'bg-[#FFF3DC]' : 'bg-blue-50'} flex items-center justify-center shrink-0 shadow-sm`}>
+                          <Gift size={24} className={isDirect ? 'text-[#FE9800]' : 'text-blue-600'} />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{d.foodbank_name}</p>
+                          <p className="text-xs text-gray-400 font-medium italic">Partner Foodbank</p>
                         </div>
                       </div>
-                    )}
-                  </div>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full ${STATUS_STYLE[d.status]?.bg} ${STATUS_STYLE[d.status]?.text} border border-transparent`}>
+                        {STATUS_STYLE[d.status]?.label}
+                      </span>
+                    </div>
 
-                  {d.status !== "rejected" && (
-                    <div className="py-2 border-y border-gray-50">
-                      {isDirect ? (
-                        /* Linear journey for Direct Aid */
-                        <LogisticProgressBar 
-                          status={d.logisticStatus} 
-                          onShowProof={() => setViewingProof(dist)}
-                        />
-                      ) : (
-                        /* Multi-point status for Reserve */
-                        <div className="flex items-center justify-between px-4 py-2">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasImpact ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                              <Package size={16} />
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory Status</p>
-                              <p className={`text-xs font-bold ${hasImpact ? 'text-blue-600' : 'text-gray-600'}`}>
-                                {hasImpact ? `Supporting ${d.impact_logs.length} Mission${d.impact_logs.length > 1 ? 's' : ''}` : 'Secured in Foodbank Reserve'}
-                              </p>
-                            </div>
+                    <div className="space-y-3">
+                      <div className={`p-4 ${isDirect ? 'bg-orange-50/30' : 'bg-blue-50/30'} rounded-2xl border border-transparent group-hover:border-current/10 transition-colors`}>
+                        <p className={`text-[10px] ${isDirect ? 'text-[#FE9800]' : 'text-blue-600'} font-black uppercase tracking-widest mb-1.5 opacity-70`}>Donated Items</p>
+                        <p className="text-sm text-[#1A1A1A] font-bold leading-relaxed">{d.items}</p>
+                      </div>
+
+                      {isDirect && (
+                        <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <MapPin size={14} />
+                            <span className="text-xs font-bold uppercase tracking-tighter">Destination: {d.barangay_name}</span>
                           </div>
-                          {hasImpact && (
-                            <div className="flex -space-x-2">
-                              {d.impact_logs.map((_, i) => (
-                                <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-blue-500 flex items-center justify-center text-[8px] font-black text-white">
-                                  {i + 1}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Inventory Impact Feed - Enhanced for Multi-point */}
-                  {!isDirect && hasImpact && (
-                    <div className="mt-4 p-4 bg-blue-50/30 rounded-[2rem] border border-blue-100/50">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <Package size={14} />
-                          <p className="text-[10px] font-black uppercase tracking-widest">Distribution Timeline</p>
-                        </div>
-                        <span className="text-[9px] font-black px-2 py-0.5 bg-blue-600 text-white rounded-full uppercase">Impact Feed</span>
-                      </div>
-                      <div className="space-y-4">
-                        {d.impact_logs.map((log, i) => {
-                          const impactPkg  = log.donation_packages;
-                          const impactDist = impactPkg?.distributions?.[0];
-                          
-                          return (
-                            <div key={i} className="flex gap-4 items-start group/log cursor-pointer relative" onClick={() => impactDist && setViewingProof(impactDist)}>
-                              {i !== d.impact_logs.length - 1 && (
-                                <div className="absolute left-[7px] top-6 bottom-0 w-[1px] bg-blue-200/50" />
-                              )}
-                              <div className={`w-[15px] h-[15px] rounded-full border-4 mt-1 shrink-0 z-10 ${impactDist?.status === 'distributed' ? 'bg-blue-500 border-blue-50' : 'bg-gray-300 border-gray-100'}`} />
-                              <div className="flex-1 bg-white p-3 rounded-2xl border border-blue-100/30 shadow-sm group-hover/log:border-blue-400/50 transition-all">
-                                <p className="text-[11px] text-gray-600 leading-snug">
-                                  <span className="font-bold text-blue-700">{log.quantity}{log.unit}</span> {impactDist?.status === 'distributed' ? 'distributed to' : 'assigned to'} <span className="font-bold text-[#1A1A1A]">{impactDist?.barangay_name || impactPkg?.name || 'Package'}</span>
+                    {d.status !== "rejected" && (
+                      <div className="py-2 border-y border-gray-50">
+                        {isDirect ? (
+                          <LogisticProgressBar 
+                            status={d.logisticStatus} 
+                            onShowProof={() => setViewingProof(d.donation_packages?.[0]?.distributions?.[0])}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-between px-4 py-2">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${d.impact_logs?.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                <Package size={16} />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Inventory Status</p>
+                                <p className={`text-xs font-bold ${d.impact_logs?.length > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                                  {d.impact_logs?.length > 0 ? `Supporting ${d.impact_logs.length} Mission${d.impact_logs.length > 1 ? 's' : ''}` : 'Secured in Foodbank Reserve'}
                                 </p>
-                                <div className="mt-1 flex items-center justify-between">
-                                  <div className="flex flex-col">
-                                    <p className="text-[9px] text-gray-400 font-bold">
-                                      {impactDist?.status === 'distributed' 
-                                        ? `Mission Accomplished on ${fmt(impactDist.distributed_at)}`
-                                        : impactDist?.status === 'received' 
-                                          ? 'Currently with Barangay (In Stock)'
-                                          : 'Awaiting Dispatch to Barangay'}
-                                    </p>
-                                  </div>
-                                  {impactDist?.status === 'distributed' && (
-                                    <div className="flex items-center gap-1 text-[8px] font-black text-blue-500 uppercase tracking-tighter opacity-0 group-hover/log:opacity-100 transition-opacity">
-                                      View Proof <ChevronRight size={8} />
-                                    </div>
-                                  )}
-                                </div>
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  
-                  {!isDirect && !hasImpact && d.status === 'completed' && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Clock size={14} />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Distribution</p>
-                      </div>
-                      <p className="text-[11px] text-gray-400 mt-1 font-medium italic">Your contribution is currently in the Foodbank Reserve, supporting future community aid.</p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between mt-2 pt-1">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                      Scheduled: {fmt(d.scheduled_date)}
-                    </p>
-                    {d.status === "rejected" && (
-                      <button 
-                        onClick={() => setConfirmDeleteId(d.id)}
-                        className="flex items-center gap-1.5 text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={12} /> Remove
-                      </button>
                     )}
+
+                    <div className="flex items-center justify-between mt-2 pt-1">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                        Scheduled: {fmt(d.scheduled_date)}
+                      </p>
+                      {d.status === "rejected" && (
+                        <button 
+                          onClick={() => setConfirmDeleteId(d.id)}
+                          className="flex items-center gap-1.5 text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={12} /> Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50/50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Partner Foodbank</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Items Donated</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Type</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredDonations.map((d) => (
+                    <tr 
+                      key={d.id} 
+                      onClick={() => setViewingItem(d)}
+                      className="group hover:bg-gray-50/50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl ${d.barangay_name ? 'bg-[#FFF3DC]' : 'bg-blue-50'} flex items-center justify-center`}>
+                            <Gift size={18} className={d.barangay_name ? 'text-[#FE9800]' : 'text-blue-600'} />
+                          </div>
+                          <span className="text-sm font-bold text-[#1A1A1A]">{d.foodbank_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm text-gray-600 font-medium">{d.items}</span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg ${d.barangay_name ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+                          {d.barangay_name ? 'Direct' : 'Reserve'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-[11px] text-gray-400 font-bold">{fmt(d.created_at)}</span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${STATUS_STYLE[d.status]?.bg} ${STATUS_STYLE[d.status]?.text}`}>
+                          {STATUS_STYLE[d.status]?.label}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </div>
+
+      {/* Detail Popup */}
+      {viewingItem && (
+        <div 
+          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto" 
+          onClick={() => setViewingItem(null)}
+        >
+          <div 
+            className="w-full max-w-[540px] animate-in fade-in zoom-in duration-300"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`bg-white border ${viewingItem.barangay_name ? 'border-orange-100' : 'border-blue-100'} rounded-[3rem] shadow-2xl p-10 flex flex-col gap-6 relative overflow-hidden`}>
+              <div className={`absolute top-0 right-0 px-8 py-2 rounded-bl-3xl text-[10px] font-black uppercase tracking-[0.2em] ${viewingItem.barangay_name ? 'bg-[#FE9800] text-white' : 'bg-blue-600 text-white'}`}>
+                {viewingItem.barangay_name ? 'Direct Aid' : 'General Reserve'}
+              </div>
+
+              <div className="flex items-start justify-between mt-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl ${viewingItem.barangay_name ? 'bg-[#FFF3DC]' : 'bg-blue-50'} flex items-center justify-center shrink-0`}>
+                    <Gift size={28} className={viewingItem.barangay_name ? 'text-[#FE9800]' : 'text-blue-600'} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-[#1A1A1A] tracking-tighter uppercase leading-tight">{viewingItem.foodbank_name}</h2>
+                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Partner Foodbank</p>
                   </div>
                 </div>
-              );
-            })}
+                <span className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full ${STATUS_STYLE[viewingItem.status]?.bg} ${STATUS_STYLE[viewingItem.status]?.text}`}>
+                  {STATUS_STYLE[viewingItem.status]?.label}
+                </span>
+              </div>
+
+              <div className="space-y-6">
+                <div className={`p-6 ${viewingItem.barangay_name ? 'bg-orange-50/30' : 'bg-blue-50/30'} rounded-[2rem] border border-transparent`}>
+                  <p className={`text-[11px] ${viewingItem.barangay_name ? 'text-[#FE9800]' : 'text-blue-600'} font-black uppercase tracking-[0.2em] mb-2`}>Donated Items Manifest</p>
+                  <p className="text-lg font-bold text-[#1A1A1A] leading-relaxed">{viewingItem.items}</p>
+                </div>
+
+                {viewingItem.barangay_name && (
+                  <div className="p-5 bg-gray-50 border border-gray-100 rounded-3xl flex items-center gap-3">
+                    <MapPin size={18} className="text-gray-400" />
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Destination</p>
+                      <p className="text-sm font-bold text-[#1A1A1A] uppercase tracking-tighter">Barangay {viewingItem.barangay_name}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 flex flex-col gap-4">
+                <div className="flex items-center justify-between px-2">
+                  <p className="text-[11px] text-gray-400 font-black uppercase tracking-[0.2em]">Donation ID</p>
+                  <p className="text-[11px] text-[#1A1A1A] font-black uppercase">#{viewingItem.id.substring(0, 8)}</p>
+                </div>
+                <button
+                  onClick={() => setViewingItem(null)}
+                  className="w-full py-4 bg-gray-100 text-[#1A1A1A] text-[10px] font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-gray-200 transition-colors mt-2"
+                >
+                  Close Tracking
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Proof Modal */}
       {viewingProof && (
