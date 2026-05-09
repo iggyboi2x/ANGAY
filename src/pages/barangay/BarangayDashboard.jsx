@@ -6,7 +6,7 @@ import CalendarPanel from '../../components/CalendarPanel';
 import BarangayNotificationBell from '../../components/barangay/BarangayNotificationBell';
 import { useMapPins } from '../../hooks/useMapPins';
 import { useProfile } from '../../hooks/useProfile';
-import { Bell, CalendarDays, AlertTriangle, Flame, Waves, X, CheckCircle2 } from 'lucide-react';
+import { Bell, CalendarDays, AlertTriangle, Flame, Waves, X, CheckCircle2, BadgeCheck } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
@@ -32,7 +32,7 @@ export default function BarangayDashboard() {
   const [selectedPin,  setSelectedPin]  = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const { pins: foodbanks, loading: pinsLoading } = useMapPins('foodbank');
-  const { id: myId, displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  const { id: myId, displayName, initials, avatarUrl, isVerified, loading: profileLoading } = useProfile();
   
   const [crisisData, setCrisisData] = useState({ is_in_crisis: false, crisis_type: null });
   const [showCrisisModal, setShowCrisisModal] = useState(false);
@@ -104,8 +104,9 @@ export default function BarangayDashboard() {
             </button>
             <BarangayNotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
-              <span className="text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
+              <span className="text-sm font-medium text-[#333] flex items-center gap-1" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}
+                {isVerified && <BadgeCheck size={16} className="text-blue-500 fill-blue-50" />}
               </span>
               {avatarUrl
                 ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover border-2 border-[#FE9800]" />

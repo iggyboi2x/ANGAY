@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
-import { FileDown, Download, Upload, FileText, ChevronDown, Bell, Search, User } from 'lucide-react';
+import { FileDown, Download, Upload, FileText, ChevronDown, Bell, Search, User, BadgeCheck } from 'lucide-react';
 import { useProfile } from '../../hooks/useProfile';
 import * as XLSX from 'xlsx';
 
 export default function AdminLayout({ children, title = "System Overview" }) {
-  const { displayName, avatarUrl, initials } = useProfile();
+  const { displayName, avatarUrl, initials, isVerified } = useProfile();
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const fileMenuRef = useRef(null);
 
@@ -125,7 +125,10 @@ export default function AdminLayout({ children, title = "System Overview" }) {
             {/* Profile */}
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-black text-[#1A1A1A] uppercase tracking-tighter leading-none">{displayName || 'Admin'}</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-black text-[#1A1A1A] uppercase tracking-tighter leading-none">{displayName || 'Admin'}</p>
+                  {isVerified && <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />}
+                </div>
                 <p className="text-[9px] text-[#FE9800] font-black uppercase tracking-widest mt-1">Super User</p>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center overflow-hidden">

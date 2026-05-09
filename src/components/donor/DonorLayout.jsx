@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Settings, Wheat, X, CheckCircle, Calendar, AlertTriangle } from "lucide-react";
+import { Bell, LogOut, Settings, Wheat, X, CheckCircle, Calendar, AlertTriangle, BadgeCheck } from "lucide-react";
 import ReportModal from "../ReportModal";
 import { supabase } from "../../../supabase";
 
@@ -10,7 +10,7 @@ import CalendarPanel from "../../components/CalendarPanel";
 export default function DonorLayout({ children }) {
   const navigate = useNavigate();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const { id: userId, displayName: userName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  const { id: userId, displayName: userName, initials, avatarUrl, isVerified, loading: profileLoading } = useProfile();
   const [notifOpen, setNotifOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -286,7 +286,16 @@ export default function DonorLayout({ children }) {
               )}
             </button>
             {profileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="px-4 py-4 bg-gray-50/50 border-b border-gray-50">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <p className="text-[11px] font-black text-[#1A1A1A] uppercase tracking-tighter truncate">{userName || 'Donor Account'}</p>
+                    {isVerified && <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />}
+                  </div>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                    {isVerified ? 'Verified Identity' : 'Basic Member'}
+                  </p>
+                </div>
                 <button
                   onClick={() => {
                     setProfileMenuOpen(false);
