@@ -172,7 +172,6 @@ function App() {
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
-          <Route path="/admin/verification" element={<RequireAuth allowedRoles={["admin"]}><AdminVerification /></RequireAuth>} />
           <Route path="/admin/users" element={<RequireAuth allowedRoles={["admin"]}><AdminVerification /></RequireAuth>} />
           <Route path="/admin/reports" element={<RequireAuth allowedRoles={["admin"]}><AdminReports /></RequireAuth>} />
           <Route path="/admin/logistics" element={<RequireAuth allowedRoles={["admin"]}><AdminLogistics /></RequireAuth>} />

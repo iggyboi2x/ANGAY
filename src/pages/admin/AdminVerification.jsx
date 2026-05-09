@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { supabase } from '../../../supabase';
-import { 
-  ShieldCheck, 
-  Search, 
-  Filter, 
-  ExternalLink, 
-  CheckCircle2, 
-  XCircle, 
-  User, 
-  Building2, 
-  MapPin, 
+import {
+  ShieldCheck,
+  Search,
+  Filter,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  User,
+  Building2,
+  MapPin,
   MoreVertical,
   Trash2,
   Ban,
@@ -55,37 +55,39 @@ export default function AdminVerification() {
         { data: foodbanks },
         { data: barangays }
       ] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, role'),
-        supabase.from('foodbanks').select('id, org_name'),
-        supabase.from('barangays').select('id, barangay_name')
+        supabase.from('profiles').select('*'),
+        supabase.from('foodbanks').select('id, org_name, logo_url'),
+        supabase.from('barangays').select('id, barangay_name, barangay_profile')
       ]);
 
-      const combined = [
-        ...(profiles || []).map(p => ({ 
-          ...p, 
-          role: 'donor', 
-          uniqueId: `donor-${p.id}`, 
-          name: p.full_name, 
-          status: p.is_verified ? 'verified' : 'pending' 
-        })),
-        ...(foodbanks || []).map(f => ({ 
-          ...f, 
-          role: 'foodbank', 
-          uniqueId: `foodbank-${f.id}`, 
-          name: f.org_name, 
-          status: f.is_verified ? 'verified' : 'pending' 
-        })),
-        ...(barangays || []).map(b => ({ 
-          ...b, 
-          role: 'barangay', 
-          uniqueId: `barangay-${b.id}`, 
-          name: b.barangay_name, 
-          status: b.is_verified ? 'verified' : 'pending' 
-        }))
-      ];
+      // Create lookup maps for quick access
+      const fbMap = Object.fromEntries((foodbanks || []).map(f => [f.id, f]));
+      const brgyMap = Object.fromEntries((barangays || []).map(b => [b.id, b]));
+
+      const combined = (profiles || []).map(p => {
+        let name = p.full_name || 'User';
+        let avatar = null;
+
+        if (p.role === 'foodbank' && fbMap[p.id]) {
+          name = fbMap[p.id].org_name;
+          avatar = fbMap[p.id].logo_url;
+        } else if (p.role === 'barangay' && brgyMap[p.id]) {
+          name = brgyMap[p.id].barangay_name;
+          avatar = brgyMap[p.id].barangay_profile;
+        }
+
+        return {
+          ...p,
+          name,
+          avatar,
+          uniqueId: `${p.role}-${p.id}`,
+          status: p.is_verified ? 'verified' : 'pending'
+        };
+      });
+
       setUsers(combined);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch users error:', err);
     } finally {
       setLoading(false);
     }
@@ -95,10 +97,16 @@ export default function AdminVerification() {
     setHistoryLoading(true);
     try {
       let query = supabase.from('donations').select('id, items, status, created_at');
-      
-      if (user.role === 'donor') query = query.eq('donor_id', user.id);
-      else if (user.role === 'foodbank') query = query.eq('foodbank_id', user.id);
-      else query = query.eq('barangay_id', user.id);
+
+      // Correctly map the role to the database column in donations
+      if (user.role === 'donor') {
+        query = query.eq('donor_id', user.id);
+      } else if (user.role === 'foodbank') {
+        query = query.eq('foodbank_id', user.id);
+      } else if (user.role === 'barangay') {
+        // Find if they are a recipient in donations
+        query = query.eq('barangay_id', user.id);
+      }
 
       const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
@@ -112,15 +120,20 @@ export default function AdminVerification() {
 
   const handleBan = async () => {
     try {
-      const table = selectedUser.role === 'donor' ? 'profiles' : 
-                    selectedUser.role === 'foodbank' ? 'foodbanks' : 'barangays';
-      
-      const { error } = await supabase
-        .from(table)
+      // 1. Update the primary Profiles record (Main Source of Truth)
+      const { error: profileError } = await supabase
+        .from('profiles')
         .update({ is_banned: true, ban_reason: banReason })
         .eq('id', selectedUser.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // 2. Sync with specific role table for redundancy
+      if (selectedUser.role === 'foodbank') {
+        await supabase.from('foodbanks').update({ is_banned: true, ban_reason: banReason }).eq('id', selectedUser.id);
+      } else if (selectedUser.role === 'barangay') {
+        await supabase.from('barangays').update({ is_banned: true, ban_reason: banReason }).eq('id', selectedUser.id);
+      }
 
       await supabase.from('admin_logs').insert({
         action: 'BAN',
@@ -142,13 +155,26 @@ export default function AdminVerification() {
     fetchUsers();
   }, []);
 
+  const [confirmAction, setConfirmAction] = useState(null); // { type, user }
+  const [toast, setToast] = useState(null); // { message, type }
+
   const handleVerify = async (user) => {
     try {
-      const table = user.role === 'donor' ? 'profiles' : 
-                    user.role === 'foodbank' ? 'foodbanks' : 'barangays';
-      
-      await supabase.from(table).update({ is_verified: true }).eq('id', user.id);
-      
+      // 1. Update the primary Profiles record
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ is_verified: true })
+        .eq('id', user.id);
+
+      if (profileError) throw profileError;
+
+      // 2. Sync with specific role table for compatibility
+      if (user.role === 'foodbank') {
+        await supabase.from('foodbanks').update({ is_verified: true }).eq('id', user.id);
+      } else if (user.role === 'barangay') {
+        await supabase.from('barangays').update({ is_verified: true }).eq('id', user.id);
+      }
+
       await supabase.from('admin_logs').insert({
         action: 'VERIFY',
         target_id: user.id,
@@ -157,9 +183,15 @@ export default function AdminVerification() {
 
       await fetchUsers();
       setSelectedUser(null);
-      alert(`${user.name} is now verified!`);
+      setConfirmAction(null);
+
+      // Trigger custom toast
+      setToast({ message: `${user.name} verified successfully!`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (err) {
-      alert('Verification failed: ' + err.message);
+      console.error('Verify error:', err);
+      setToast({ message: 'Error: ' + err.message, type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -171,7 +203,7 @@ export default function AdminVerification() {
 
       // Update role to admin
       await supabase.from('profiles').update({ role: 'admin' }).eq('id', data.id);
-      
+
       await supabase.from('admin_logs').insert({
         action: 'ADMIN_PROMOTE',
         target_id: data.id,
@@ -189,22 +221,22 @@ export default function AdminVerification() {
   };
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name?.toLowerCase().includes(search.toLowerCase()) || 
-                         u.email?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase());
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-    
+
     let matchesTab = true;
     if (activeTab === 'queue') matchesTab = u.status === 'pending' && !u.is_banned;
     else if (activeTab === 'banned') matchesTab = u.is_banned === true;
     else if (activeTab === 'users') matchesTab = !u.is_banned;
-    
+
     return matchesSearch && matchesRole && matchesTab;
   });
 
   return (
     <AdminLayout title="Identity & Trust">
       <div className="space-y-8 animate-in fade-in duration-500">
-        
+
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded-[1.5rem] w-fit">
@@ -212,11 +244,10 @@ export default function AdminVerification() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeTab === tab.id 
-                    ? 'bg-white text-[#FE9800] shadow-sm' 
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id
+                    ? 'bg-white text-[#FE9800] shadow-sm'
                     : 'text-gray-400 hover:text-gray-600'
-                }`}
+                  }`}
               >
                 <tab.icon size={14} />
                 {tab.label}
@@ -225,7 +256,7 @@ export default function AdminVerification() {
           </div>
 
           <div className="flex items-center gap-3">
-            <select 
+            <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="h-12 px-4 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-[#FE9800]"
@@ -235,7 +266,7 @@ export default function AdminVerification() {
               <option value="foodbank">Food Banks</option>
               <option value="barangay">Barangays</option>
             </select>
-            <button 
+            <button
               onClick={() => setShowInviteModal(true)}
               className="h-12 px-6 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-black/5"
             >
@@ -248,8 +279,8 @@ export default function AdminVerification() {
         {/* Search Bar */}
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search by name, email, or unique identification..."
             className="w-full h-14 pl-12 pr-4 bg-white border border-gray-100 rounded-[1.5rem] text-sm focus:outline-none focus:ring-2 focus:ring-[#FE9800]/10 focus:border-[#FE9800] transition-all"
             value={search}
@@ -270,19 +301,18 @@ export default function AdminVerification() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                [1,2,3,4,5].map(i => <tr key={i} className="animate-pulse h-20 bg-gray-50/10" />)
+                [1, 2, 3, 4, 5].map(i => <tr key={i} className="animate-pulse h-20 bg-gray-50/10" />)
               ) : filteredUsers.map((user) => (
                 <tr key={user.uniqueId} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                        user.role === 'foodbank' ? 'bg-orange-50 text-orange-500' :
-                        user.role === 'barangay' ? 'bg-blue-50 text-blue-500' :
-                        'bg-gray-100 text-gray-500'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${user.role === 'foodbank' ? 'bg-orange-50 text-orange-500' :
+                          user.role === 'barangay' ? 'bg-blue-50 text-blue-500' :
+                            'bg-gray-100 text-gray-500'
+                        }`}>
                         {user.role === 'foodbank' ? <Building2 size={20} /> :
-                         user.role === 'barangay' ? <MapPin size={20} /> :
-                         <User size={20} />}
+                          user.role === 'barangay' ? <MapPin size={20} /> :
+                            <User size={20} />}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -296,11 +326,10 @@ export default function AdminVerification() {
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                      user.role === 'foodbank' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                      user.role === 'barangay' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                      'bg-gray-50 text-gray-500 border-gray-100'
-                    }`}>
+                    <span className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${user.role === 'foodbank' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                        user.role === 'barangay' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                          'bg-gray-50 text-gray-500 border-gray-100'
+                      }`}>
                       {user.role}
                     </span>
                   </td>
@@ -323,7 +352,7 @@ export default function AdminVerification() {
                     )}
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button 
+                    <button
                       onClick={() => { setSelectedUser(user); fetchUserHistory(user); }}
                       className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#FE9800] transition-all shadow-lg shadow-black/5"
                     >
@@ -345,10 +374,10 @@ export default function AdminVerification() {
       </div>
 
       {/* User Inspection Modal */}
-      <Modal 
-        isOpen={!!selectedUser} 
-        onClose={() => setSelectedUser(null)} 
-        title="Identity Inspection" 
+      <Modal
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        title="Identity Inspection"
         width="lg"
       >
         <div className="space-y-8">
@@ -356,8 +385,8 @@ export default function AdminVerification() {
           <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2.5rem] border border-gray-100">
             <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center text-[#FE9800] shadow-sm border border-gray-100">
               {selectedUser?.role === 'foodbank' ? <Building2 size={32} /> :
-               selectedUser?.role === 'barangay' ? <MapPin size={32} /> :
-               <User size={32} />}
+                selectedUser?.role === 'barangay' ? <MapPin size={32} /> :
+                  <User size={32} />}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -367,11 +396,16 @@ export default function AdminVerification() {
               <p className="text-xs text-gray-500 font-medium">{selectedUser?.email}</p>
               <div className="flex items-center gap-3 mt-3">
                 <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-white border border-gray-200 rounded-lg">{selectedUser?.role}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-white border border-gray-200 rounded-lg">ID: {selectedUser?.id.slice(0,8)}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-white border border-gray-200 rounded-lg">ID: {selectedUser?.id.slice(0, 8)}</span>
               </div>
             </div>
             {selectedUser?.status === 'pending' && (
-              <Button onClick={() => handleVerify(selectedUser)} className="shadow-xl shadow-orange-500/20 h-14 px-8">Confirm Identity</Button>
+              <Button
+                onClick={() => setConfirmAction({ type: 'verify', user: selectedUser })}
+                className="shadow-xl shadow-orange-500/20 h-14 px-8"
+              >
+                Verify Account
+              </Button>
             )}
           </div>
 
@@ -410,9 +444,8 @@ export default function AdminVerification() {
                         <p className="text-[11px] font-black text-[#1A1A1A] uppercase">{h.item_name || h.items}</p>
                         <p className="text-[9px] text-gray-400 font-bold uppercase">{new Date(h.created_at).toLocaleDateString()}</p>
                       </div>
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                        h.status === 'distributed' || h.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-orange-600 bg-orange-50'
-                      }`}>{h.status}</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${h.status === 'distributed' || h.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-orange-600 bg-orange-50'
+                        }`}>{h.status}</span>
                     </div>
                   )) : (
                     <div className="p-12 text-center">
@@ -426,13 +459,13 @@ export default function AdminVerification() {
           </div>
 
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={() => { setShowBanModal(true); setSelectedUser(selectedUser); }}
               className="flex-1 h-14 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
             >
               <Ban size={16} /> Restrict Account
             </button>
-            <button 
+            <button
               onClick={() => setSelectedUser(null)}
               className="flex-1 h-14 bg-gray-100 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
             >
@@ -453,7 +486,7 @@ export default function AdminVerification() {
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Target User Email</label>
-            <input 
+            <input
               type="email"
               className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-[#FE9800] transition-all"
               placeholder="e.g. admin.team@angay.org"
@@ -461,9 +494,9 @@ export default function AdminVerification() {
               onChange={(e) => setInviteEmail(e.target.value)}
             />
           </div>
-          <Button 
-            className="w-full h-14" 
-            onClick={handleInviteAdmin} 
+          <Button
+            className="w-full h-14"
+            onClick={handleInviteAdmin}
             loading={inviting}
             disabled={!inviteEmail.includes('@')}
           >
@@ -481,7 +514,7 @@ export default function AdminVerification() {
               Restricting <span className="font-black">{selectedUser?.name}</span> will suspend their access to the logistics hub.
             </p>
           </div>
-          <textarea 
+          <textarea
             className="w-full h-32 p-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-red-500 transition-all resize-none"
             placeholder="Violation details..."
             value={banReason}
@@ -494,6 +527,41 @@ export default function AdminVerification() {
         </div>
       </Modal>
 
+      {/* Custom Confirmation Modal */}
+      <Modal
+        isOpen={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        title={confirmAction?.type === 'verify' ? 'Confirm Verification' : 'Confirm Action'}
+        width="sm"
+      >
+        <div className="space-y-6 text-center">
+          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto text-[#FE9800]">
+            <ShieldCheck size={40} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight">Trust Verification</h3>
+            <p className="text-sm text-gray-500">
+              Are you sure you want to verify <span className="font-bold text-[#1A1A1A]">{confirmAction?.user?.name}</span>?
+              This will grant them a verified status badge across the platform.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button variant="ghost" className="flex-1 h-14" onClick={() => setConfirmAction(null)}>Cancel</Button>
+            <Button className="flex-1 h-14" onClick={() => handleVerify(confirmAction.user)}>Verify Now</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Custom Toast Message */}
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-10 duration-500">
+          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 ${toast.type === 'success' ? 'bg-[#1A1A1A] text-white' : 'bg-red-600 text-white'
+            }`}>
+            {toast.type === 'success' ? <CheckCircle2 size={18} className="text-[#FE9800]" /> : <AlertCircle size={18} />}
+            <span className="text-[10px] font-black uppercase tracking-widest">{toast.message}</span>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

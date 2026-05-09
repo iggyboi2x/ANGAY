@@ -15,7 +15,6 @@ import { supabase } from '../../../supabase';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/admin/dashboard' },
-  { label: 'Verification', icon: ShieldCheck, to: '/admin/verification' },
   { label: 'User Management', icon: Users, to: '/admin/users' },
   { label: 'Reports & Bans', icon: AlertOctagon, to: '/admin/reports' },
   { label: 'Global Ledger', icon: History, to: '/admin/logistics' },
