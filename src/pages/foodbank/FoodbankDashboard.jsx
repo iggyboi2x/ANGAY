@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Menu, Search, CalendarDays, Package, AlertTriangle,
-  Truck, Clock, X, MapPin, Users, MessageSquare, Bell
+  Truck, Clock, X, MapPin, Users, MessageSquare, Bell, BadgeCheck
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -58,7 +58,7 @@ export default function FoodbankDashboard() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pins: barangays, loading: pinsLoading } = useMapPins('barangay');
-  const { id: foodbankId, displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
+  const { id: foodbankId, displayName, initials, avatarUrl, isVerified, loading: profileLoading } = useProfile();
 
   const [statsData, setStatsData] = useState({
     totalItems: 0,
@@ -294,8 +294,9 @@ export default function FoodbankDashboard() {
             </button>
             <NotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
-              <span className="hidden sm:inline text-sm font-medium text-[#333]" style={{ fontFamily: 'DM Sans' }}>
+              <span className="hidden sm:inline text-sm font-medium text-[#333] flex items-center gap-1" style={{ fontFamily: 'DM Sans' }}>
                 {profileLoading ? '…' : displayName}
+                {isVerified && <BadgeCheck size={16} className="text-blue-500 fill-blue-50" />}
               </span>
               {avatarUrl
                 ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover border-2 border-[#FE9800]" />

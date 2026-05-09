@@ -12,6 +12,7 @@ export function useProfile() {
     initials: '',
     avatarUrl: null,
     role: null,
+    isVerified: false,
     loading: true,
   });
 
@@ -26,32 +27,28 @@ export function useProfile() {
 
       let displayName = '';
       let avatarUrl   = null;
+      let isVerified  = user.user_metadata?.is_verified || false;
 
-      if (role === 'foodbank') {
-        const { data } = await supabase
-          .from('foodbanks')
-          .select('org_name, logo_url')
-          .eq('id', user.id)
-          .maybeSingle();
-        displayName = data?.org_name || user.user_metadata?.org_name || 'Food Bank';
-        avatarUrl   = data?.logo_url || null;
-
-      } else if (role === 'barangay') {
-        const { data } = await supabase
-          .from('barangays')
-          .select('barangay_name, barangay_profile')
-          .eq('id', user.id)
-          .maybeSingle();
-        displayName = data?.barangay_name || user.user_metadata?.org_name || 'Barangay';
-        avatarUrl   = data?.barangay_profile || null;
-
-      } else {
-        const { data } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-        displayName = data?.full_name || user.user_metadata?.full_name || 'User';
+      try {
+        if (role === 'foodbank') {
+          const { data } = await supabase.from('foodbanks').select('*').eq('id', user.id).maybeSingle();
+          displayName = data?.org_name || user.user_metadata?.org_name || 'Food Bank';
+          avatarUrl   = data?.logo_url || null;
+          isVerified  = data?.is_verified ?? user.user_metadata?.is_verified ?? false;
+        } else if (role === 'barangay') {
+          const { data } = await supabase.from('barangays').select('*').eq('id', user.id).maybeSingle();
+          displayName = data?.barangay_name || user.user_metadata?.org_name || 'Barangay';
+          avatarUrl   = data?.barangay_profile || null;
+          isVerified  = data?.is_verified ?? user.user_metadata?.is_verified ?? false;
+        } else {
+          const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+          displayName = data?.full_name || user.user_metadata?.full_name || 'User';
+          isVerified  = data?.is_verified ?? user.user_metadata?.is_verified ?? false;
+        }
+      } catch (err) {
+        console.warn("Profile table fetch failed, falling back to metadata:", err);
+        displayName = user.user_metadata?.org_name || user.user_metadata?.full_name || 'User';
+        isVerified = user.user_metadata?.is_verified || false;
       }
 
       // Build initials from first letters of each word (max 2)
@@ -63,7 +60,7 @@ export function useProfile() {
         .join('');
 
       if (!cancelled) {
-        setProfile({ id: user.id, displayName, initials, avatarUrl, role, loading: false });
+        setProfile({ id: user.id, displayName, initials, avatarUrl, role, isVerified, loading: false });
       }
     }
 
