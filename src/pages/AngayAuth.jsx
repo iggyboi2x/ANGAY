@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase";
-import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft, X } from "lucide-react";
+import { Wheat, Eye, EyeOff, Upload, Building2, Home, User, ArrowLeft, X, Mail } from "lucide-react";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import OperatingHoursPicker from "../components/OperatingHoursPicker";
 import FlashMessage from "../components/FlashMessage";
@@ -67,7 +67,102 @@ const ROLE_ROUTES = {
   barangay: "/barangay/dashboard",
 };
 
-const LoginPage = ({ onSwitch }) => {
+const ForgotPasswordPage = ({ onBack }) => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    setAlert(null);
+    if (!email) { setAlert({ message: "Please enter your email address.", type: "error" }); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) {
+      setAlert({ message: error.message, type: "error" });
+    } else {
+      setSent(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white py-8 px-4">
+      {alert && (
+        <FlashMessage message={alert.message} type={alert.type} onClose={() => setAlert(null)} />
+      )}
+      <div className="w-full max-w-sm mx-auto">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Back to Login
+        </button>
+
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-3">
+            <Wheat size={24} color="#FE9800" />
+            <span className="text-2xl font-semibold text-[#FE9800] tracking-wide">ANGAY</span>
+          </div>
+          <div className="flex justify-center mb-3">
+            <div className="bg-orange-50 p-3 rounded-full">
+              <Mail size={28} className="text-[#FE9800]" />
+            </div>
+          </div>
+          <h1 className="text-xl font-semibold text-slate-800">Forgot Password?</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {sent ? "Check your inbox for the reset link." : "Enter your email and we'll send you a reset link."}
+          </p>
+        </div>
+
+        {sent ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center">
+            <p className="text-sm text-emerald-700 font-medium mb-1">Reset email sent!</p>
+            <p className="text-xs text-emerald-600">
+              We sent a password reset link to <span className="font-semibold">{email}</span>.
+              Check your inbox (and spam folder).
+            </p>
+            <button
+              type="button"
+              onClick={onBack}
+              className="mt-4 text-sm text-[#FE9800] font-semibold hover:underline"
+            >
+              Back to Login
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={(e) => { e.preventDefault(); handleSend(); }}>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl
+                  outline-none transition-all focus:border-[#FE9800] focus:ring-2 focus:ring-[#FE9800]/20"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md
+                hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              {loading ? "Sending…" : "Send Reset Link"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const LoginPage = ({ onSwitch, onForgot }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -123,7 +218,7 @@ const LoginPage = ({ onSwitch }) => {
           <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
             placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} />
           <div className="text-right -mt-2 mb-5">
-            <a href="#" className="text-sm text-[#FE9800] font-medium hover:underline">Forgot Password?</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); onForgot(); }} className="text-sm text-[#FE9800] font-medium hover:underline">Forgot Password?</a>
           </div>
           <button type="submit" disabled={loading}
             className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md
@@ -403,7 +498,8 @@ const RegisterPage = ({ onSwitch }) => {
 
 export default function AngayAuth() {
   const [page, setPage] = useState("login");
+  if (page === "forgot") return <ForgotPasswordPage onBack={() => setPage("login")} />;
   return page === "login"
-    ? <LoginPage onSwitch={() => setPage("register")} />
+    ? <LoginPage onSwitch={() => setPage("register")} onForgot={() => setPage("forgot")} />
     : <RegisterPage onSwitch={() => setPage("login")} />;
 }

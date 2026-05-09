@@ -24,6 +24,7 @@ import AdminLogistics from "./pages/admin/AdminLogistics";
 import AdminEmergency from "./pages/admin/AdminEmergency";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminReports from "./pages/admin/AdminReports";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 function PresenceTracker() {
   useEffect(() => {
@@ -154,6 +155,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<AngayAuth />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/donor/home" element={<RequireAuth allowedRoles={["donor"]}><DonorHome /></RequireAuth>} />
           <Route path="/donor/donations" element={<RequireAuth allowedRoles={["donor"]}><DonorDonations /></RequireAuth>} />
           <Route path="/donor/messages" element={<RequireAuth allowedRoles={["donor"]}><DonorMessages /></RequireAuth>} />
