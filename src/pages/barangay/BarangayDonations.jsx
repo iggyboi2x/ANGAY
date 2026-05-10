@@ -4,6 +4,7 @@ import BarangayNotificationBell from '../../components/barangay/BarangayNotifica
 import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../../supabase';
 import { Package, CheckCircle, Clock, RotateCcw, Camera, Image as ImageIcon, X, Send, ChevronRight, MessageSquare } from 'lucide-react';
+import { logLedgerAction } from '../../utils/ledger';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
@@ -257,6 +258,15 @@ export default function BarangayDonations() {
       if (dist.package_id) {
         await supabase.from('donation_packages').update({ status: 'at_barangay' }).eq('id', dist.package_id);
       }
+
+      await logLedgerAction({
+        actionType: 'BARANGAY_ACCEPT',
+        targetId: dist.foodbank_id,
+        targetName: dist.foodbank_name || 'Foodbank',
+        details: `Verified receipt of aid package: ${dist.items}`,
+        metadata: { distribution_id: dist.id, items: dist.items }
+      });
+
       await load();
     } catch (err) { console.error(err); }
   };
@@ -276,8 +286,18 @@ export default function BarangayDonations() {
         await supabase.from('donation_packages').update({ status: 'donated' }).eq('id', distributing.package_id);
       }
 
-      // 3. Send notifications to donors whose items were in this package
-      // (This will be handled by the database triggers or handled in the Donor query)
+      await logLedgerAction({
+        actionType: 'BARANGAY_DISTRIBUTE',
+        targetId: distributing.id,
+        targetName: 'Community Distribution',
+        details: `Final distribution completed: ${distributing.items}`,
+        metadata: { 
+          distribution_id: distributing.id, 
+          items: distributing.items,
+          proof_description: payload.proof_description,
+          proof_url: payload.proof_images?.[0] // Log first image as main proof
+        }
+      });
 
       setDistributing(null);
       await load();

@@ -12,6 +12,7 @@ import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import { useEffect } from 'react';
 import { supabase } from '../../../supabase';
+import { logLedgerAction } from '../../utils/ledger';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -59,6 +60,16 @@ export default function BarangayDashboard() {
     }).eq('id', myId);
 
     if (!error) {
+      if (active) {
+        await logLedgerAction({
+          actionType: 'EMERGENCY_SOS',
+          targetId: myId,
+          targetName: displayName,
+          details: `Distress signal activated: ${type}`,
+          metadata: { crisis_type: type, location_id: myId }
+        });
+      }
+
       setCrisisData({ is_in_crisis: active, crisis_type: type });
       setShowCrisisModal(false);
     }

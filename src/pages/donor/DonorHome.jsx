@@ -8,7 +8,7 @@ import "leaflet/dist/leaflet.css";
 import { supabase } from "../../../supabase";
 import { useMapPins } from "../../hooks/useMapPins";
 import { useProfile } from "../../hooks/useProfile";
-import FlashMessage from "../../components/FlashMessage";
+import { logLedgerAction } from "../../utils/ledger";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -260,9 +260,17 @@ export default function DonorHome() {
       status: "pending",
     };
 
-    const { error } = await supabase.from("donations").insert(payload);
+    const { data: newDonation, error } = await supabase.from("donations").insert(payload).select().single();
 
-    if (!error) {
+    if (!error && newDonation) {
+      await logLedgerAction({
+        actionType: 'DONOR_PROPOSE',
+        targetId: donationForm.foodbank_id,
+        targetName: selectedFoodbankLabel,
+        details: `Proposed donation of ${itemsString}`,
+        metadata: { donation_id: newDonation.id, items: itemsString, date: donationForm.scheduled_date }
+      });
+
       // 1. Notify the foodbank
       await supabase.from("notifications").insert({
         user_id: donationForm.foodbank_id,
