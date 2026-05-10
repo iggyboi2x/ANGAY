@@ -21,7 +21,8 @@ import {
   History,
   TrendingUp,
   BadgeCheck,
-  Plus
+  Plus,
+  MessageCircle
 } from 'lucide-react';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
@@ -42,9 +43,10 @@ export default function AdminVerification() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userHistory, setUserHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [banReason, setBanReason] = useState('');
+  const [banDuration, setBanDuration] = useState('7'); // Default 7 days
   const [showBanModal, setShowBanModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [banReason, setBanReason] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
 
@@ -55,6 +57,9 @@ export default function AdminVerification() {
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'donor', contact: '' });
   const [confirmAction, setConfirmAction] = useState(null); // { type, user }
   const [toast, setToast] = useState(null); // { message, type }
+  const [appeals, setAppeals] = useState([]);
+  const [showAppealModal, setShowAppealModal] = useState(false);
+  const [selectedAppeal, setSelectedAppeal] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -62,12 +67,17 @@ export default function AdminVerification() {
       const [
         { data: profiles },
         { data: foodbanks },
-        { data: barangays }
+        { data: barangays },
+        { data: appealsData }
       ] = await Promise.all([
         supabase.from('profiles').select('*'),
         supabase.from('foodbanks').select('id, org_name, logo_url'),
-        supabase.from('barangays').select('id, barangay_name, barangay_profile')
+        supabase.from('barangays').select('id, barangay_name, barangay_profile'),
+        supabase.from('ban_appeals').select('*').eq('status', 'pending')
       ]);
+
+      const appealMap = Object.fromEntries((appealsData || []).map(a => [a.user_id, a]));
+      setAppeals(appealsData || []);
 
       // Create lookup maps for quick access
       const fbMap = Object.fromEntries((foodbanks || []).map(f => [f.id, f]));
@@ -94,6 +104,7 @@ export default function AdminVerification() {
           avatar,
           is_verified: isVerified,
           is_banned: isBanned,
+          appeal: appealMap[p.id] || null,
           uniqueId: `${p.role}-${p.id}`,
           status: isVerified ? 'verified' : 'pending'
         };
@@ -138,9 +149,17 @@ export default function AdminVerification() {
 
   const handleBan = async () => {
     try {
+      const days = parseInt(banDuration);
+      const bannedUntil = new Date();
+      bannedUntil.setDate(bannedUntil.getDate() + days);
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ is_banned: true, ban_reason: banReason })
+        .update({ 
+          is_banned: true, 
+          ban_reason: banReason,
+          banned_until: bannedUntil.toISOString()
+        })
         .eq('id', selectedUser.id);
 
       if (profileError) throw profileError;
@@ -155,7 +174,7 @@ export default function AdminVerification() {
         await supabase.from('admin_logs').insert({
           action: 'BAN',
           target_id: selectedUser.id,
-          details: `Banned ${selectedUser.name} (${selectedUser.role}) for: ${banReason}`
+          details: `Banned ${selectedUser.name} (${selectedUser.role}) for ${days} days. Reason: ${banReason}`
         });
       } catch (logErr) {
         console.warn('Logging skipped: admin_logs table not found');
@@ -163,12 +182,52 @@ export default function AdminVerification() {
 
       setShowBanModal(false);
       setBanReason('');
+      setBanDuration('7');
       setSelectedUser(null);
       await fetchUsers();
-      setToast({ message: `Account ${selectedUser.name} restricted`, type: 'success' });
+      setToast({ message: `Account ${selectedUser.name} restricted for ${days} days`, type: 'success' });
       setTimeout(() => setToast(null), 3000);
     } catch (err) {
       setToast({ message: 'Ban failed: ' + err.message, type: 'error' });
+    }
+  };
+
+  const handleLiftBan = async (user) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          is_banned: false, 
+          ban_reason: null,
+          banned_until: null 
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await supabase
+        .from('ban_appeals')
+        .update({ status: 'reviewed' })
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+
+      try {
+        await supabase.from('admin_logs').insert({
+          action: 'UNBAN',
+          target_id: user.id,
+          details: `Lifted ban for ${user.name}`
+        });
+      } catch (logErr) {
+        console.warn('Logging skipped: admin_logs table not found');
+      }
+
+      await fetchUsers();
+      setShowAppealModal(false);
+      setSelectedUser(null);
+      setToast({ message: `Access restored for ${user.name}`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      setToast({ message: 'Failed to lift ban: ' + err.message, type: 'error' });
     }
   };
 
@@ -445,13 +504,30 @@ export default function AdminVerification() {
                     )}
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button
-                      onClick={() => { setSelectedUser(user); fetchUserHistory(user); }}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#FE9800] transition-all shadow-lg shadow-black/5"
-                    >
-                      <FileText size={14} />
-                      Inspect
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      {user.appeal && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAppeal(user.appeal);
+                            setSelectedUser(user);
+                            setShowAppealModal(true);
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100 animate-pulse"
+                          title="Pending Appeal"
+                        >
+                          <MessageCircle size={14} />
+                          Appeal
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setSelectedUser(user); fetchUserHistory(user); }}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#FE9800] transition-all shadow-lg shadow-black/5"
+                      >
+                        <FileText size={14} />
+                        Inspect
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -625,12 +701,40 @@ export default function AdminVerification() {
               Restricting <span className="font-black">{selectedUser?.name}</span> will suspend their access to the logistics hub.
             </p>
           </div>
-          <textarea
-            className="w-full h-32 p-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-red-500 transition-all resize-none"
-            placeholder="Violation details..."
-            value={banReason}
-            onChange={(e) => setBanReason(e.target.value)}
-          />
+          
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Ban Duration (Days)</label>
+            <div className="grid grid-cols-4 gap-2">
+              {['3', '7', '30', '365'].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setBanDuration(d)}
+                  className={`h-12 rounded-xl text-[10px] font-black uppercase transition-all border ${
+                    banDuration === d ? 'bg-[#1A1A1A] text-white border-black' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
+                  }`}
+                >
+                  {d === '365' ? 'Year' : `${d}d`}
+                </button>
+              ))}
+            </div>
+            <input 
+              type="number"
+              placeholder="Custom days..."
+              className="w-full h-12 px-5 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:border-red-500 transition-all mt-2"
+              value={banDuration}
+              onChange={(e) => setBanDuration(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Reason for Restriction</label>
+            <textarea
+              className="w-full h-32 p-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-red-500 transition-all resize-none"
+              placeholder="Violation details..."
+              value={banReason}
+              onChange={(e) => setBanReason(e.target.value)}
+            />
+          </div>
           <div className="flex gap-3">
             <Button variant="ghost" onClick={() => setShowBanModal(false)} className="flex-1">Cancel</Button>
             <Button variant="danger" onClick={handleBan} className="flex-1">Confirm Ban</Button>
@@ -743,6 +847,37 @@ export default function AdminVerification() {
           </div>
         </div>
       )}
+      {/* Appeal Review Modal */}
+      <Modal isOpen={showAppealModal} onClose={() => setShowAppealModal(false)} title="Review Ban Appeal" width="sm">
+        <div className="space-y-6">
+          <div className="p-5 bg-orange-50 rounded-[2rem] border border-orange-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm">
+                <MessageCircle size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-[#1A1A1A] uppercase">User Appeal Message</h4>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">Submitted {selectedAppeal && new Date(selectedAppeal.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-700 leading-relaxed font-medium italic">
+              "{selectedAppeal?.message}"
+            </p>
+          </div>
+
+          <div className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100">
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Current Ban Context</h4>
+            <p className="text-[11px] text-gray-600 font-bold mb-1">Reason: <span className="text-red-600">{selectedUser?.ban_reason}</span></p>
+            <p className="text-[11px] text-gray-600 font-bold">Ends: {selectedUser?.banned_until ? new Date(selectedUser.banned_until).toLocaleDateString() : 'Permanent'}</p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="ghost" onClick={() => setShowAppealModal(false)} className="flex-1">Keep Banned</Button>
+            <Button variant="primary" onClick={() => handleLiftBan(selectedUser)} className="flex-1">Lift Ban & Restore Access</Button>
+          </div>
+        </div>
+      </Modal>
+
     </AdminLayout>
   );
 }
