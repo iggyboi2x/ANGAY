@@ -20,22 +20,23 @@ import {
   Package,
   History,
   TrendingUp,
-  BadgeCheck
+  BadgeCheck,
+  Plus
 } from 'lucide-react';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
 
 const TABS = [
-  { id: 'queue', label: 'Verification Queue', icon: ShieldCheck },
-  { id: 'users', label: 'User Directory', icon: User },
-  { id: 'banned', label: 'Restricted Node', icon: Ban },
-  { id: 'admins', label: 'Admin Access', icon: ShieldCheck }
+  { id: 'active', label: 'Active Users', icon: User },
+  { id: 'verified', label: 'Verified Accounts', icon: BadgeCheck },
+  { id: 'restricted', label: 'Restricted Accounts', icon: Ban },
 ];
 
 export default function AdminVerification() {
-  const [activeTab, setActiveTab] = useState('queue');
+  const [activeTab, setActiveTab] = useState('active');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, pending, verified
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -46,6 +47,14 @@ export default function AdminVerification() {
   const [banReason, setBanReason] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+
+  // CRUD States
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'donor', contact: '' });
+  const [confirmAction, setConfirmAction] = useState(null); // { type, user }
+  const [toast, setToast] = useState(null); // { message, type }
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -76,12 +85,17 @@ export default function AdminVerification() {
           avatar = brgyMap[p.id].barangay_profile;
         }
 
+        const isVerified = !!p.is_verified;
+        const isBanned = !!p.is_banned;
+
         return {
           ...p,
           name,
           avatar,
+          is_verified: isVerified,
+          is_banned: isBanned,
           uniqueId: `${p.role}-${p.id}`,
-          status: p.is_verified ? 'verified' : 'pending'
+          status: isVerified ? 'verified' : 'pending'
         };
       });
 
@@ -92,6 +106,10 @@ export default function AdminVerification() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchUserHistory = async (user) => {
     setHistoryLoading(true);
@@ -120,7 +138,6 @@ export default function AdminVerification() {
 
   const handleBan = async () => {
     try {
-      // 1. Update the primary Profiles record (Main Source of Truth)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ is_banned: true, ban_reason: banReason })
@@ -128,72 +145,122 @@ export default function AdminVerification() {
 
       if (profileError) throw profileError;
 
-      // 2. Sync with specific role table for redundancy
       if (selectedUser.role === 'foodbank') {
         await supabase.from('foodbanks').update({ is_banned: true, ban_reason: banReason }).eq('id', selectedUser.id);
       } else if (selectedUser.role === 'barangay') {
         await supabase.from('barangays').update({ is_banned: true, ban_reason: banReason }).eq('id', selectedUser.id);
       }
 
-      await supabase.from('admin_logs').insert({
-        action: 'BAN',
-        target_id: selectedUser.id,
-        details: `Banned ${selectedUser.name} (${selectedUser.role}) for: ${banReason}`
-      });
+      try {
+        await supabase.from('admin_logs').insert({
+          action: 'BAN',
+          target_id: selectedUser.id,
+          details: `Banned ${selectedUser.name} (${selectedUser.role}) for: ${banReason}`
+        });
+      } catch (logErr) {
+        console.warn('Logging skipped: admin_logs table not found');
+      }
 
       setShowBanModal(false);
       setBanReason('');
       setSelectedUser(null);
       await fetchUsers();
-      alert(`Account ${selectedUser.name} has been restricted.`);
+      setToast({ message: `Account ${selectedUser.name} restricted`, type: 'success' });
+      setTimeout(() => setToast(null), 3000);
     } catch (err) {
-      alert('Ban action failed: ' + err.message);
+      setToast({ message: 'Ban failed: ' + err.message, type: 'error' });
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const [confirmAction, setConfirmAction] = useState(null); // { type, user }
-  const [toast, setToast] = useState(null); // { message, type }
-
   const handleVerify = async (user) => {
     try {
+      console.log('Attempting to verify user:', user.id, user.name);
+      
       // 1. Update the primary Profiles record
-      const { error: profileError } = await supabase
+      const { data, error, count } = await supabase
         .from('profiles')
         .update({ is_verified: true })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
 
-      if (profileError) throw profileError;
+      if (error) throw error;
 
-      // 2. Sync with specific role table for compatibility
-      if (user.role === 'foodbank') {
-        await supabase.from('foodbanks').update({ is_verified: true }).eq('id', user.id);
-      } else if (user.role === 'barangay') {
-        await supabase.from('barangays').update({ is_verified: true }).eq('id', user.id);
+      if (!data || data.length === 0) {
+        throw new Error('No rows updated. Please check if your account has Admin RLS permissions.');
       }
 
-      await supabase.from('admin_logs').insert({
-        action: 'VERIFY',
-        target_id: user.id,
-        details: `Verified ${user.name} (${user.role})`
-      });
+      console.log('Verification successful in DB:', data[0]);
+
+      // 2. Log the administrative action (Silent fail if table missing)
+      try {
+        await supabase.from('admin_logs').insert({
+          action: 'VERIFY',
+          target_id: user.id,
+          details: `Verified ${user.name} (${user.role})`
+        });
+      } catch (logErr) {
+        console.warn('Logging skipped: admin_logs table not found');
+      }
 
       await fetchUsers();
       setSelectedUser(null);
       setConfirmAction(null);
-
-      // Trigger custom toast
       setToast({ message: `${user.name} verified successfully!`, type: 'success' });
       setTimeout(() => setToast(null), 3000);
     } catch (err) {
-      console.error('Verify error:', err);
-      setToast({ message: 'Error: ' + err.message, type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      console.error('Verification detailed error:', err);
+      setToast({ message: 'Verification failed: ' + err.message, type: 'error' });
     }
   };
+
+  const handleUpdateUser = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: editUser.name, 
+          contact: editUser.contact,
+          role: editUser.role 
+        })
+        .eq('id', editUser.id);
+
+      if (error) throw error;
+
+      await fetchUsers();
+      setShowEditModal(false);
+      setToast({ message: 'Account updated successfully', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      setToast({ message: 'Update failed: ' + err.message, type: 'error' });
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', user.id);
+      if (error) throw error;
+
+      await fetchUsers();
+      setConfirmAction(null);
+      setSelectedUser(null);
+      setToast({ message: 'Account removed from system', type: 'success' });
+      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      setToast({ message: 'Deletion failed: ' + err.message, type: 'error' });
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    try {
+      // Manual creation requires service role or signup
+      // For now, we'll use a placeholder logic or prompt for invite
+      setToast({ message: 'Manual creation is restricted to Auth Invite only', type: 'error' });
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' });
+    }
+  };
+
+
 
   const handleInviteAdmin = async () => {
     setInviting(true);
@@ -221,16 +288,22 @@ export default function AdminVerification() {
   };
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
+    const searchLower = search.toLowerCase();
+    const nameMatch = (u.name || '').toLowerCase().includes(searchLower);
+    const emailMatch = (u.email || '').toLowerCase().includes(searchLower);
+    const matchesSearch = nameMatch || emailMatch;
+
     const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'pending' && u.status === 'pending') ||
+                         (statusFilter === 'verified' && u.status === 'verified');
 
     let matchesTab = true;
-    if (activeTab === 'queue') matchesTab = u.status === 'pending' && !u.is_banned;
-    else if (activeTab === 'banned') matchesTab = u.is_banned === true;
-    else if (activeTab === 'users') matchesTab = !u.is_banned;
+    if (activeTab === 'active') matchesTab = !u.is_banned;
+    else if (activeTab === 'verified') matchesTab = u.is_verified && !u.is_banned;
+    else if (activeTab === 'restricted') matchesTab = u.is_banned === true;
 
-    return matchesSearch && matchesRole && matchesTab;
+    return matchesSearch && matchesRole && matchesStatus && matchesTab;
   });
 
   return (
@@ -243,7 +316,10 @@ export default function AdminVerification() {
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setStatusFilter('all');
+                }}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id
                     ? 'bg-white text-[#FE9800] shadow-sm'
                     : 'text-gray-400 hover:text-gray-600'
@@ -257,6 +333,15 @@ export default function AdminVerification() {
 
           <div className="flex items-center gap-3">
             <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-12 px-4 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-[#FE9800]"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="verified">Verified</option>
+            </select>
+            <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="h-12 px-4 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-[#FE9800]"
@@ -265,7 +350,15 @@ export default function AdminVerification() {
               <option value="donor">Donors</option>
               <option value="foodbank">Food Banks</option>
               <option value="barangay">Barangays</option>
+              <option value="admin">Admins</option>
             </select>
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="h-12 px-6 bg-[#FE9800] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center gap-2 shadow-lg shadow-orange-500/10"
+            >
+              <Plus size={14} />
+              Provision Account
+            </button>
             <button
               onClick={() => setShowInviteModal(true)}
               className="h-12 px-6 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-black/5"
@@ -399,14 +492,32 @@ export default function AdminVerification() {
                 <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-white border border-gray-200 rounded-lg">ID: {selectedUser?.id.slice(0, 8)}</span>
               </div>
             </div>
-            {selectedUser?.status === 'pending' && (
-              <Button
-                onClick={() => setConfirmAction({ type: 'verify', user: selectedUser })}
-                className="shadow-xl shadow-orange-500/20 h-14 px-8"
-              >
-                Verify Account
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              {selectedUser?.status === 'pending' && (
+                <Button 
+                  onClick={() => setConfirmAction({ type: 'verify', user: selectedUser })} 
+                  className="shadow-xl shadow-orange-500/20 h-14 px-8"
+                >
+                  Verify Account
+                </Button>
+              )}
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { setEditUser(selectedUser); setShowEditModal(true); }}
+                  className="w-12 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#FE9800] hover:border-[#FE9800] transition-all"
+                  title="Edit Account"
+                >
+                  <Filter size={18} />
+                </button>
+                <button 
+                  onClick={() => setConfirmAction({ type: 'delete', user: selectedUser })}
+                  className="w-12 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-500 transition-all"
+                  title="Delete Account"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Docs & History Tabs */}
@@ -527,27 +638,96 @@ export default function AdminVerification() {
         </div>
       </Modal>
 
+      {/* Edit Account Modal */}
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Update Account Profile" width="sm">
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Display Name</label>
+              <input 
+                className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-[#FE9800] transition-all"
+                value={editUser?.name || ''}
+                onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Platform Role</label>
+              <select 
+                className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-[#FE9800] transition-all"
+                value={editUser?.role || ''}
+                onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+              >
+                <option value="donor">Donor</option>
+                <option value="foodbank">Food Bank</option>
+                <option value="barangay">Barangay</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+          <Button className="w-full h-14" onClick={handleUpdateUser}>Save Changes</Button>
+        </div>
+      </Modal>
+
+      {/* Provision Account Modal */}
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Provision New Account" width="sm">
+        <div className="space-y-6">
+          <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex gap-3 text-orange-900">
+            <AlertCircle size={20} className="shrink-0" />
+            <p className="text-[11px] font-medium leading-relaxed">
+              Manually creating accounts is intended for organizational onboarding. The user will still need to verify their email to set a password.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <input 
+              placeholder="Full Name / Organization Name"
+              className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-[#FE9800] transition-all"
+              value={newUser.name}
+              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+            />
+            <input 
+              placeholder="Email Address"
+              type="email"
+              className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:border-[#FE9800] transition-all"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+            />
+          </div>
+          <Button className="w-full h-14" onClick={handleCreateAccount}>Provision Account</Button>
+        </div>
+      </Modal>
+
       {/* Custom Confirmation Modal */}
-      <Modal
-        isOpen={!!confirmAction}
-        onClose={() => setConfirmAction(null)}
-        title={confirmAction?.type === 'verify' ? 'Confirm Verification' : 'Confirm Action'}
+      <Modal 
+        isOpen={!!confirmAction} 
+        onClose={() => setConfirmAction(null)} 
+        title="Confirm Administrative Action" 
         width="sm"
       >
         <div className="space-y-6 text-center">
-          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto text-[#FE9800]">
-            <ShieldCheck size={40} />
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto ${
+            confirmAction?.type === 'delete' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-[#FE9800]'
+          }`}>
+            {confirmAction?.type === 'delete' ? <Trash2 size={40} /> : <ShieldCheck size={40} />}
           </div>
           <div className="space-y-2">
-            <h3 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight">Trust Verification</h3>
+            <h3 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight">
+              {confirmAction?.type === 'delete' ? 'Danger: Delete Account' : 'Trust Verification'}
+            </h3>
             <p className="text-sm text-gray-500">
-              Are you sure you want to verify <span className="font-bold text-[#1A1A1A]">{confirmAction?.user?.name}</span>?
-              This will grant them a verified status badge across the platform.
+              {confirmAction?.type === 'delete' 
+                ? `Are you sure you want to permanently remove ${confirmAction?.user?.name}? This cannot be undone.` 
+                : `Verify ${confirmAction?.user?.name} for full platform access?`}
             </p>
           </div>
           <div className="flex gap-3 pt-2">
             <Button variant="ghost" className="flex-1 h-14" onClick={() => setConfirmAction(null)}>Cancel</Button>
-            <Button className="flex-1 h-14" onClick={() => handleVerify(confirmAction.user)}>Verify Now</Button>
+            <Button 
+              variant={confirmAction?.type === 'delete' ? 'danger' : 'primary'}
+              className="flex-1 h-14" 
+              onClick={() => confirmAction?.type === 'delete' ? handleDeleteUser(confirmAction.user) : handleVerify(confirmAction.user)}
+            >
+              Confirm
+            </Button>
           </div>
         </div>
       </Modal>
@@ -555,8 +735,9 @@ export default function AdminVerification() {
       {/* Custom Toast Message */}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-10 duration-500">
-          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 ${toast.type === 'success' ? 'bg-[#1A1A1A] text-white' : 'bg-red-600 text-white'
-            }`}>
+          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 ${
+            toast.type === 'success' ? 'bg-[#1A1A1A] text-white' : 'bg-red-600 text-white'
+          }`}>
             {toast.type === 'success' ? <CheckCircle2 size={18} className="text-[#FE9800]" /> : <AlertCircle size={18} />}
             <span className="text-[10px] font-black uppercase tracking-widest">{toast.message}</span>
           </div>
