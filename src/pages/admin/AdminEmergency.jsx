@@ -17,7 +17,7 @@ export default function AdminEmergency() {
         .from('barangays')
         .select('*')
         .eq('is_in_crisis', true);
-      
+
       setActiveSignals(data || []);
     } catch (err) {
       console.error(err);
@@ -37,24 +37,60 @@ export default function AdminEmergency() {
     return () => supabase.removeChannel(channel);
   }, []);
 
+  const logAdminAction = async ({ action, targetId, targetName, details, reason, metadata }) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      await supabase.from('admin_audit_logs').insert({
+        admin_id: session.user.id,
+        admin_name: session.user.user_metadata?.full_name || 'Admin',
+        action,
+        target_id: targetId,
+        target_name: targetName,
+        details,
+        reason,
+        metadata
+      });
+    } catch (err) {
+      console.warn('Audit logging failed:', err.message);
+    }
+  };
+
   const handleResolve = async (barangayId) => {
+    const sig = activeSignals.find(s => s.id === barangayId);
     setActing(barangayId);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('barangays')
         .update({
           is_in_crisis: false,
           crisis_type: null,
           crisis_started_at: null
         })
-        .eq('id', barangayId);
-      
-      if (!error) {
-        // Log this action to audit logs (if we had a log table)
-        alert('Crisis override successful. Distress signal terminated.');
+        .eq('id', barangayId)
+        .select();
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('Override blocked. Please ensure you have Admin RLS permissions for the barangays table.');
       }
+
+      await logAdminAction({
+        action: 'RESOLVE_CRISIS',
+        targetId: barangayId,
+        targetName: sig?.barangay_name || 'Barangay',
+        details: `Terminated distress signal for ${sig?.crisis_type || 'Crisis'}`,
+        reason: 'Situation stabilized / Emergency services coordinated',
+        metadata: { crisis_type: sig?.crisis_type, started_at: sig?.crisis_started_at }
+      });
+
+      await fetchSignals();
+      alert('Crisis override successful. Distress signal terminated.');
     } catch (err) {
-      console.error(err);
+      console.error('Resolve Error:', err);
+      alert('Failed to resolve: ' + err.message);
     } finally {
       setActing(null);
     }
@@ -63,35 +99,33 @@ export default function AdminEmergency() {
   return (
     <AdminLayout title="Emergency Control Center">
       <div className="space-y-8 animate-in fade-in duration-500">
-        
+
         {/* Live Status Banner */}
-        <div className={`p-8 rounded-[2.5rem] border flex items-center justify-between shadow-lg overflow-hidden relative ${
-          activeSignals.length > 0 
-            ? 'bg-red-600 border-red-500 text-white' 
+        <div className={`p-8 rounded-[2.5rem] border flex items-center justify-between shadow-lg overflow-hidden relative ${activeSignals.length > 0
+            ? 'bg-red-600 border-red-500 text-white'
             : 'bg-green-500 border-green-400 text-white'
-        }`}>
+          }`}>
           {activeSignals.length > 0 && (
-            <motion.div 
+            <motion.div
               animate={{ opacity: [0.1, 0.3, 0.1] }}
               transition={{ duration: 2, repeat: Infinity }}
               className="absolute inset-0 bg-white"
             />
           )}
           <div className="relative z-10 flex items-center gap-6">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl ${
-              activeSignals.length > 0 ? 'bg-white text-red-600' : 'bg-white text-green-500'
-            }`}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl ${activeSignals.length > 0 ? 'bg-white text-red-600' : 'bg-white text-green-500'
+              }`}>
               {activeSignals.length > 0 ? <ShieldAlert size={32} /> : <CheckCircle2 size={32} />}
             </div>
             <div>
               <h2 className="text-2xl font-black uppercase tracking-tight">
-                {activeSignals.length > 0 
-                  ? `${activeSignals.length} Active Distress Signal${activeSignals.length > 1 ? 's' : ''}` 
+                {activeSignals.length > 0
+                  ? `${activeSignals.length} Active Distress Signal${activeSignals.length > 1 ? 's' : ''}`
                   : 'System Status: Nominal'}
               </h2>
               <p className="text-xs font-bold uppercase tracking-widest opacity-80 mt-1">
-                {activeSignals.length > 0 
-                  ? 'Immediate response coordination required' 
+                {activeSignals.length > 0
+                  ? 'Immediate response coordination required'
                   : 'All community nodes reporting safe'}
               </p>
             </div>
@@ -133,13 +167,13 @@ export default function AdminEmergency() {
                       {[1, 2, 3].map((i) => (
                         <motion.div
                           key={i}
-                          animate={{ 
+                          animate={{
                             scale: [1, 2.5],
                             opacity: [0.5, 0]
                           }}
-                          transition={{ 
-                            duration: 2, 
-                            repeat: Infinity, 
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
                             delay: i * 0.6,
                             ease: "easeOut"
                           }}
@@ -155,9 +189,9 @@ export default function AdminEmergency() {
                   <div className="space-y-6">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
-                        {sig.crisis_type === 'Fire' ? <Flame size={28} /> : 
-                         sig.crisis_type === 'Flood' ? <Waves size={28} /> : 
-                         <AlertTriangle size={28} />}
+                        {sig.crisis_type === 'Fire' ? <Flame size={28} /> :
+                          sig.crisis_type === 'Flood' ? <Waves size={28} /> :
+                            <AlertTriangle size={28} />}
                       </div>
                       <div>
                         <h4 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight leading-none">{sig.barangay_name}</h4>
@@ -186,7 +220,16 @@ export default function AdminEmergency() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <button className="flex-1 h-12 bg-gray-50 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => {
+                          if (sig.latitude && sig.longitude) {
+                            window.open(`https://www.google.com/maps?q=${sig.latitude},${sig.longitude}`, '_blank');
+                          } else {
+                            alert('No coordinates recorded for this barangay.');
+                          }
+                        }}
+                        className="flex-1 h-12 bg-gray-50 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+                      >
                         <MapPin size={14} /> Open Location
                       </button>
                       <button

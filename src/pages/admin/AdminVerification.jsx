@@ -61,6 +61,26 @@ export default function AdminVerification() {
   const [showAppealModal, setShowAppealModal] = useState(false);
   const [selectedAppeal, setSelectedAppeal] = useState(null);
 
+  const logAdminAction = async ({ action, targetId, targetName, details, reason, metadata }) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      await supabase.from('admin_audit_logs').insert({
+        admin_id: session.user.id,
+        admin_name: session.user.user_metadata?.full_name || 'Admin',
+        action,
+        target_id: targetId,
+        target_name: targetName,
+        details,
+        reason,
+        metadata
+      });
+    } catch (err) {
+      console.warn('Audit logging failed:', err.message);
+    }
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -170,15 +190,14 @@ export default function AdminVerification() {
         await supabase.from('barangays').update({ is_banned: true, ban_reason: banReason }).eq('id', selectedUser.id);
       }
 
-      try {
-        await supabase.from('admin_logs').insert({
-          action: 'BAN',
-          target_id: selectedUser.id,
-          details: `Banned ${selectedUser.name} (${selectedUser.role}) for ${days} days. Reason: ${banReason}`
-        });
-      } catch (logErr) {
-        console.warn('Logging skipped: admin_logs table not found');
-      }
+      await logAdminAction({
+        action: 'BAN',
+        targetId: selectedUser.id,
+        targetName: selectedUser.name,
+        details: `Restricted access for ${days} days`,
+        reason: banReason,
+        metadata: { days, role: selectedUser.role, expires_at: bannedUntil.toISOString() }
+      });
 
       setShowBanModal(false);
       setBanReason('');
@@ -211,15 +230,13 @@ export default function AdminVerification() {
         .eq('user_id', user.id)
         .eq('status', 'pending');
 
-      try {
-        await supabase.from('admin_logs').insert({
-          action: 'UNBAN',
-          target_id: user.id,
-          details: `Lifted ban for ${user.name}`
-        });
-      } catch (logErr) {
-        console.warn('Logging skipped: admin_logs table not found');
-      }
+      await logAdminAction({
+        action: 'UNBAN',
+        targetId: user.id,
+        targetName: user.name,
+        details: 'Lifted account restriction',
+        reason: 'Administrative Review / Appeal Accepted'
+      });
 
       await fetchUsers();
       setShowAppealModal(false);
@@ -250,16 +267,13 @@ export default function AdminVerification() {
 
       console.log('Verification successful in DB:', data[0]);
 
-      // 2. Log the administrative action (Silent fail if table missing)
-      try {
-        await supabase.from('admin_logs').insert({
-          action: 'VERIFY',
-          target_id: user.id,
-          details: `Verified ${user.name} (${user.role})`
-        });
-      } catch (logErr) {
-        console.warn('Logging skipped: admin_logs table not found');
-      }
+      await logAdminAction({
+        action: 'VERIFY',
+        targetId: user.id,
+        targetName: user.name,
+        details: `Verified ${user.role} account`,
+        reason: 'Credentials and documents validated'
+      });
 
       await fetchUsers();
       setSelectedUser(null);
@@ -281,9 +295,18 @@ export default function AdminVerification() {
           contact: editUser.contact,
           role: editUser.role 
         })
-        .eq('id', editUser.id);
+        .eq('id', editUser.id)
+        .select();
 
       if (error) throw error;
+
+      await logAdminAction({
+        action: 'UPDATE_USER',
+        targetId: editUser.id,
+        targetName: editUser.name,
+        details: 'Updated account profile information',
+        metadata: { changes: { name: editUser.name, role: editUser.role } }
+      });
 
       await fetchUsers();
       setShowEditModal(false);
@@ -298,6 +321,13 @@ export default function AdminVerification() {
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', user.id);
       if (error) throw error;
+
+      await logAdminAction({
+        action: 'DELETE_USER',
+        targetId: user.id,
+        targetName: user.name,
+        details: 'Removed account from system permanently'
+      });
 
       await fetchUsers();
       setConfirmAction(null);
@@ -330,10 +360,12 @@ export default function AdminVerification() {
       // Update role to admin
       await supabase.from('profiles').update({ role: 'admin' }).eq('id', data.id);
 
-      await supabase.from('admin_logs').insert({
+      await logAdminAction({
         action: 'ADMIN_PROMOTE',
-        target_id: data.id,
-        details: `Promoted ${inviteEmail} to Administrator role.`
+        targetId: data.id,
+        targetName: inviteEmail,
+        details: `Granted administrative privileges to ${inviteEmail}`,
+        reason: 'Authorized platform personnel provisioning'
       });
 
       alert(`Admin invite successful for ${inviteEmail}`);
