@@ -13,6 +13,7 @@ import Button from '../../components/Button';
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 import NotificationBell from '../../components/foodbank/NotificationBell';
 import AcceptDonationModal from '../../components/foodbank/AcceptDonationModal';
+import { logLedgerAction } from '../../utils/ledger';
 
 const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
@@ -316,6 +317,16 @@ export default function FoodbankDonations() {
 
       await supabase.from('donations').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
 
+      if (status === 'accepted') {
+        await logLedgerAction({
+          actionType: 'FOODBANK_ACCEPT',
+          targetId: donation.donor_id,
+          targetName: donation.donor_name || 'Donor',
+          details: `Accepted donation proposal for ${donation.items}`,
+          metadata: { donation_id: donation.id, items: donation.items }
+        });
+      }
+
       if (status === 'completed' && inventoryItems && user) {
         if (donation.barangay_name) {
           const pkgName = `Direct Donation: ${donation.items.substring(0, 30)}...`;
@@ -365,12 +376,23 @@ export default function FoodbankDonations() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'Auth required' };
     const bay = barangays.find(b => b.id === form.barangay_id);
-    const { error } = await supabase.from('distributions').insert({
+    const { data: newDist, error } = await supabase.from('distributions').insert({
       foodbank_id: user.id, barangay_id: form.barangay_id, foodbank_name: displayName,
       barangay_name: bay?.barangay_name || '', items: form.items, notes: form.notes || null,
       scheduled_date: form.scheduled_date, status: 'pending', package_id: form.package_id || null
-    });
+    }).select().single();
+
     if (error) return { error: error.message };
+
+    if (newDist) {
+      await logLedgerAction({
+        actionType: 'FOODBANK_PROPOSE',
+        targetId: form.barangay_id,
+        targetName: bay?.barangay_name || 'Barangay',
+        details: `Dispatched aid package: ${form.items}`,
+        metadata: { distribution_id: newDist.id, items: form.items, date: form.scheduled_date }
+      });
+    }
 
     // Automatically send a Message Box to the Barangay chat
     try {

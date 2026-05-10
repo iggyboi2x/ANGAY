@@ -25,6 +25,7 @@ import AdminEmergency from "./pages/admin/AdminEmergency";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminReports from "./pages/admin/AdminReports";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import BannedPage from "./pages/BannedPage";
 
 function PresenceTracker() {
   useEffect(() => {
@@ -96,9 +97,27 @@ function RequireAuth({ children, allowedRoles }) {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        if (mounted) {
-          setAuthed(Boolean(session));
+        if (mounted && session) {
+          // Check for ban status in profiles
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_banned')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile?.is_banned) {
+            setAuthed(true);
+            setRole('banned');
+            setChecking(false);
+            return;
+          }
+
+          setAuthed(true);
           setRole(session?.user?.user_metadata?.role || null);
+          setChecking(false);
+        } else if (mounted) {
+          setAuthed(false);
+          setRole(null);
           setChecking(false);
         }
       } catch (err) {
@@ -140,6 +159,10 @@ function RequireAuth({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (role === 'banned') {
+    return <Navigate to="/banned" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(role)) {
     return <Navigate to={ROLE_HOME[role] || "/login"} replace />;
   }
@@ -156,6 +179,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<AngayAuth />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/banned" element={<BannedPage />} />
           <Route path="/donor/home" element={<RequireAuth allowedRoles={["donor"]}><DonorHome /></RequireAuth>} />
           <Route path="/donor/donations" element={<RequireAuth allowedRoles={["donor"]}><DonorDonations /></RequireAuth>} />
           <Route path="/donor/messages" element={<RequireAuth allowedRoles={["donor"]}><DonorMessages /></RequireAuth>} />

@@ -17,9 +17,11 @@ import {
 const ACTION_ICONS = {
   VERIFY: { icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-50' },
   BAN: { icon: Ban, color: 'text-red-500', bg: 'bg-red-50' },
-  SOS_RESOLVE: { icon: Radio, color: 'text-orange-500', bg: 'bg-orange-50' },
-  ADMIN_CREATE: { icon: UserPlus, color: 'text-blue-500', bg: 'bg-blue-50' },
-  SETTINGS: { icon: Settings, color: 'text-gray-500', bg: 'bg-gray-50' },
+  UNBAN: { icon: ShieldCheck, color: 'text-blue-500', bg: 'bg-blue-50' },
+  RESOLVE_CRISIS: { icon: Radio, color: 'text-orange-500', bg: 'bg-orange-50' },
+  ADMIN_PROMOTE: { icon: UserPlus, color: 'text-purple-500', bg: 'bg-purple-50' },
+  UPDATE_USER: { icon: Settings, color: 'text-gray-500', bg: 'bg-gray-50' },
+  DELETE_USER: { icon: Ban, color: 'text-red-900', bg: 'bg-red-50' },
 };
 
 export default function AdminLogs() {
@@ -29,17 +31,19 @@ export default function AdminLogs() {
 
   const fetchLogs = async () => {
     setLoading(true);
-    // In a real app, this would fetch from an 'audit_logs' table
-    // For now, I'll mock some data
-    const mockLogs = [
-      { id: 1, action: 'VERIFY', admin: 'Super Admin', target: 'Community Foodbank Central', timestamp: new Date().toISOString(), details: 'Granted verification status after permit review.' },
-      { id: 2, action: 'SOS_RESOLVE', admin: 'Super Admin', target: 'Brgy. San Jose', timestamp: new Date(Date.now() - 3600000).toISOString(), details: 'Manual override of SOS signal after telephone confirmation.' },
-      { id: 3, action: 'BAN', admin: 'Super Admin', target: 'John Doe (Donor)', timestamp: new Date(Date.now() - 7200000).toISOString(), details: 'Violated TOS: Repeated fraudulent donation reports.' },
-      { id: 4, action: 'ADMIN_CREATE', admin: 'Main Admin', target: 'Sarah Smith', timestamp: new Date(Date.now() - 86400000).toISOString(), details: 'Created new Regional Admin account.' },
-      { id: 5, action: 'VERIFY', admin: 'Super Admin', target: 'Helping Hands FB', timestamp: new Date(Date.now() - 172800000).toISOString(), details: 'Identity verified via official government ID.' },
-    ];
-    setLogs(mockLogs);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('admin_audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setLogs(data || []);
+    } catch (err) {
+      console.error('Audit fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -47,8 +51,9 @@ export default function AdminLogs() {
   }, []);
 
   const filteredLogs = logs.filter(log => 
-    log.target.toLowerCase().includes(search.toLowerCase()) ||
-    log.details.toLowerCase().includes(search.toLowerCase())
+    (log.target_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (log.details?.toLowerCase() || '').includes(search.toLowerCase()) ||
+    (log.admin_name?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
   return (
@@ -86,7 +91,7 @@ export default function AdminLogs() {
             {loading ? (
               [1,2,3,4].map(i => <div key={i} className="h-24 animate-pulse bg-gray-50/20" />)
             ) : filteredLogs.map((log) => {
-              const config = ACTION_ICONS[log.action] || ACTION_ICONS.SETTINGS;
+              const config = ACTION_ICONS[log.action] || { icon: Settings, color: 'text-gray-500', bg: 'bg-gray-50' };
               const Icon = config.icon;
               return (
                 <div key={log.id} className="p-8 flex items-start gap-6 hover:bg-gray-50/50 transition-all group">
@@ -98,21 +103,21 @@ export default function AdminLogs() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-black text-[#1A1A1A] uppercase tracking-tighter bg-gray-100 px-2 py-0.5 rounded-md">
-                          {log.admin}
+                          {log.admin_name}
                         </span>
                         <span className="text-[11px] font-bold text-gray-400">performed</span>
                         <span className={`text-[11px] font-black uppercase tracking-widest ${config.color}`}>
-                          {log.action.replace('_', ' ')}
+                          {log.action.replace(/_/g, ' ')}
                         </span>
                         <span className="text-[11px] font-bold text-gray-400">on</span>
                         <span className="text-[11px] font-black text-[#1A1A1A] uppercase tracking-tighter">
-                          {log.target}
+                          {log.target_name || 'System'}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
                         <Clock size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-widest">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {new Date(log.created_at).toLocaleString()}
                         </span>
                       </div>
                     </div>

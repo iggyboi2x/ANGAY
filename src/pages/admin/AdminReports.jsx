@@ -31,12 +31,6 @@ export default function AdminReports() {
         .select('*')
         .order('created_at', { ascending: false });
       
-      console.log('FETCHED REPORTS:', data);
-      
-      // Connection Diagnostic
-      const { data: diag } = await supabase.from('profiles').select('id').limit(1);
-      console.log('CONNECTION DIAGNOSTIC (profiles):', diag ? 'CONNECTED' : 'FAILED');
-
       if (error) throw error;
       setReports(data || []);
     } catch (err) {
