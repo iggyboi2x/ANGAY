@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
-import { 
-  Chart as ChartJS, 
-  CategoryScale, 
-  LinearScale, 
-  BarElement, 
-  Title, 
-  Tooltip, 
-  Legend, 
-  ArcElement, 
-  PointElement, 
-  LineElement, 
+import { Link } from 'react-router-dom';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement,
   Filler
 } from 'chart.js';
 import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
 import AdminLayout from '../../components/admin/AdminLayout';
-import { TrendingUp, Users, Package, AlertCircle, ArrowUpRight, ArrowDownRight, Building2, MapPin, ShieldCheck, Ban, User } from 'lucide-react';
+import {
+  TrendingUp, Users, Package, AlertCircle, ArrowUpRight,
+  ArrowDownRight, Building2, MapPin, ShieldCheck, Ban,
+  User, Truck, CheckCircle2, History, ChevronRight
+} from 'lucide-react';
 import { supabase } from '../../../supabase';
 
 ChartJS.register(
@@ -53,7 +58,8 @@ export default function AdminDashboard() {
         foodbanks,
         barangays,
         admins,
-        pendingReportsFetch
+        pendingReportsFetch,
+        donationsFetch
       ] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_verified', true),
@@ -62,7 +68,8 @@ export default function AdminDashboard() {
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'foodbank'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'barangay'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
-        supabase.from('reports').select('id', { count: 'exact', head: true }).or('status.eq.pending,status.is.null')
+        supabase.from('reports').select('id', { count: 'exact', head: true }).or('status.eq.pending,status.is.null'),
+        supabase.from('donations').select('id', { count: 'exact', head: true })
       ]);
 
       setBreakdown({
@@ -72,63 +79,72 @@ export default function AdminDashboard() {
         admins: admins.count || 0
       });
 
-      const { data: donations } = await supabase
-        .from('donations')
-        .select('id, items, status, created_at')
-        .order('created_at', { ascending: false });
-
-      const totalItems = donations?.length || 0;
-
       setStats([
-        { 
-          label: 'Total Active Users', 
-          value: (totalProfiles.count || 0).toLocaleString(), 
-          change: null, 
-          icon: Users, 
+        {
+          label: 'Total Active Users',
+          value: (totalProfiles.count || 0).toLocaleString(),
+          change: null,
+          icon: Users,
           color: 'blue',
-          breakdown: true 
+          breakdown: true
         },
-        { 
-          label: 'Verified Partners', 
-          value: (verifiedProfiles.count || 0).toLocaleString(), 
-          change: null, 
-          icon: ShieldCheck, 
-          color: 'orange' 
+        {
+          label: 'Verified Partners',
+          value: (verifiedProfiles.count || 0).toLocaleString(),
+          change: null,
+          icon: ShieldCheck,
+          color: 'orange'
         },
-        { 
-          label: 'Pending Tasks', 
-          value: (pendingReportsFetch.count || 0).toString(), 
-          change: null, 
-          icon: AlertCircle, 
-          color: 'red' 
+        {
+          label: 'Pending Tasks',
+          value: (pendingReportsFetch.count || 0).toString(),
+          change: null,
+          icon: AlertCircle,
+          color: 'red'
         },
-        { 
-          label: 'Restricted Node', 
-          value: (bannedProfiles.count || 0).toString(), 
-          change: null, 
-          icon: Ban, 
-          color: 'red' 
+        {
+          label: 'Restricted Node',
+          value: (bannedProfiles.count || 0).toString(),
+          change: null,
+          icon: Ban,
+          color: 'red'
         },
-        { 
-          label: 'Global Flow', 
-          value: totalItems.toString(), 
-          change: null, 
-          icon: Package, 
-          color: 'green' 
+        {
+          label: 'Global Flow',
+          value: (donationsFetch.count || 0).toString(),
+          change: null,
+          icon: Package,
+          color: 'green'
         },
       ]);
 
-      setRecentActivity(donations?.slice(0, 10).map(d => ({
-        id: `TX-${d.id.slice(0,4)}`,
-        item: d.items || 'Mixed Supplies',
-        target: 'System Record',
-        status: (d.status || 'pending').charAt(0).toUpperCase() + (d.status || 'pending').slice(1),
-        desc: d.status === 'pending' || d.status === 'reviewing' ? 'Donor has submitted request; Food Bank review pending.' :
-              d.status === 'accepted' || d.status === 'in-progress' ? 'Food Bank has accepted and is preparing for dispatch.' :
-              d.status === 'in-transit' ? 'Goods are on the way to the destination.' :
-              'Goods have been successfully received and distributed.',
-        time: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      })) || []);
+      const { data: ledger } = await supabase
+        .from('global_activity_ledger')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      setRecentActivity(ledger?.map(entry => {
+        const statusMap = {
+          DONOR_PROPOSE: 'Proposed',
+          FOODBANK_ACCEPT: 'Accepted',
+          FOODBANK_PROPOSE: 'Dispatched',
+          BARANGAY_ACCEPT: 'Received',
+          BARANGAY_DISTRIBUTE: 'Distributed',
+          EMERGENCY_SOS: 'Emergency'
+        };
+
+        return {
+          id: entry.id.split('-')[0].slice(0, 8).toUpperCase(),
+          actor_name: entry.actor_name,
+          actor_role: entry.actor_role,
+          target_name: entry.target_name || 'System',
+          status: statusMap[entry.action_type] || 'Activity',
+          desc: entry.details,
+          time: new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action_type: entry.action_type
+        };
+      }) || []);
 
     } catch (err) {
       console.error('Dashboard fetch error:', err);
@@ -144,27 +160,25 @@ export default function AdminDashboard() {
   return (
     <AdminLayout title="System Intelligence">
       <div className="space-y-8 animate-in fade-in duration-700">
-        
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
           {stats.map((stat, idx) => (
             <div key={idx} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between min-h-[140px]">
               <div className="flex items-start justify-between gap-4">
-                <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center ${
-                  stat.color === 'orange' ? 'bg-orange-50 text-orange-500' :
-                  stat.color === 'blue' ? 'bg-blue-50 text-blue-500' :
-                  stat.color === 'red' ? 'bg-red-50 text-red-500' :
-                  'bg-green-50 text-green-500'
-                } group-hover:scale-105 transition-transform`}>
+                <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center ${stat.color === 'orange' ? 'bg-orange-50 text-orange-500' :
+                    stat.color === 'blue' ? 'bg-blue-50 text-blue-500' :
+                      stat.color === 'red' ? 'bg-red-50 text-red-500' :
+                        'bg-green-50 text-green-500'
+                  } group-hover:scale-105 transition-transform`}>
                   <stat.icon size={20} />
                 </div>
                 <div className="flex-1 text-right">
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{stat.label}</p>
                   <h3 className="text-2xl font-black text-[#1A1A1A] tracking-tighter leading-none">{loading ? '...' : stat.value}</h3>
                   {stat.change && (
-                    <div className={`flex items-center justify-end gap-1 text-[8px] font-black uppercase tracking-widest mt-1.5 ${
-                      stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'
-                    }`}>
+                    <div className={`flex items-center justify-end gap-1 text-[8px] font-black uppercase tracking-widest mt-1.5 ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'
+                      }`}>
                       {stat.change}
                     </div>
                   )}
@@ -215,34 +229,59 @@ export default function AdminDashboard() {
               Live Stream
             </div>
           </div>
-          
+
           <div className="divide-y divide-gray-50">
             {recentActivity.map((activity, idx) => (
               <div key={idx} className="p-8 hover:bg-gray-50/50 transition-all group">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                   <div className="flex items-start gap-6 flex-1">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
-                      activity.status === 'Pending' || activity.status === 'Reviewing' ? 'bg-amber-50 text-amber-500' :
-                      activity.status === 'Accepted' || activity.status === 'In-progress' ? 'bg-blue-50 text-blue-500' :
-                      activity.status === 'In-transit' ? 'bg-purple-50 text-purple-500' :
-                      'bg-green-50 text-green-500'
-                    }`}>
-                      <Package size={20} />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm relative ${activity.action_type === 'DONOR_PROPOSE' ? 'bg-blue-50 text-blue-500' :
+                        activity.action_type === 'FOODBANK_ACCEPT' ? 'bg-green-50 text-green-500' :
+                          activity.action_type === 'FOODBANK_PROPOSE' ? 'bg-orange-50 text-orange-500' :
+                            activity.action_type === 'BARANGAY_ACCEPT' ? 'bg-purple-50 text-purple-500' :
+                              activity.action_type === 'BARANGAY_DISTRIBUTE' ? 'bg-emerald-50 text-emerald-600' :
+                                activity.action_type === 'EMERGENCY_SOS' ? 'bg-red-50 text-red-600' :
+                                  'bg-gray-50 text-gray-500'
+                      }`}>
+                      {activity.action_type === 'DONOR_PROPOSE' && <Package size={20} />}
+                      {activity.action_type === 'FOODBANK_ACCEPT' && <ShieldCheck size={20} />}
+                      {activity.action_type === 'FOODBANK_PROPOSE' && <Truck size={20} />}
+                      {activity.action_type === 'BARANGAY_ACCEPT' && <Building2 size={20} />}
+                      {activity.action_type === 'BARANGAY_DISTRIBUTE' && <CheckCircle2 size={20} />}
+                      {activity.action_type === 'EMERGENCY_SOS' && <AlertCircle size={20} />}
+                      {!['DONOR_PROPOSE', 'FOODBANK_ACCEPT', 'FOODBANK_PROPOSE', 'BARANGAY_ACCEPT', 'BARANGAY_DISTRIBUTE', 'EMERGENCY_SOS'].includes(activity.action_type) && <History size={20} />}
+
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[7px] font-black shadow-sm uppercase text-[#1A1A1A]">
+                        {activity.actor_role[0]}
+                      </div>
                     </div>
                     <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                          activity.status === 'Pending' || activity.status === 'Reviewing' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          activity.status === 'Accepted' || activity.status === 'In-progress' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                          activity.status === 'In-transit' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                          'bg-green-50 text-green-600 border-green-100'
-                        }`}>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
+                        <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter bg-gray-100 px-2 py-0.5 rounded-md">
+                          {activity.actor_name}
+                        </span>
+
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">performed</span>
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${activity.action_type === 'DONOR_PROPOSE' ? 'text-blue-600' :
+                            activity.action_type === 'FOODBANK_ACCEPT' ? 'text-green-600' :
+                              activity.action_type === 'FOODBANK_PROPOSE' ? 'text-orange-600' :
+                                activity.action_type === 'BARANGAY_ACCEPT' ? 'text-purple-600' :
+                                  activity.action_type === 'BARANGAY_DISTRIBUTE' ? 'text-emerald-600' :
+                                    activity.action_type === 'EMERGENCY_SOS' ? 'text-red-600' :
+                                      'text-gray-600'
+                          }`}>
                           {activity.status}
                         </span>
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{activity.id}</span>
+
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">to</span>
+                        <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                          {activity.target_name}
+                        </span>
                       </div>
-                      <h4 className="text-sm font-black text-[#1A1A1A] uppercase tracking-tight">{activity.item}</h4>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed max-w-xl">{activity.desc}</p>
+
+                      <p className="text-xs text-gray-500 font-medium line-clamp-1 max-w-xl">
+                        {activity.desc}
+                      </p>
                     </div>
                   </div>
 
@@ -271,6 +310,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+
+            {recentActivity.length > 0 && (
+              <div className="p-8 bg-gray-50/50 flex justify-center">
+                <Link
+                  to="/admin/logistics"
+                  className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-[#FE9800] hover:border-[#FE9800] hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+                >
+                  See Full Global Ledger
+                  <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            )}
+
             {!loading && recentActivity.length === 0 && (
               <div className="py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
                 No recent activity recorded

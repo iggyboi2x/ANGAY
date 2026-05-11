@@ -34,6 +34,38 @@ const InputField = ({ label, type = "text", placeholder, value, onChange, showTo
   </div>
 );
 
+const FileField = ({ label, id, file, preview, onChange, onRemove, accept = "image/*,.pdf" }) => (
+  <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+    {!file ? (
+      <label className="block border-2 border-dashed border-gray-200 rounded-xl p-4 text-center
+        cursor-pointer transition-all duration-200 hover:border-[#FE9800] bg-white hover:bg-orange-50/20">
+        <input type="file" className="hidden" accept={accept} onChange={onChange} />
+        <Upload size={20} className="mx-auto text-gray-400 mb-1.5" />
+        <p className="text-[10px] text-gray-400 font-medium">Click to upload document</p>
+      </label>
+    ) : (
+      <div className="relative border border-gray-200 rounded-xl p-3 bg-gray-50 flex items-center gap-3">
+        <button type="button" onClick={onRemove}
+          className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-sm text-gray-400 hover:text-red-500 transition-colors border border-gray-100">
+          <X size={12} />
+        </button>
+        {preview ? (
+          <img src={preview} alt="Preview" className="h-10 w-10 object-cover rounded-lg shadow-sm" />
+        ) : (
+          <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center border border-gray-100 shadow-sm">
+            <span className="text-[8px] font-bold text-gray-400 uppercase">{file.name.split('.').pop()}</span>
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] text-gray-600 font-semibold truncate">{file.name}</p>
+          <p className="text-[8px] text-gray-400 uppercase font-black">Ready for upload</p>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 const ContactField = ({ value, onChange }) => {
   const format = (raw) => {
     let digits = raw.replace(/\D/g, "");
@@ -243,59 +275,91 @@ const RegisterPage = ({ onSwitch }) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadPreview, setUploadPreview] = useState(null);
   const [form, setForm] = useState({
     fullName: "", email: "", password: "", confirm: "",
     orgName: "", address: "", lat: null, lng: null, contact: "", hours: "",
+    // Foodbank Verification
+    secRegNo: "", dswdLicenseNo: "", expiryDate: "",
+    // Barangay Verification
+    position: "", termEndsAt: ""
   });
+
+  const [files, setFiles] = useState({});
+  const [previews, setPreviews] = useState({});
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (key) => (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploadFile(file);
-    if (file.type.startsWith("image/")) setUploadPreview(URL.createObjectURL(file));
-    else setUploadPreview(null);
+    setFiles(prev => ({ ...prev, [key]: file }));
+    if (file.type.startsWith("image/")) {
+      setPreviews(prev => ({ ...prev, [key]: URL.createObjectURL(file) }));
+    }
+  };
+
+  const removeFile = (key) => {
+    setFiles(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setPreviews(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   const isFoodbank = role === "foodbank";
   const isBarangay = role === "barangay";
 
+  const totalSteps = role === 'donor' ? 3 : 4;
+
+  const validateStep = () => {
+    if (step === 2) {
+      if (!form.fullName || !form.email || !form.password || !form.confirm) {
+        setAlert({ message: "Please fill in all account identity fields.", type: "error" });
+        return false;
+      }
+      if (form.password !== form.confirm) {
+        setAlert({ message: "Passwords do not match.", type: "error" });
+        return false;
+      }
+      if (form.password.length < 6) {
+        setAlert({ message: "Password must be at least 6 characters.", type: "error" });
+        return false;
+      }
+    }
+    if (step === 3) {
+      if ((isFoodbank || isBarangay) && !form.orgName) {
+        setAlert({ message: `Please enter your ${isFoodbank ? 'organization' : 'barangay'} name.`, type: "error" });
+        return false;
+      }
+      if ((isFoodbank || isBarangay) && (!form.lat || !form.lng)) {
+        setAlert({ message: "Please select your address from the dropdown.", type: "error" });
+        return false;
+      }
+      const contactRegex = /^\d{3}\s\d{3}\s\d{4}$/;
+      if (!form.contact || !contactRegex.test(form.contact)) {
+        setAlert({ message: "Invalid contact number format.", type: "error" });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const nextStep = () => {
+    if (validateStep()) {
+      if (step === totalSteps) handleRegister();
+      else setStep(s => s + 1);
+    }
+  };
+
   const handleRegister = async () => {
     setAlert(null);
-    if (!form.fullName || !form.email || !form.password || !form.confirm) {
-      setAlert({ message: "Please fill in all required fields.", type: "error" }); return;
-    }
-    if (form.password !== form.confirm) {
-      setAlert({ message: "Passwords do not match.", type: "error" }); return;
-    }
-    if (form.password.length < 6) {
-      setAlert({ message: "Password must be at least 6 characters.", type: "error" }); return;
-    }
-    const contactRegex = /^\d{3}\s\d{3}\s\d{4}$/;
-    if (!form.contact || !contactRegex.test(form.contact)) {
-      setAlert({ message: "Invalid contact number. Please check and try again.", type: "error" }); return;
-    }
-    if ((isFoodbank || isBarangay) && (!form.lat || !form.lng)) {
-      setAlert({ message: "Please search and select your address from the dropdown to enable geotagging.", type: "error" }); return;
-    }
     setLoading(true);
-    let fileUrl = null;
-    if (uploadFile && (isFoodbank || isBarangay)) {
-      const bucket = isFoodbank ? "logos" : "documents";
-      const fileName = `${Date.now()}_${uploadFile.name}`;
-      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, uploadFile);
-      if (uploadError) {
-        setAlert({ message: "File upload failed: " + uploadError.message, type: "error" });
-        setLoading(false); return;
-      }
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
-      fileUrl = urlData.publicUrl;
-    }
-
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -308,16 +372,60 @@ const RegisterPage = ({ onSwitch }) => {
           longitude: form.lng || null,
           contact: form.contact ? `+63 ${form.contact}` : null,
           hours: form.hours || null,
-          file_url: fileUrl || null,
         },
       },
     });
-    setLoading(false);
-    if (error) {
-      setAlert({ message: error.message, type: "error" });
-    } else {
+
+    if (signUpError) {
+      setAlert({ message: signUpError.message, type: "error" });
+      setLoading(false);
+      return;
+    }
+
+    const userId = authData.user.id;
+
+    // Upload files and save verification data
+    const uploadTasks = Object.entries(files).map(async ([key, file]) => {
+      const bucket = isFoodbank ? "logos" : "documents";
+      const fileName = `${userId}/${Date.now()}_${key}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      return { key, url: urlData.publicUrl };
+    });
+
+    try {
+      const uploadedUrls = await Promise.all(uploadTasks);
+      const urlMap = uploadedUrls.reduce((acc, { key, url }) => ({ ...acc, [key]: url }), {});
+
+      if (isFoodbank) {
+        await supabase.from('foodbank_verification').insert({
+          foodbank_id: userId,
+          sec_reg_no: form.secRegNo,
+          sec_cert_url: urlMap.secCert,
+          dswd_license_no: form.dswdLicenseNo,
+          dswd_cert_url: urlMap.dswdCert,
+          bir_2303_url: urlMap.bir2303,
+          sanitary_permit_url: urlMap.sanitaryPermit,
+          expiry_date: form.expiryDate || null
+        });
+      } else if (isBarangay) {
+        await supabase.from('barangay_verification').insert({
+          user_id: userId,
+          position: form.position,
+          id_front_url: urlMap.idFront,
+          appointment_doc_url: urlMap.appointmentDoc,
+          auth_letter_url: urlMap.authLetter,
+          term_ends_at: form.termEndsAt || null
+        });
+      }
+      
       setAlert({ message: "Account created! Redirecting to login…", type: "success" });
       setTimeout(() => onSwitch(), 1200);
+    } catch (err) {
+      setAlert({ message: "Verification setup failed: " + err.message, type: "error" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -381,111 +489,126 @@ const RegisterPage = ({ onSwitch }) => {
           <>
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(step - 1)}
               className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FE9800] mb-6 transition-colors"
             >
               <ArrowLeft size={15} />
-              Back to roles
+              {step === 2 ? "Back to roles" : "Back"}
             </button>
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-2 mb-2">
-                {role === 'foodbank' ? <Building2 size={24} color="#FE9800" /> :
-                  role === 'barangay' ? <Home size={24} color="#FE9800" /> :
-                    <User size={24} color="#FE9800" />}
-              </div>
-              <h1 className="text-lg font-semibold text-slate-800">
-                {role === 'foodbank' ? "Foodbank Registration" :
-                  role === 'barangay' ? "Barangay Rep Registration" :
-                    "Donor Registration"}
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">Complete your profile to continue</p>
+
+            <div className="flex gap-1.5 mb-8 justify-center">
+              {[...Array(totalSteps)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    i + 1 <= step ? "w-8 bg-[#FE9800]" : "w-4 bg-gray-200"
+                  }`} 
+                />
+              ))}
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); handleRegister(); }}>
-              <InputField label="Full Name" placeholder="Enter your full name"
-                value={form.fullName} onChange={set("fullName")} />
-              <InputField label="Email Address" type="email" placeholder="your@email.com"
-                value={form.email} onChange={set("email")} />
-              <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
-                placeholder="Create a password" value={form.password} onChange={set("password")} />
-              <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
-                placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 mb-2">
+                {role === 'foodbank' ? <Building2 size={24} className="text-[#FE9800]" /> :
+                  role === 'barangay' ? <Home size={24} className="text-[#FE9800]" /> :
+                    <User size={24} className="text-[#FE9800]" />}
+              </div>
+              <h1 className="text-lg font-semibold text-slate-800">
+                {step === 2 ? "Account Identity" : 
+                 step === 3 ? "Location & Contact" : 
+                 "Verification & Details"}
+              </h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {step === 2 ? "Provide your basic login information" :
+                 step === 3 ? "Tell us where you are located" :
+                 "Finalize your registration details"}
+              </p>
+            </div>
 
-              {role === "donor" && (
-                <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
+            <form onSubmit={(e) => { e.preventDefault(); nextStep(); }}>
+              {step === 2 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  <InputField label="Full Name" placeholder="Enter your full name"
+                    value={form.fullName} onChange={set("fullName")} />
+                  <InputField label="Email Address" type="email" placeholder="your@email.com"
+                    value={form.email} onChange={set("email")} />
+                  <InputField label="Password" showToggle toggled={showPw} onToggle={() => setShowPw(p => !p)}
+                    placeholder="Create a password" value={form.password} onChange={set("password")} />
+                  <InputField label="Confirm Password" showToggle toggled={showConfirm} onToggle={() => setShowConfirm(p => !p)}
+                    placeholder="Confirm your password" value={form.confirm} onChange={set("confirm")} />
+                </div>
               )}
 
-              {(isFoodbank || isBarangay) && (
-                <>
-                  <div className="flex items-center gap-3 my-4">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      {isFoodbank ? "Organization Info" : "Barangay Info"}
-                    </span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                  </div>
-                  <InputField
-                    label={isFoodbank ? "Organization Name" : "Barangay Name"}
-                    placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
-                    value={form.orgName} onChange={set("orgName")}
-                  />
-                  <AddressAutocomplete
-                    label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
-                    placeholder="Type your address to search and pin location…"
-                    onSelect={(addr, lat, lng) => setForm(f => ({ ...f, address: addr, lat, lng }))}
-                  />
-                  <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
-                  {isFoodbank && (
-                    <OperatingHoursPicker onChange={(val) => setForm(f => ({ ...f, hours: val }))} />
+              {step === 3 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  {(isFoodbank || isBarangay) && (
+                    <>
+                      <InputField
+                        label={isFoodbank ? "Organization Name" : "Barangay Name"}
+                        placeholder={isFoodbank ? "Enter organization name" : "Enter barangay name"}
+                        value={form.orgName} onChange={set("orgName")}
+                      />
+                      <AddressAutocomplete
+                        label={isFoodbank ? "Foodbank Address" : "Barangay Address"}
+                        placeholder="Type your address to search…"
+                        onSelect={(addr, lat, lng) => setForm(f => ({ ...f, address: addr, lat, lng }))}
+                      />
+                    </>
                   )}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      {isFoodbank ? "Upload Logo" : "Upload Authorization Letter"}
-                    </label>
-                    {!uploadFile ? (
-                      <label className="block border-2 border-dashed border-gray-300 rounded-xl p-5 text-center
-                        cursor-pointer transition-colors duration-200 hover:border-[#FE9800] bg-gray-50 hover:bg-orange-50/30">
-                        <input type="file" className="hidden"
-                          accept={isFoodbank ? "image/*" : "image/*,.pdf"}
-                          onChange={handleFileChange} />
-                        <Upload size={28} className="mx-auto text-gray-400" />
-                        <p className="text-xs text-gray-400 mt-2">
-                          Drag & drop or click to browse
-                        </p>
-                      </label>
-                    ) : (
-                      <div className="relative border-2 border-gray-200 rounded-xl p-4 bg-gray-50 flex flex-col items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => { setUploadFile(null); setUploadPreview(null); }}
-                          className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm text-gray-400 hover:text-red-500 transition-colors"
-                          title="Remove file"
-                        >
-                          <X size={16} />
-                        </button>
-                        {uploadPreview ? (
-                          <img src={uploadPreview} alt="Preview" className="h-20 w-20 object-cover rounded-lg mb-2" />
-                        ) : (
-                          <div className="h-20 w-20 bg-white rounded-lg mb-2 flex items-center justify-center border border-gray-200">
-                            <span className="text-[10px] font-bold text-gray-400">FILE</span>
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-600 font-medium truncate w-full text-center px-4">
-                          {uploadFile.name}
-                        </p>
+                  <ContactField value={form.contact} onChange={(v) => setForm(f => ({ ...f, contact: v }))} />
+                </div>
+              )}
+
+              {step === 4 && (isFoodbank || isBarangay) && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-4">
+                  {isFoodbank ? (
+                    <>
+                      <div className="bg-orange-50/50 p-4 rounded-2xl border border-orange-100 mb-4">
+                        <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-2 text-center italic">Highly Recommended for Verification</p>
+                        <InputField label="SEC Registration No." placeholder="Enter SEC number" value={form.secRegNo} onChange={set("secRegNo")} />
+                        <FileField label="SEC Certificate" id="secCert" file={files.secCert} preview={previews.secCert} onChange={handleFileChange("secCert")} onRemove={() => removeFile("secCert")} />
                       </div>
-                    )}
-                  </div>
-                </>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                          <InputField label="DSWD License No." placeholder="Enter DSWD license" value={form.dswdLicenseNo} onChange={set("dswdLicenseNo")} />
+                          <FileField label="DSWD License Document" id="dswdCert" file={files.dswdCert} preview={previews.dswdCert} onChange={handleFileChange("dswdCert")} onRemove={() => removeFile("dswdCert")} />
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                          <InputField label="License Expiry" type="date" value={form.expiryDate} onChange={set("expiryDate")} />
+                          <FileField label="BIR 2303 Certificate" id="bir2303" file={files.bir2303} preview={previews.bir2303} onChange={handleFileChange("bir2303")} onRemove={() => removeFile("bir2303")} />
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                          <FileField label="Sanitary Permit" id="sanitaryPermit" file={files.sanitaryPermit} preview={previews.sanitaryPermit} onChange={handleFileChange("sanitaryPermit")} onRemove={() => removeFile("sanitaryPermit")} />
+                        </div>
+                      </div>
+                      <OperatingHoursPicker onChange={(val) => setForm(f => ({ ...f, hours: val }))} />
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mb-4">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 text-center italic">Official Verification</p>
+                        <InputField label="Official Position" placeholder="e.g. Secretary, Kagawad" value={form.position} onChange={set("position")} />
+                        <InputField label="Term Ends At" type="date" value={form.termEndsAt} onChange={set("termEndsAt")} />
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <FileField label="Front of ID" id="idFront" file={files.idFront} preview={previews.idFront} onChange={handleFileChange("idFront")} onRemove={() => removeFile("idFront")} />
+                        <FileField label="Appointment Document" id="appointmentDoc" file={files.appointmentDoc} preview={previews.appointmentDoc} onChange={handleFileChange("appointmentDoc")} onRemove={() => removeFile("appointmentDoc")} />
+                        <FileField label="Authorization Letter" id="authLetter" file={files.authLetter} preview={previews.authLetter} onChange={handleFileChange("authLetter")} onRemove={() => removeFile("authLetter")} />
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
               <button type="submit" disabled={loading}
-                className="w-full py-3 bg-[#FE9800] text-white font-semibold rounded-xl shadow-md mt-4
+                className="w-full py-3.5 bg-[#FE9800] text-white font-bold rounded-xl shadow-lg mt-6
                   hover:bg-[#e58a00] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200">
-                {loading ? "Creating account…" : "Create Account"}
+                {loading ? "Processing..." : step === totalSteps ? "Create Account" : "Continue"}
               </button>
             </form>
-            <p className="text-center text-sm text-slate-500 mt-5">
+            <p className="text-center text-sm text-slate-500 mt-6">
               Already have an account?{" "}
               <button type="button" onClick={onSwitch} className="text-[#FE9800] font-semibold hover:underline">Log in</button>
             </p>

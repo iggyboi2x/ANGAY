@@ -1,13 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ShieldCheck, 
-  Users, 
-  AlertOctagon, 
-  History, 
-  ClipboardList, 
-  Radio, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  AlertOctagon,
+  History,
+  ClipboardList,
+  Radio,
+  LogOut,
   Wheat,
   FileText
 } from 'lucide-react';
@@ -50,10 +50,9 @@ export default function AdminSidebar() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 h-12 rounded-xl transition-all relative group ${
-                isActive 
-                  ? 'bg-[#FE9800] text-white shadow-lg shadow-orange-500/20' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              `flex items-center gap-3 px-4 h-12 rounded-xl transition-all relative group ${isActive
+                ? 'bg-[#FE9800] text-white shadow-lg shadow-orange-500/20'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`
             }
           >

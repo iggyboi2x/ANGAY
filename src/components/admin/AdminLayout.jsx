@@ -46,7 +46,7 @@ export default function AdminLayout({ children, title = "System Overview" }) {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex">
       <AdminSidebar />
-      
+
       <div className="flex-1 ml-64 flex flex-col min-h-screen">
         {/* Top Header */}
         <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-10 sticky top-0 z-40">
@@ -59,8 +59,8 @@ export default function AdminLayout({ children, title = "System Overview" }) {
             {/* Search Bar */}
             <div className="relative group hidden lg:block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#FE9800] transition-colors" size={16} />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Search ledger, users, logs..."
                 className="w-72 h-11 pl-11 pr-4 bg-gray-50 border border-transparent rounded-2xl text-xs font-medium focus:outline-none focus:bg-white focus:border-[#FE9800] transition-all"
               />
@@ -68,7 +68,7 @@ export default function AdminLayout({ children, title = "System Overview" }) {
 
             {/* File Operations Dropdown */}
             <div className="relative" ref={fileMenuRef}>
-              <button 
+              <button
                 onClick={() => setFileMenuOpen(!fileMenuOpen)}
                 className="flex items-center gap-2 px-4 h-11 bg-[#1A1A1A] text-white rounded-2xl hover:bg-black transition-all shadow-lg shadow-black/5"
               >
@@ -82,7 +82,7 @@ export default function AdminLayout({ children, title = "System Overview" }) {
                   <div className="px-4 py-2 mb-2 border-b border-gray-50">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">System File Tasks</p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleExportInventory}
                     className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-orange-50 text-gray-700 hover:text-[#FE9800] rounded-2xl transition-all group"
                   >
@@ -91,7 +91,7 @@ export default function AdminLayout({ children, title = "System Overview" }) {
                     </div>
                     <span className="text-xs font-bold">Export Inventory</span>
                   </button>
-                  <button 
+                  <button
                     onClick={handleDownloadTemplate}
                     className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-2xl transition-all group"
                   >
@@ -101,8 +101,8 @@ export default function AdminLayout({ children, title = "System Overview" }) {
                     <span className="text-xs font-bold">Download Template</span>
                   </button>
                   <div className="relative">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       className="absolute inset-0 opacity-0 cursor-pointer"
                       onChange={(e) => {
                         console.log('File uploaded:', e.target.files[0]);
