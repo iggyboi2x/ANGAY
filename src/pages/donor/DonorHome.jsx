@@ -8,6 +8,7 @@ import "leaflet/dist/leaflet.css";
 import { supabase } from "../../../supabase";
 import { useMapPins } from "../../hooks/useMapPins";
 import { useProfile } from "../../hooks/useProfile";
+import VerifiedBadge from "../../components/VerifiedBadge";
 import { logLedgerAction } from "../../utils/ledger";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -375,7 +376,10 @@ export default function DonorHome() {
                         {result.type === 'foodbank' ? <Package size={18} /> : <MapPin size={18} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-gray-800 text-sm truncate">{result.org_name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-gray-800 text-sm truncate">{result.org_name}</p>
+                          <VerifiedBadge isVerified={result.is_verified} size={14} />
+                        </div>
                         <p className="text-xs text-gray-400 truncate mt-0.5">{result.address || "No address provided"}</p>
                       </div>
                       <ArrowRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-all group-hover:translate-x-1" />
@@ -439,7 +443,7 @@ export default function DonorHome() {
                     <h2 className="text-white font-bold text-2xl truncate drop-shadow-md">
                       {selectedPin.org_name || "Unnamed"}
                     </h2>
-                    <CheckCircle size={20} className="text-blue-400 fill-white flex-shrink-0" />
+                    <VerifiedBadge isVerified={selectedPin.is_verified} size={20} className="fill-white" />
                   </div>
                   <p className="text-white/80 text-sm flex items-center gap-1">
                     <MapPin size={14} /> {selectedPin.address || "Location not set"}

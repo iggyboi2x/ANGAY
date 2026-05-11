@@ -1,18 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import Sidebar from '../components/foodbank/FoodbankSidebar';
-import Input from '../components/Input';
-import Button from '../components/Button';
+import FoodbankSidebar from '../components/foodbank/FoodbankSidebar';
+import BarangaySidebar from '../components/barangay/BarangaySidebar';
+import VerifiedBadge from '../components/VerifiedBadge';
 import { 
-  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera, Eye, EyeOff
+  LayoutDashboard, MessageSquare, Package, Gift, Box, Camera, Eye, EyeOff,
+  ShieldCheck, Upload, AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
+import Button from '../components/Button';
+import Modal from '../components/Modal';
 
-const navItems = [
+const foodbankNav = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/foodbank/dashboard' },
   { label: 'Messages', icon: MessageSquare, path: '/foodbank/messages' },
   { label: 'Inventory', icon: Package, path: '/foodbank/inventory' },
   { label: 'Packages', icon: Box, path: '/foodbank/packages' },
   { label: 'Donations', icon: Gift, path: '/foodbank/donations' },
+];
+
+const barangayNav = [
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/barangay/dashboard' },
+  { label: 'Community', icon: Gift, path: '/barangay/community' },
+  { label: 'Inventory', icon: Package, path: '/barangay/inventory' },
+  { label: 'Reports', icon: Box, path: '/barangay/reports' },
 ];
 
 export default function AccountSettings() {
@@ -23,6 +33,11 @@ export default function AccountSettings() {
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [donationReminders, setDonationReminders] = useState(true);
   const [savingOrg, setSavingOrg] = useState(false);
+  const [role, setRole] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationData, setVerificationData] = useState(null);
+  const [vLoading, setVLoading] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   // Email change state
   const [currentEmail, setCurrentEmail] = useState('');
@@ -63,35 +78,73 @@ export default function AccountSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const userRole = user.user_metadata?.role;
+      setRole(userRole);
       setCurrentEmail(user.email || '');
 
-      // Load contact from profiles
-      const { data: profile, error: profileError } = await supabase
+      // Load basic profile
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('contact')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
+      
+      setIsVerified(profile?.is_verified || false);
 
-      console.log('profile:', profile, profileError);
-
-      // Load from foodbanks (including logo_url)
-      const { data: foodbank, error: foodbankError } = await supabase
-        .from('foodbanks')
-        .select('org_name, address, operating_hours, website_url, logo_url')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      console.log('foodbank:', foodbank, foodbankError);
-
-      if (foodbank?.logo_url) setPhotoUrl(foodbank.logo_url);
-
-      const loaded = {
-        org_name: foodbank?.org_name || '',
+      let loaded = {
+        org_name: '',
         contact: profile?.contact || '',
-        address: foodbank?.address || '',
-        operating_hours: foodbank?.operating_hours || '',
-        website_url: foodbank?.website_url || '',
+        address: '',
+        operating_hours: '',
+        website_url: '',
       };
+
+      if (userRole === 'foodbank') {
+        const { data: foodbank } = await supabase
+          .from('foodbanks')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (foodbank?.logo_url) setPhotoUrl(foodbank.logo_url);
+        loaded = {
+          ...loaded,
+          org_name: foodbank?.org_name || '',
+          address: foodbank?.address || '',
+          operating_hours: foodbank?.operating_hours || '',
+          website_url: foodbank?.website_url || '',
+        };
+
+        const { data: vData } = await supabase
+          .from('foodbank_verification')
+          .select('*')
+          .eq('foodbank_id', user.id)
+          .maybeSingle();
+        setVerificationData(vData);
+
+      } else if (userRole === 'barangay') {
+        const { data: barangay } = await supabase
+          .from('barangays')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (barangay?.barangay_profile) setPhotoUrl(barangay.barangay_profile);
+        loaded = {
+          ...loaded,
+          org_name: barangay?.barangay_name || '',
+          address: barangay?.address || '',
+          operating_hours: '',
+          website_url: '',
+        };
+
+        const { data: vData } = await supabase
+          .from('barangay_verification')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setVerificationData(vData);
+      }
 
       setOrgData(loaded);
       setOriginalOrgData(loaded);
@@ -134,10 +187,13 @@ export default function AccountSettings() {
 
       const publicUrl = data.publicUrl;
 
-      // Save to foodbanks.logo_url instead of profiles.avatar_url
+      // Save to correct table
+      const table = role === 'foodbank' ? 'foodbanks' : 'barangays';
+      const col = role === 'foodbank' ? 'logo_url' : 'barangay_profile';
+      
       const { error: updateError } = await supabase
-        .from('foodbanks')
-        .update({ logo_url: publicUrl })
+        .from(table)
+        .update({ [col]: publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
@@ -159,17 +215,23 @@ export default function AccountSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
 
-      const { error: foodbankError } = await supabase
-        .from('foodbanks')
-        .update({
-          org_name: orgData.org_name,
-          address: orgData.address,
-          operating_hours: orgData.operating_hours,
-          website_url: orgData.website_url,
-        })
+      const table = role === 'foodbank' ? 'foodbanks' : 'barangays';
+      const updateData = role === 'foodbank' ? {
+        org_name: orgData.org_name,
+        address: orgData.address,
+        operating_hours: orgData.operating_hours,
+        website_url: orgData.website_url,
+      } : {
+        barangay_name: orgData.org_name, // Using unified org_name field from state
+        address: orgData.address,
+      };
+
+      const { error: tableError } = await supabase
+        .from(table)
+        .update(updateData)
         .eq('id', user.id);
 
-      if (foodbankError) throw foodbankError;
+      if (tableError) throw tableError;
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -179,7 +241,7 @@ export default function AccountSettings() {
       if (profileError) throw profileError;
 
       setOriginalOrgData({ ...orgData });
-      alert('Organization info saved!');
+      alert((role === 'foodbank' ? 'Organization' : 'Barangay') + ' info saved!');
     } catch (error) {
       alert('Failed to save: ' + error.message);
     } finally {
@@ -250,16 +312,11 @@ export default function AccountSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
 
-      // Delete from foodbanks
-      await supabase.from('foodbanks').delete().eq('id', user.id);
-      // Delete from profiles
-      await supabase.from('profiles').delete().eq('id', user.id);
-      // Sign out and delete auth user via admin or RPC if available
-      // Since client-side can't delete auth.users directly, we sign out
-      // and rely on a Supabase database trigger or Edge Function to clean up auth.users
+      // Soft deactivate
+      await supabase.from('foodbanks').update({ is_deactivated: true }).eq('id', user.id);
+      await supabase.from('profiles').update({ is_deactivated: true }).eq('id', user.id);
+      
       await supabase.auth.signOut();
-
-      // Redirect to home/login
       window.location.href = '/';
     } catch (error) {
       alert('Failed to deactivate account: ' + error.message);
@@ -283,14 +340,145 @@ export default function AccountSettings() {
     </button>
   );
 
+  const Input = ({ label, value, onChange, placeholder = "", type = "text", className = "", ...props }) => (
+    <div className="w-full">
+      {label && <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">{label}</label>}
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        readOnly={!onChange}
+        placeholder={placeholder}
+        className={`w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FE9800]/10 focus:border-[#FE9800] transition-all disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed ${className}`}
+        {...props}
+      />
+    </div>
+  );
+
+  const handleVerificationUpload = async (fileKey, file) => {
+    try {
+      setVLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const fileExt = file.name.split('.').pop();
+      const bucket = role === 'foodbank' ? 'logos' : 'documents';
+      const fileName = `${user.id}/verification/${fileKey}_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      const publicUrl = data.publicUrl;
+
+      const table = role === 'foodbank' ? 'foodbank_verification' : 'barangay_verification';
+      const idKey = role === 'foodbank' ? 'foodbank_id' : 'user_id';
+      const urlCol = {
+        secCert: 'sec_cert_url',
+        dswdCert: 'dswd_cert_url',
+        bir2303: 'bir_2303_url',
+        sanitaryPermit: 'sanitary_permit_url',
+        idFront: 'id_front_url',
+        appointmentDoc: 'appointment_doc_url',
+        authLetter: 'auth_letter_url'
+      }[fileKey];
+
+      const { error: updateError } = await supabase
+        .from(table)
+        .upsert({ 
+          [idKey]: user.id, 
+          [urlCol]: publicUrl,
+          verification_status: 'pending',
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) throw updateError;
+
+      setVerificationData(prev => ({ ...prev, [urlCol]: publicUrl, verification_status: 'pending' }));
+      alert('Document uploaded! Status set to pending.');
+    } catch (error) {
+      alert('Upload failed: ' + error.message);
+    } finally {
+      setVLoading(false);
+    }
+  };
+
+  const VerificationCard = ({ label, status, url, onUpload }) => (
+    <div className="border border-[#F0F0F0] rounded-xl p-4 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-[#333333] mb-1" style={{ fontFamily: 'DM Sans' }}>{label}</p>
+        <div className="flex items-center gap-2">
+          {url ? (
+            <a href={url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline font-bold uppercase tracking-widest">
+              View Document
+            </a>
+          ) : (
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest italic">Not Uploaded</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        {url && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 border border-gray-100">
+            {status === 'approved' ? <CheckCircle2 size={12} className="text-green-500" /> :
+             status === 'rejected' ? <AlertCircle size={12} className="text-red-500" /> :
+             <Clock size={12} className="text-orange-500" />}
+            <span className={`text-[10px] font-black uppercase tracking-tight ${
+              status === 'approved' ? 'text-green-600' :
+              status === 'rejected' ? 'text-red-600' :
+              'text-orange-600'
+            }`}>
+              {status || 'Pending'}
+            </span>
+          </div>
+        )}
+        <label className="cursor-pointer">
+          <input type="file" className="hidden" onChange={(e) => onUpload(e.target.files[0])} />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-600 hover:border-[#FE9800] hover:text-[#FE9800] transition-all">
+            <Upload size={12} />
+            {url ? 'Update' : 'Upload'}
+          </div>
+        </label>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar navItems={navItems} />
+      {role === 'foodbank' && <FoodbankSidebar navItems={foodbankNav} />}
+      {role === 'barangay' && <BarangaySidebar />}
       
-      <div className="ml-60 flex-1">
+      <div className={`${role === 'foodbank' ? 'ml-60' : 'ml-64'} flex-1`}>
         <div className="p-8">
           <div className="max-w-[680px] mx-auto">
-            <h1 className="text-2xl mb-8">Account Settings</h1>
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-2xl font-black text-[#1A1A1A] uppercase tracking-tight">Account Settings</h1>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-xl">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status:</span>
+                <div className="flex items-center gap-1">
+                  <VerifiedBadge isVerified={isVerified} size={14} />
+                  <span className={`text-[10px] font-black uppercase tracking-tight ${isVerified ? 'text-blue-600' : 'text-gray-400'}`}>
+                    {isVerified ? 'Verified Official' : 'Unverified Account'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {!isVerified && (
+              <div className="mb-8 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-500 shadow-sm">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-orange-800">Verification Required</h3>
+                    <p className="text-xs text-orange-600">Submit your documents below to earn your official badge and unlock all features.</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Profile Photo Section */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
@@ -338,9 +526,64 @@ export default function AccountSettings() {
               </div>
             </div>
 
+            {/* Verification Status Section */}
+            <div className="border-b border-[#F0F0F0] pb-8 mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-[#FE9800]">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight">Trust & Verification</h2>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                    {role === 'barangay' 
+                      ? 'Submit official documents to confirm your authority as a Barangay official' 
+                      : 'Submit official documents for the foodbank verification badge'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-[2rem] p-8 border border-gray-100 text-center">
+                {!isVerified ? (
+                  <>
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#FE9800] mx-auto mb-4 shadow-sm">
+                      <ShieldCheck size={32} />
+                    </div>
+                    <h3 className="text-base font-black text-[#1A1A1A] uppercase tracking-tight mb-2">
+                      {verificationData?.verification_status === 'pending' ? 'Verification in Progress' : 'Verify Your Identity'}
+                    </h3>
+                    <p className="text-xs text-gray-500 max-w-xs mx-auto mb-6 leading-relaxed">
+                      {verificationData?.verification_status === 'pending' 
+                        ? 'Your documents are currently being reviewed by our administrative team. We will notify you once verified.' 
+                        : 'Submit your official documentation to earn your verified badge and gain full access to platform features.'}
+                    </p>
+                    
+                    <Button 
+                      className="h-14 px-8 uppercase tracking-widest text-[10px] font-black"
+                      disabled={verificationData?.verification_status === 'pending' || vLoading}
+                      onClick={() => setShowVerificationModal(true)}
+                    >
+                      {vLoading ? 'Processing...' : 
+                       verificationData?.verification_status === 'pending' ? 'Pending Review' : 
+                       'Open Verification Portal'}
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-4 shadow-sm">
+                      <CheckCircle2 size={32} />
+                    </div>
+                    <h3 className="text-base font-black text-blue-600 uppercase tracking-tight mb-1">Account Verified</h3>
+                    <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Official {role} Status Confirmed</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Organization Information */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
-              <h2 className="text-lg mb-4">Organization Information</h2>
+              <h2 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight mb-4">
+                {role === 'barangay' ? 'Barangay Information' : 'Organization Information'}
+              </h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <Input
                   label="Organization Name"
@@ -762,6 +1005,88 @@ export default function AccountSettings() {
           </div>
         </div>
       </div>
+
+      {/* Verification Portal Modal */}
+      <Modal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        title="Verification Portal"
+        width="lg"
+      >
+        <div className="space-y-6">
+          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-6">
+            <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest leading-relaxed">
+              Please upload high-quality scans or photos of your official documents. 
+              Once all required files are uploaded, you can submit them for administrative review.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {role === 'foodbank' ? (
+              <>
+                <VerificationCard 
+                  label="SEC Registration Certificate" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.sec_cert_url} 
+                  onUpload={(f) => handleVerificationUpload('secCert', f)} 
+                />
+                <VerificationCard 
+                  label="DSWD License to Operate" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.dswd_cert_url} 
+                  onUpload={(f) => handleVerificationUpload('dswdCert', f)} 
+                />
+                <VerificationCard 
+                  label="BIR 2303 Certificate" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.bir_2303_url} 
+                  onUpload={(f) => handleVerificationUpload('bir2303', f)} 
+                />
+                <VerificationCard 
+                  label="LGU Sanitary Permit" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.sanitary_permit_url} 
+                  onUpload={(f) => handleVerificationUpload('sanitaryPermit', f)} 
+                />
+              </>
+            ) : (
+              <>
+                <VerificationCard 
+                  label="Barangay Official ID (Front)" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.id_front_url} 
+                  onUpload={(f) => handleVerificationUpload('idFront', f)} 
+                />
+                <VerificationCard 
+                  label="Appointment Paper / Oath of Office" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.appointment_doc_url} 
+                  onUpload={(f) => handleVerificationUpload('appointmentDoc', f)} 
+                />
+                <VerificationCard 
+                  label="LGU Authorization Letter" 
+                  status={verificationData?.verification_status} 
+                  url={verificationData?.auth_letter_url} 
+                  onUpload={(f) => handleVerificationUpload('authLetter', f)} 
+                />
+              </>
+            )}
+          </div>
+
+          <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setShowVerificationModal(false)}>Close</Button>
+            <Button 
+              disabled={vLoading}
+              onClick={async () => {
+                setShowVerificationModal(false);
+                alert('Your documents have been queued for verification. The admin team will review them shortly.');
+              }}
+            >
+              Finish Submission
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

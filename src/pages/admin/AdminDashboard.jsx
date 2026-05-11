@@ -21,6 +21,7 @@ import {
   User, Truck, CheckCircle2, History, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../../../supabase';
+import VerifiedBadge from '../../components/VerifiedBadge';
 
 ChartJS.register(
   CategoryScale,
@@ -118,11 +119,25 @@ export default function AdminDashboard() {
         },
       ]);
 
-      const { data: ledger } = await supabase
+      const { data: ledger, error: ledgerError } = await supabase
         .from('global_activity_ledger')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (ledgerError) throw ledgerError;
+
+      // Fetch verified status for actors
+      const actorIds = [...new Set(ledger?.map(l => l.actor_id) || [])];
+      const { data: actorProfiles } = await supabase
+        .from('profiles')
+        .select('id, is_verified')
+        .in('id', actorIds);
+
+      const verifiedMap = (actorProfiles || []).reduce((acc, p) => ({
+        ...acc,
+        [p.id]: p.is_verified
+      }), {});
 
       setRecentActivity(ledger?.map(entry => {
         const statusMap = {
@@ -142,7 +157,8 @@ export default function AdminDashboard() {
           status: statusMap[entry.action_type] || 'Activity',
           desc: entry.details,
           time: new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action_type: entry.action_type
+          action_type: entry.action_type,
+          actor_verified: verifiedMap[entry.actor_id] || false
         };
       }) || []);
 
@@ -257,9 +273,12 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
-                        <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter bg-gray-100 px-2 py-0.5 rounded-md">
-                          {activity.actor_name}
-                        </span>
+                        <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-black text-[#1A1A1A] uppercase tracking-tighter">
+                            {activity.actor_name}
+                          </span>
+                          <VerifiedBadge isVerified={activity.actor_verified} size={10} />
+                        </div>
 
                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">performed</span>
                         <span className={`text-[9px] font-black uppercase tracking-widest ${activity.action_type === 'DONOR_PROPOSE' ? 'text-blue-600' :

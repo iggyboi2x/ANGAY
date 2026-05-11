@@ -20,7 +20,7 @@ export function useMapPins(role) {
 
       const { data, error } = await supabase
         .from(table)
-        .select(`id, ${nameCol}, address, latitude, longitude${extraCols}${crisisCols}, profiles(contact)${demographicsJoin}`);
+        .select(`id, ${nameCol}, address, latitude, longitude${extraCols}${crisisCols}, profiles(contact, is_verified)${demographicsJoin}`);
 
       if (error) {
         console.error(`[useMapPins] Error fetching ${table}:`, error.message);
@@ -49,7 +49,8 @@ export function useMapPins(role) {
             ...row,
             type: isFoodbank ? 'foodbank' : 'barangay',
             org_name: row[nameCol],
-            contact: row.profiles?.contact || null,
+            contact: (Array.isArray(row.profiles) ? row.profiles[0]?.contact : row.profiles?.contact) || null,
+            is_verified: (Array.isArray(row.profiles) ? row.profiles[0]?.is_verified : row.profiles?.is_verified) || false,
             hours: row.operating_hours || null,
             logo_url: row.logo_url || null,
             website_url: row.website_url || null,

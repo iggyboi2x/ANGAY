@@ -194,7 +194,7 @@ function App() {
           <Route path="/barangay/messages" element={<RequireAuth allowedRoles={["barangay"]}><BarangayMessages /></RequireAuth>} />
           <Route path="/barangay/demographics" element={<RequireAuth allowedRoles={["barangay"]}><BarangayDemographics /></RequireAuth>} />
           <Route path="/barangay/donations" element={<RequireAuth allowedRoles={["barangay"]}><BarangayDonations /></RequireAuth>} />
-          <Route path="/barangay/account" element={<RequireAuth allowedRoles={["barangay"]}><BarangayAccountSettings /></RequireAuth>} />
+          <Route path="/barangay/account" element={<RequireAuth allowedRoles={["barangay"]}><AccountSettings /></RequireAuth>} />
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />

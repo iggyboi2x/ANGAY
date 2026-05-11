@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import VerifiedBadge from '../VerifiedBadge';
 
 export default function FoodbankPopup({ pin, onClose }) {
   const navigate = useNavigate();
@@ -29,7 +30,10 @@ export default function FoodbankPopup({ pin, onClose }) {
 
       {/* Header */}
       <div className="mb-2 pr-4">
-        <p className="text-xs font-bold text-[#1A1A1A]">{name}</p>
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <p className="text-xs font-bold text-[#1A1A1A] truncate">{name}</p>
+          <VerifiedBadge isVerified={pin.is_verified} size={13} />
+        </div>
         <p className="text-[11px] text-[#888888] leading-tight">{address}</p>
       </div>
 

@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS public.barangay_verification (
     appointment_doc_url text,
     auth_letter_url text,
     is_active_official boolean DEFAULT false,
+    verification_status verification_status DEFAULT 'pending',
     verified_by uuid REFERENCES public.profiles(id),
+    verified_at timestamptz,
     term_ends_at date,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
