@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import LandingNav from '../components/LandingNav'
 import { Plus, ArrowRight, Github, Linkedin, Mail, Phone, MapPin, Send } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { supabase } from '../../supabase'
 
 const features = [
   {
@@ -107,16 +108,27 @@ const LandingPage = () => {
     setIsSubmitting(true)
     setSubmitStatus('')
 
-    // Simulate form submission
-    setTimeout(() => {
-      console.log('Contact form submitted:', contactForm)
+    try {
+      const { error } = await supabase.from('contact_inquiries').insert([
+        {
+          full_name: contactForm.name,
+          email: contactForm.email,
+          organization: contactForm.organization,
+          message: contactForm.message
+        }
+      ]);
+
+      if (error) throw error;
+
       setSubmitStatus('success')
       setContactForm({ name: '', email: '', organization: '', message: '' })
-      setIsSubmitting(false)
-
-      // Clear success message after 5 seconds
       setTimeout(() => setSubmitStatus(''), 5000)
-    }, 1500)
+    } catch (err) {
+      console.error('Contact form error:', err);
+      setSubmitStatus('error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -438,12 +450,6 @@ const LandingPage = () => {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <a
-              href="#contact"
-              className="inline-flex items-center gap-2 rounded-full bg-[#FE9800] px-8 py-3 font-semibold text-white shadow-md hover:bg-[#e58a00] transition"
-            >
-              Send an inquiry <ArrowRight size={16} />
-            </a>
           </div>
         </section>
 
@@ -563,6 +569,14 @@ const LandingPage = () => {
                   <div className="p-4 rounded-xl bg-green-50 border border-green-200">
                     <p className="text-sm font-semibold text-green-800">
                       ✓ Message sent successfully! We'll get back to you soon.
+                    </p>
+                  </div>
+                )}
+
+                {submitStatus === 'error' && (
+                  <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+                    <p className="text-sm font-semibold text-red-800">
+                      ✕ Failed to send message. Please ensure the database migration is applied.
                     </p>
                   </div>
                 )}

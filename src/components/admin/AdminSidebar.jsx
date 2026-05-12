@@ -9,13 +9,15 @@ import {
   Radio,
   LogOut,
   Wheat,
-  FileText
+  FileText,
+  Mail
 } from 'lucide-react';
 import { supabase } from '../../../supabase';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/admin/dashboard' },
   { label: 'User Management', icon: Users, to: '/admin/users' },
+  { label: 'Inquiries', icon: Mail, to: '/admin/inquiries' },
   { label: 'Reports & Bans', icon: AlertOctagon, to: '/admin/reports' },
   { label: 'Logistics Monitoring', icon: History, to: '/admin/logistics' },
   { label: 'Emergency SOS', icon: Radio, to: '/admin/emergency' },

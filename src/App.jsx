@@ -24,6 +24,8 @@ import AdminLogistics from "./pages/admin/AdminLogistics";
 import AdminEmergency from "./pages/admin/AdminEmergency";
 import AdminLogs from "./pages/admin/AdminLogs";
 import AdminReports from "./pages/admin/AdminReports";
+import AdminInquiries from "./pages/admin/AdminInquiries";
+import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import BannedPage from "./pages/BannedPage";
 
@@ -199,10 +201,14 @@ function App() {
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} />
           <Route path="/admin/users" element={<RequireAuth allowedRoles={["admin"]}><AdminVerification /></RequireAuth>} />
+          <Route path="/admin/inquiries" element={<RequireAuth allowedRoles={["admin"]}><AdminInquiries /></RequireAuth>} />
           <Route path="/admin/reports" element={<RequireAuth allowedRoles={["admin"]}><AdminReports /></RequireAuth>} />
           <Route path="/admin/logistics" element={<RequireAuth allowedRoles={["admin"]}><AdminLogistics /></RequireAuth>} />
           <Route path="/admin/emergency" element={<RequireAuth allowedRoles={["admin"]}><AdminEmergency /></RequireAuth>} />
           <Route path="/admin/logs" element={<RequireAuth allowedRoles={["admin"]}><AdminLogs /></RequireAuth>} />
+          
+          {/* 404 Route */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </>
