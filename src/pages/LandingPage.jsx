@@ -135,14 +135,14 @@ const LandingPage = () => {
     <div className="font-fredoka bg-[#fffaf1] text-slate-800 overflow-x-hidden">
       <LandingNav />
 
-      <main className='mt-15'>
+      <main className='mt-20 lg:mt-15'>
 
         {/* ── Hero ── */}
         <section id="home" className=" overflow-hidden">
-          <div className=" bg-white mx-auto px-8 sm:px-12 lg:px-24 xl:px-32 lg:py-10 flex flex-col lg:flex-row gap-10 lg:gap-12">
+          <div className=" bg-white mx-auto px-6 sm:px-12 lg:px-24 xl:px-32 py-10 lg:py-10 flex flex-col lg:flex-row gap-10 lg:gap-12">
 
             {/* Left */}
-            <div className="w-full lg:w-7/12 flex flex-col items-start justify-center   -mt-15 lg:pt-0">
+            <div className="w-full lg:w-7/12 flex flex-col items-start justify-center lg:-mt-15 lg:pt-0">
 
               <h1 className="reveal text-5xl sm:text-6xl md:text-[4rem] lg:text-[4.5rem] font-semibold tracking-tight text-slate-900 leading-[1.05]">
                 Let's End <br />
@@ -351,7 +351,7 @@ const LandingPage = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* Image Bubble */}
                   <div className="reveal w-full lg:w-1/2 flex justify-center z-10 p-4">
                     <div className="w-[85%] sm:w-[70%] lg:w-[80%] max-w-[420px] aspect-[1.4] border-[9px] border-dashed border-[#FE9800]/50 rounded-[50%] flex items-center justify-center p-6 sm:p-10 bg-white">
@@ -373,7 +373,7 @@ const LandingPage = () => {
               <div className="absolute bottom-0 top-[60%] left-1/2 -translate-x-1/2 text-[#FE9800] opacity-60">
                 <svg width="100" height="100" viewBox="0 0 100 100">
                   <path d="M 50,35 C 20,0 0,40 50,90 C 100,40 80,0 50,35 Z" fill="none" stroke="currentColor" strokeWidth="9" strokeDasharray="8 8" />
-                </svg> 
+                </svg>
               </div>
             </div>
           </div>
