@@ -9,6 +9,7 @@ import { supabase } from "../../../supabase";
 import Modal from "../../components/Modal";
 import Button from "../../components/Button";
 import LogisticProgressBar from "../../components/LogisticProgressBar";
+import VerifiedBadge from "../../components/VerifiedBadge";
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
@@ -46,6 +47,7 @@ export default function DonorDonations() {
       .from("donations")
       .select(`
         *,
+        foodbank:profiles!foodbank_id(is_verified),
         donation_packages!original_donation_id(
           id, status, 
           distributions(status, distributed_at, proof_images, proof_description)
@@ -93,6 +95,7 @@ export default function DonorDonations() {
       return { 
         ...d, 
         foodbank_name: d.foodbank_name || "Foodbank",
+        foodbank_verified: (Array.isArray(d.foodbank) ? d.foodbank[0]?.is_verified : d.foodbank?.is_verified) || false,
         logisticStatus,
         proof: dist?.status === 'distributed' ? dist : null
       };
@@ -198,7 +201,10 @@ export default function DonorDonations() {
                           <Gift size={24} className={isDirect ? 'text-[#FE9800]' : 'text-blue-600'} />
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{d.foodbank_name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-lg font-bold text-[#1A1A1A] leading-tight">{d.foodbank_name}</p>
+                            <VerifiedBadge isVerified={d.foodbank_verified} size={16} />
+                          </div>
                           <p className="text-xs text-gray-400 font-medium italic">Partner Foodbank</p>
                         </div>
                       </div>
@@ -289,7 +295,10 @@ export default function DonorDonations() {
                           <div className={`w-10 h-10 rounded-xl ${d.barangay_name ? 'bg-[#FFF3DC]' : 'bg-blue-50'} flex items-center justify-center`}>
                             <Gift size={18} className={d.barangay_name ? 'text-[#FE9800]' : 'text-blue-600'} />
                           </div>
-                          <span className="text-sm font-bold text-[#1A1A1A]">{d.foodbank_name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-[#1A1A1A]">{d.foodbank_name}</span>
+                            <VerifiedBadge isVerified={d.foodbank_verified} size={12} />
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -338,7 +347,10 @@ export default function DonorDonations() {
                     <Gift size={28} className={viewingItem.barangay_name ? 'text-[#FE9800]' : 'text-blue-600'} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-[#1A1A1A] tracking-tighter uppercase leading-tight">{viewingItem.foodbank_name}</h2>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-2xl font-black text-[#1A1A1A] tracking-tighter uppercase leading-tight">{viewingItem.foodbank_name}</h2>
+                      <VerifiedBadge isVerified={viewingItem.foodbank_verified} size={20} />
+                    </div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Partner Foodbank</p>
                   </div>
                 </div>

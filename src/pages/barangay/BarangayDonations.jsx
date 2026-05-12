@@ -8,6 +8,7 @@ import { logLedgerAction } from '../../utils/ledger';
 import Modal from '../../components/Modal';
 import Button from '../../components/Button';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
+import VerifiedBadge from '../../components/VerifiedBadge';
 
 const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
@@ -153,7 +154,10 @@ function AidCard({ dist, onConfirmReceived, onConfirmDistributed, onShowProof })
             {isPending ? <Clock size={20} /> : isReceived ? <Package size={20} /> : <CheckCircle size={20} />}
           </div>
           <div>
-            <p className="text-base font-bold text-[#1A1A1A] leading-tight">{dist.foodbank_name || 'Foodbank'}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-base font-bold text-[#1A1A1A] leading-tight">{dist.foodbank_name || 'Foodbank'}</p>
+              <VerifiedBadge isVerified={dist.foodbank_verified} size={14} />
+            </div>
             <p className="text-[11px] text-gray-400 font-medium">Origin: Foodbank</p>
           </div>
         </div>
@@ -229,6 +233,7 @@ export default function BarangayDonations() {
         .from('distributions')
         .select(`
           *,
+          foodbank:profiles!foodbank_id(is_verified),
           donation_packages!package_id(
             id, name, status,
             package_items(item_name, quantity, unit)
@@ -238,7 +243,10 @@ export default function BarangayDonations() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDists(data || []);
+      setDists((data || []).map(d => ({
+        ...d,
+        foodbank_verified: (Array.isArray(d.foodbank) ? d.foodbank[0]?.is_verified : d.foodbank?.is_verified) || false
+      })));
     } catch (err) {
       console.error("Error loading barangay distributions:", err);
     } finally {

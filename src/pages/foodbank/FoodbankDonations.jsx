@@ -13,6 +13,7 @@ import Button from '../../components/Button';
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
 import NotificationBell from '../../components/foodbank/NotificationBell';
 import AcceptDonationModal from '../../components/foodbank/AcceptDonationModal';
+import VerifiedBadge from '../../components/VerifiedBadge';
 import { logLedgerAction } from '../../utils/ledger';
 
 const fmt = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -72,8 +73,13 @@ function DonorCard({ donation, onAccept, onReject, onComplete, onShowProof }) {
             <Gift size={20} className="text-[#FE9800]" />
           </div>
           <div>
-            <p className="text-base font-bold text-[#1A1A1A] leading-tight">{donation.donor_name || 'Donor'}</p>
-            <p className="text-[11px] text-gray-400 font-medium">Verified Donor</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-base font-bold text-[#1A1A1A] leading-tight">{donation.donor_name || 'Donor'}</p>
+              <VerifiedBadge isVerified={donation.donor_verified} size={14} />
+            </div>
+            <p className="text-[11px] text-gray-400 font-medium">
+              {donation.donor_verified ? 'Verified Donor' : 'Standard Donor'}
+            </p>
           </div>
         </div>
         <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
@@ -145,8 +151,13 @@ function DistCard({ dist, onShowProof }) {
             <Send size={18} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-base font-bold text-[#1A1A1A] leading-tight">{dist.barangay_name || 'Barangay'}</p>
-            <p className="text-[11px] text-gray-400 font-medium">Target Barangay</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-base font-bold text-[#1A1A1A] leading-tight">{dist.barangay_name || 'Barangay'}</p>
+              <VerifiedBadge isVerified={dist.barangay_verified} size={14} />
+            </div>
+            <p className="text-[11px] text-gray-400 font-medium">
+              {dist.barangay_verified ? 'Verified Official' : 'Target Barangay'}
+            </p>
           </div>
         </div>
         <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
@@ -190,7 +201,10 @@ function DonorListRow({ donation, onAccept, onReject, onComplete, onShowProof, o
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-bold text-[#1A1A1A] truncate">{donation.donor_name || 'Donor'}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-bold text-[#1A1A1A] truncate">{donation.donor_name || 'Donor'}</p>
+              <VerifiedBadge isVerified={donation.donor_verified} size={12} />
+            </div>
             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
           </div>
           <p className="text-xs text-gray-500 truncate mt-0.5">{donation.items}</p>
@@ -232,7 +246,10 @@ function DistListRow({ dist, onShowProof, onClick }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-bold text-[#1A1A1A] truncate">{dist.barangay_name || 'Barangay'}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-bold text-[#1A1A1A] truncate">{dist.barangay_name || 'Barangay'}</p>
+              <VerifiedBadge isVerified={dist.barangay_verified} size={12} />
+            </div>
             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>{s.label}</span>
           </div>
           <p className="text-xs text-gray-500 truncate mt-0.5">{dist.items}</p>
@@ -275,12 +292,16 @@ export default function FoodbankDonations() {
     const [{ data: don }, { data: dis }, { data: bays }, { data: pkgs }] = await Promise.all([
       supabase.from('donations').select(`
         *,
+        donor:profiles!donor_id(is_verified),
         donation_packages!original_donation_id(
           *,
           distributions!package_id(*)
         )
       `).eq('foodbank_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('distributions').select('*').eq('foodbank_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('distributions').select(`
+        *,
+        barangay:profiles!barangay_id(is_verified)
+      `).eq('foodbank_id', user.id).order('created_at', { ascending: false }),
       supabase.from('barangays').select('id, barangay_name').not('latitude', 'is', null),
       supabase.from('donation_packages').select('*, package_items(*)').eq('foodbank_id', user.id).eq('status', 'available'),
     ]);
@@ -296,13 +317,19 @@ export default function FoodbankDonations() {
 
       return {
         ...d,
+        donor_verified: d.donor?.is_verified || false,
         logisticStatus,
         proof: dist?.status === 'distributed' ? dist : null
       };
     });
 
+    const mappedDists = (dis || []).map(d => ({
+      ...d,
+      barangay_verified: d.barangay?.is_verified || false
+    }));
+
     setDonations(mappedDonations);
-    setDists(dis || []);
+    setDists(mappedDists);
     setBarangays(bays || []);
     setPackages(pkgs || []);
     setLoading(false);
