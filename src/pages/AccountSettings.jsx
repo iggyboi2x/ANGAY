@@ -5,7 +5,7 @@ import BarangaySidebar from '../components/barangay/BarangaySidebar';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { 
   LayoutDashboard, MessageSquare, Package, Gift, Box, Camera, Eye, EyeOff,
-  ShieldCheck, Upload, AlertCircle, CheckCircle2, Clock
+  ShieldCheck, Upload, AlertCircle, CheckCircle2, Clock, Menu
 } from 'lucide-react';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
@@ -26,6 +26,7 @@ const barangayNav = [
 ];
 
 export default function AccountSettings() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null); 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -406,7 +407,7 @@ export default function AccountSettings() {
   };
 
   const VerificationCard = ({ label, status, url, onUpload }) => (
-    <div className="border border-[#F0F0F0] rounded-xl p-4 flex items-center justify-between">
+    <div className="border border-[#F0F0F0] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <p className="text-sm font-medium text-[#333333] mb-1" style={{ fontFamily: 'DM Sans' }}>{label}</p>
         <div className="flex items-center gap-2">
@@ -446,11 +447,23 @@ export default function AccountSettings() {
   );
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {role === 'foodbank' && <FoodbankSidebar navItems={foodbankNav} />}
-      {role === 'barangay' && <BarangaySidebar />}
+    <div className="flex min-h-screen bg-white relative overflow-x-hidden">
+      {role === 'foodbank' && <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} navItems={foodbankNav} />}
+      {role === 'barangay' && <BarangaySidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}
       
-      <div className={`${role === 'foodbank' ? 'ml-60' : 'ml-64'} flex-1`}>
+      <div className={`md:ml-60 flex-1 flex flex-col w-full min-w-0`}>
+        {/* Mobile Top Bar */}
+        <div className="md:hidden h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 sticky top-0 z-10 shrink-0">
+          <div className="flex items-center gap-3">
+            <button className="p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <h1 className="text-sm font-bold text-[#1A1A1A] uppercase tracking-tight">Account</h1>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-[#FE9800] text-white text-[10px] font-bold flex items-center justify-center">
+            {role === 'foodbank' ? 'FB' : 'BR'}
+          </div>
+        </div>
         <div className="p-8">
           <div className="max-w-[680px] mx-auto">
             <div className="flex items-center justify-between mb-8">
@@ -578,13 +591,12 @@ export default function AccountSettings() {
                 )}
               </div>
             </div>
-
             {/* Organization Information */}
             <div className="border-b border-[#F0F0F0] pb-8 mb-8">
               <h2 className="text-lg font-black text-[#1A1A1A] uppercase tracking-tight mb-4">
                 {role === 'barangay' ? 'Barangay Information' : 'Organization Information'}
               </h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <Input
                   label="Organization Name"
                   value={orgData.org_name}
@@ -1005,7 +1017,7 @@ export default function AccountSettings() {
           </div>
         </div>
       </div>
-
+ 
       {/* Verification Portal Modal */}
       <Modal
         isOpen={showVerificationModal}
@@ -1088,5 +1100,6 @@ export default function AccountSettings() {
         </div>
       </Modal>
     </div>
+  
   );
 }

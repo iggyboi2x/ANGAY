@@ -10,68 +10,93 @@ const navItems = [
   { label: 'Donations', icon: Gift,             to: '/barangay/donations' },
 ];
 
-export default function BarangaySidebar() {
+export default function BarangaySidebar({ mobileOpen, setMobileOpen }) {
   const navigate = useNavigate();
   const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <>
-      <div className="w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0]">
-      {/* Logo */}
-      <div className="h-16 px-5 flex items-center gap-2">
-        <Wheat size={20} className="text-[#FE9800]" />
-        <h1 className="text-[24px] text-[#FE9800]" style={{ fontFamily: 'Fredoka', fontWeight: 700 }}>ANGAY</h1>
-      </div>
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40 md:hidden" 
+          onClick={() => setMobileOpen && setMobileOpen(false)}
+        />
+      )}
+      <div className={`w-60 bg-white h-screen flex flex-col fixed left-0 top-0 border-r border-[#F0F0F0] z-50 transition-transform transform ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        {/* Logo */}
+        <div className="h-16 px-5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wheat size={20} className="text-[#FE9800]" />
+            <h1 className="text-[24px] text-[#FE9800]" style={{ fontFamily: 'Fredoka', fontWeight: 700 }}>ANGAY</h1>
+          </div>
+          {mobileOpen && setMobileOpen && (
+            <button className="md:hidden text-[#888888] hover:bg-gray-100 p-1 rounded-md" onClick={() => setMobileOpen(false)}>
+              <X size={20} />
+            </button>
+          )}
+        </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-4 pt-2">
-        {navItems.map(({ label, icon: Icon, to }) => (
+        {/* Nav */}
+        <nav className="flex-1 px-4 pt-2">
+          {navItems.map(({ label, icon: Icon, to }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => mobileOpen && setMobileOpen && setMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 h-12 rounded-lg transition-colors relative mb-1 ${
+                  isActive ? 'bg-[#FFF3DC] text-[#FE9800]' : 'text-[#444444] hover:bg-[#F8F8F8]'
+                }`
+              }
+            >
+              <span className="absolute left-0 top-0 bottom-0 w-1 bg-[#FE9800] rounded-r hidden [.active_&]:block" />
+              <Icon size={18} />
+              <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>
+                {label}
+              </span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Bottom */}
+        <div className="border-t border-[#F0F0F0] px-4 py-4">
           <NavLink
-            key={to}
-            to={to}
+            to="/barangay/account"
+            onClick={() => mobileOpen && setMobileOpen && setMobileOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 h-12 rounded-lg transition-colors relative mb-1 ${
                 isActive ? 'bg-[#FFF3DC] text-[#FE9800]' : 'text-[#444444] hover:bg-[#F8F8F8]'
               }`
             }
           >
-            {/* FIX: use CSS class on the indicator instead of render prop */}
-            <span className="absolute left-0 top-0 bottom-0 w-1 bg-[#FE9800] rounded-r hidden [.active_&]:block" />
-            <Icon size={18} />
-            <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>
-              {label}
-            </span>
+            {({ isActive }) => (
+              <>
+                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FE9800] rounded-r" />}
+                <Settings size={18} className={isActive ? 'text-[#FE9800]' : 'text-[#888888]'} />
+                <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: isActive ? 600 : 500 }}>
+                  Account Settings
+                </span>
+              </>
+            )}
           </NavLink>
-        ))}
-      </nav>
+          <button
+            onClick={() => navigate('/login')}
+            className="flex items-center gap-3 px-4 h-12 text-[#444444] hover:bg-red-50 hover:text-[#E74C3C] rounded-lg transition-colors w-full"
+          >
+            <LogOut size={18} className="text-[#888888]" />
+            <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Logout</span>
+          </button>
 
-      {/* Bottom */}
-      <div className="border-t border-[#F0F0F0] px-4 py-4">
-        <NavLink
-          to="/barangay/account"
-          className="flex items-center gap-3 px-4 h-12 text-[#444444] hover:bg-[#F8F8F8] rounded-lg transition-colors mb-1"
-        >
-          <Settings size={18} className="text-[#888888]" />
-          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Account Settings</span>
-        </NavLink>
-        <button
-          onClick={() => navigate('/login')}
-          className="flex items-center gap-3 px-4 h-12 text-[#444444] hover:bg-red-50 hover:text-[#E74C3C] rounded-lg transition-colors w-full"
-        >
-          <LogOut size={18} className="text-[#888888]" />
-          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Logout</span>
-        </button>
-
-        <button
-          onClick={() => setReportOpen(true)}
-          className="flex items-center gap-3 px-4 h-12 text-gray-400 hover:bg-orange-50 hover:text-[#FE9800] rounded-lg transition-colors w-full group mt-1"
-        >
-          <AlertTriangle size={18} className="text-gray-400 group-hover:text-[#FE9800]" />
-          <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Report Issue</span>
-        </button>
+          <button
+            onClick={() => setReportOpen(true)}
+            className="flex items-center gap-3 px-4 h-12 text-gray-400 hover:bg-orange-50 hover:text-[#FE9800] rounded-lg transition-colors w-full group mt-1"
+          >
+            <AlertTriangle size={18} className="text-gray-400 group-hover:text-[#FE9800]" />
+            <span className="text-[14px]" style={{ fontFamily: 'DM Sans', fontWeight: 500 }}>Report Issue</span>
+          </button>
+        </div>
       </div>
-    </div>
-    <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} />
     </>
   );
-}
+}

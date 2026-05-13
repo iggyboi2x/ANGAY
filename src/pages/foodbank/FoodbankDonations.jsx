@@ -5,7 +5,8 @@ import { supabase } from '../../../supabase';
 import {
   Gift, Clock, CheckCircle, XCircle, Bell, Search,
   RotateCcw, Plus, X, ChevronDown, Send, MessageSquare, MapPin, CheckCircle2,
-  LayoutGrid, List, Package
+  LayoutGrid, List, Package,
+  Menu
 } from 'lucide-react';
 import LogisticProgressBar from '../../components/LogisticProgressBar';
 import Modal from '../../components/Modal';
@@ -270,6 +271,7 @@ function DistListRow({ dist, onShowProof, onClick }) {
 
 // ─── Main Foodbank Donations Page ─────────────────────────────────────────────
 export default function FoodbankDonations() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { displayName, initials, avatarUrl, loading: profileLoading } = useProfile();
   const [section, setSection] = useState('donors');
   const [donorTab, setDonorTab] = useState('pending');
@@ -467,19 +469,24 @@ export default function FoodbankDonations() {
   const filteredDists = dists.filter(d => d.status === distTab);
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <FoodbankSidebar />
-      <div className="ml-60 flex-1 flex flex-col">
+    <div className="flex min-h-screen bg-white relative overflow-x-hidden">
+      <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="md:ml-60 flex-1 flex flex-col w-full min-w-0">
         {/* Top Bar */}
-        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-72">
-            <Search size={14} className="text-[#888888]" />
-            <input type="text" placeholder="Search tracking data…" className="bg-transparent text-sm outline-none w-full placeholder:text-[#AAAAAA]" />
+        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div className="hidden sm:flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-64 md:w-72">
+              <Search size={14} className="text-[#888888]" />
+              <input type="text" placeholder="Search tracking data…" className="bg-transparent text-sm outline-none w-full placeholder:text-[#AAAAAA]" />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <div className="flex items-center gap-2.5 ml-2">
-              <span className="text-sm font-bold text-[#333]">{profileLoading ? '…' : displayName}</span>
+              <span className="hidden sm:inline text-sm font-bold text-[#333]">{profileLoading ? '…' : displayName}</span>
               {avatarUrl
                 ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover border-2 border-[#FE9800]" />
                 : <div className="w-9 h-9 rounded-full bg-[#FE9800] text-white text-sm font-bold flex items-center justify-center">{profileLoading ? '…' : initials}</div>
@@ -488,19 +495,19 @@ export default function FoodbankDonations() {
           </div>
         </div>
 
-        <div className="p-8 flex-1">
+        <div className="p-4 md:p-8 flex-1">
           <div className="flex items-center justify-between mb-8">
-            <h1 className="text-[24px] font-black text-[#1A1A1A] uppercase tracking-tighter">Logistic Hub</h1>
+            <h1 className="text-xl md:text-[24px] font-black text-[#1A1A1A] uppercase tracking-tighter">Logistic Hub</h1>
             <button onClick={loadAll} className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[#888] hover:text-[#FE9800] transition-colors">
-              <RotateCcw size={14} /> Refresh Tracker
+              <RotateCcw size={14} /> <span className="hidden sm:inline">Refresh Tracker</span>
             </button>
           </div>
 
-          <div className="flex items-center justify-between gap-3 mb-8">
-            <div className="flex gap-1.5 bg-gray-100 p-1.5 rounded-2xl w-fit">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+            <div className="flex gap-1.5 bg-gray-100 p-1.5 rounded-2xl w-full lg:w-fit overflow-x-auto no-scrollbar">
               {[['donors', 'Incoming Aid'], ['barangays', 'Aid Dispatched']].map(([key, label]) => (
                 <button key={key} onClick={() => setSection(key)}
-                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
+                  className={`flex-1 lg:flex-none px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all shrink-0
                       ${section === key ? 'bg-white text-[#FE9800] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                   {label}
                   {key === 'donors' && pendingDonorsCount > 0 && (
@@ -510,7 +517,7 @@ export default function FoodbankDonations() {
               ))}
             </div>
 
-            <div className="flex bg-[#F5F5F5] p-1.5 rounded-[18px]">
+            <div className="flex bg-[#F5F5F5] p-1.5 rounded-[18px] self-end lg:self-auto">
               <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}>
                 <LayoutGrid size={18} />
               </button>
@@ -522,24 +529,24 @@ export default function FoodbankDonations() {
 
           {section === 'donors' ? (
             <>
-              <div className="flex gap-2 mb-8">
+              <div className="flex gap-2 mb-8 overflow-x-auto no-scrollbar pb-1">
                 {DONOR_TABS.map(({ key, label }) => (
                   <button key={key} onClick={() => setDonorTab(key)}
-                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border
+                    className={`px-4 sm:px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all border shrink-0
                       ${donorTab === key ? 'bg-[#FE9800] text-white border-[#FE9800] shadow-md' : 'bg-white text-gray-400 border-gray-100 hover:border-[#FE9800]'}`}>
                     {label}
                   </button>
                 ))}
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">{[1, 2, 3, 4].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDonations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Gift size={48} className="mb-4 text-gray-100" />
                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">No donor activity</p>
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {filteredDonations.map(d => (
                     <DonorCard key={d.id} donation={d}
                       onAccept={() => updateDonation(d.id, 'accepted')}
@@ -563,30 +570,30 @@ export default function FoodbankDonations() {
             </>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
                   {DIST_TABS.map(({ key, label }) => (
                     <button key={key} onClick={() => setDistTab(key)}
-                      className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border
+                      className={`px-4 sm:px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all border shrink-0
                         ${distTab === key ? 'bg-[#FE9800] text-white border-[#FE9800] shadow-md' : 'bg-white text-gray-400 border-gray-100 hover:border-[#FE9800]'}`}>
                       {label}
                     </button>
                   ))}
                 </div>
                 <button onClick={() => setShowModal(true)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-[#FE9800] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#e58a00] transition-all shadow-lg shadow-orange-100">
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-[#FE9800] text-white text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#e58a00] transition-all shadow-lg shadow-orange-100">
                   <Plus size={16} /> Send Aid
                 </button>
               </div>
               {loading ? (
-                <div className="grid grid-cols-2 gap-6">{[1, 2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">{[1, 2].map(i => <div key={i} className="h-64 bg-gray-50 rounded-[2.5rem] animate-pulse" />)}</div>
               ) : filteredDists.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-gray-100 rounded-[3rem]">
                   <Send size={48} className="mb-4 text-gray-100" />
                   <p className="text-sm font-bold text-gray-300 uppercase tracking-widest">No dispatched aid</p>
                 </div>
               ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {filteredDists.map(d => <DistCard key={d.id} dist={d} onShowProof={(dist) => setViewingProof(dist)} />)}
                 </div>
               ) : (

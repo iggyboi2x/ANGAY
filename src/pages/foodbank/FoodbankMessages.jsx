@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import FoodbankSidebar from "../../components/foodbank/FoodbankSidebar";
-import { Search, Send, MoreVertical } from "lucide-react";
+import { Search, Send, MoreVertical, Menu } from "lucide-react";
 import { supabase } from "../../../supabase";
 import { usePresence } from "../../hooks/usePresence";
 
@@ -15,6 +15,7 @@ const roleBadgeStyle = (role) =>
   role === "barangay" ? "bg-blue-50 text-blue-500" : "bg-orange-50 text-[#C97700]";
 
 export default function FoodbankMessages() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
@@ -255,173 +256,207 @@ export default function FoodbankMessages() {
   );
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <FoodbankSidebar />
+    <div className="flex min-h-screen bg-white overflow-hidden">
+      <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
-      <div className="ml-60 flex-1 flex" style={{ height: "100vh" }}>
-        <aside className="w-72 bg-white border-r border-[#F0F0F0] flex flex-col flex-shrink-0">
-          <div className="p-4 border-b border-[#F0F0F0]">
-            <h2 className="text-base font-bold text-[#1A1A1A] mb-3" style={{ fontFamily: "DM Sans" }}>
-              Messages
-            </h2>
-            <div className="flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB]">
-              <Search size={14} className="text-[#888888]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search conversations..."
-                className="bg-transparent text-xs text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
-                style={{ fontFamily: "DM Sans" }}
-              />
-            </div>
+      <div className="md:ml-60 flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Mobile Top Bar */}
+        <div className="md:hidden h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <button 
+              className="p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" 
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: "DM Sans" }}>
+              {selected ? selected.name : "Messages"}
+            </h1>
           </div>
-          <div className="overflow-y-auto flex-1">
-            {loading ? (
-              <p className="text-xs text-[#888] px-4 py-5">Loading conversations...</p>
-            ) : filteredChats.length === 0 ? (
-              <p className="text-xs text-[#888] px-4 py-5">No conversations found.</p>
-            ) : (
-              filteredChats.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedRoomId(c.id)}
-                  className={`w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-orange-50 transition-colors border-b border-[#F5F5F5] ${
-                    selected?.id === c.id ? "bg-orange-50 border-l-2 border-l-[#FE9800]" : ""
-                  }`}
-                >
-                  {c.avatarUrl ? (
+          {selected && (
+            <button 
+              onClick={() => setSelectedRoomId(null)}
+              className="text-xs font-bold text-[#FE9800] px-3 py-1 bg-orange-50 rounded-full"
+              style={{ fontFamily: "DM Sans" }}
+            >
+              Back to List
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 flex overflow-hidden">
+          <aside className={`${selected ? 'hidden md:flex' : 'flex'} w-full md:w-72 bg-white border-r border-[#F0F0F0] flex-col flex-shrink-0`}>
+            <div className="p-4 border-b border-[#F0F0F0]">
+              <h2 className="hidden md:block text-base font-bold text-[#1A1A1A] mb-3" style={{ fontFamily: "DM Sans" }}>
+                Messages
+              </h2>
+              <div className="flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB]">
+                <Search size={14} className="text-[#888888]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search conversations..."
+                  className="bg-transparent text-xs text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
+                  style={{ fontFamily: "DM Sans" }}
+                />
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {loading ? (
+                <p className="text-xs text-[#888] px-4 py-5">Loading conversations...</p>
+              ) : filteredChats.length === 0 ? (
+                <p className="text-xs text-[#888] px-4 py-5">No conversations found.</p>
+              ) : (
+                filteredChats.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedRoomId(c.id);
+                    }}
+                    className={`w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-orange-50 transition-colors border-b border-[#F5F5F5] ${
+                      selected?.id === c.id ? "bg-orange-50 border-l-2 border-l-[#FE9800]" : ""
+                    }`}
+                  >
+                    {c.avatarUrl ? (
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.name}
+                        className="w-9 h-9 rounded-full object-cover border border-[#F0F0F0] flex-shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: c.avatarColor }}
+                      >
+                        {c.avatar}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-sm font-semibold text-[#1A1A1A] truncate"
+                          style={{ fontFamily: "DM Sans" }}
+                        >
+                          {c.name}
+                        </span>
+                        <span className="text-[11px] text-[#AAAAAA] flex-shrink-0" style={{ fontFamily: "DM Sans" }}>
+                          {c.time}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${roleBadgeStyle(c.role)}`}
+                        style={{ fontFamily: "DM Sans" }}
+                      >
+                        {c.role === "barangay" ? "Barangay" : "Donor"}
+                      </span>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-[#888888] truncate pr-2" style={{ fontFamily: "DM Sans" }}>
+                          {c.lastMessage}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </aside>
+
+          <div className={`${selected ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col bg-[#FAFAFA] min-w-0`}>
+            <div className="bg-white border-b border-[#F0F0F0] px-4 md:px-6 py-3.5 flex items-center justify-between shrink-0">
+              {selected ? (
+                <div className="flex items-center gap-3">
+                  {selected.avatarUrl ? (
                     <img
-                      src={c.avatarUrl}
-                      alt={c.name}
-                      className="w-9 h-9 rounded-full object-cover border border-[#F0F0F0] flex-shrink-0"
+                      src={selected.avatarUrl}
+                      alt={selected.name}
+                      className="w-8 h-8 md:w-9 md:h-9 rounded-full object-cover border border-[#F0F0F0]"
                     />
                   ) : (
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: c.avatarColor }}
+                      className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold"
+                      style={{ backgroundColor: selected.avatarColor }}
                     >
-                      {c.avatar}
+                      {selected.avatar}
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A1A]" style={{ fontFamily: "DM Sans" }}>
+                      {selected.name}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full inline-block ${onlineUsers.has(selected.participantId) ? "bg-green-400" : "bg-gray-300"}`} />
+                      <p className={`text-[10px] md:text-xs ${onlineUsers.has(selected.participantId) ? "text-green-500" : "text-gray-400"}`} style={{ fontFamily: "DM Sans" }}>
+                        {onlineUsers.has(selected.participantId) ? "Active now" : "Offline"}
+                      </p>
                       <span
-                        className="text-sm font-semibold text-[#1A1A1A] truncate"
+                        className={`text-[9px] md:text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${roleBadgeStyle(selected.role)}`}
                         style={{ fontFamily: "DM Sans" }}
                       >
-                        {c.name}
-                      </span>
-                      <span className="text-[11px] text-[#AAAAAA] flex-shrink-0" style={{ fontFamily: "DM Sans" }}>
-                        {c.time}
+                        {selected.role === "barangay" ? "Barangay" : "Donor"}
                       </span>
                     </div>
-                    <span
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${roleBadgeStyle(c.role)}`}
-                      style={{ fontFamily: "DM Sans" }}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[#888]">Select a conversation</p>
+              )}
+              <button className="p-2 text-[#888888] hover:text-[#555] rounded-full hover:bg-[#F5F5F5] transition-colors">
+                <MoreVertical size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-3">
+              {!selected ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-3">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
+                    <Send size={24} className="text-gray-200" />
+                  </div>
+                  <p className="text-sm font-bold" style={{ fontFamily: "DM Sans" }}>Your Messages</p>
+                  <p className="text-xs text-center max-w-[200px]">Select a chat from the list to start messaging.</p>
+                </div>
+              ) : (
+                selected.messages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] md:max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm ${
+                        msg.from === "me"
+                          ? "bg-[#FE9800] text-white rounded-br-sm shadow-sm"
+                          : "bg-white text-[#333] border border-[#F0F0F0] shadow-sm rounded-bl-sm"
+                      }`}
                     >
-                      {c.role === "barangay" ? "Barangay" : "Donor"}
-                    </span>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-[#888888] truncate pr-2" style={{ fontFamily: "DM Sans" }}>
-                        {c.lastMessage}
+                      <p className="whitespace-pre-wrap leading-relaxed" style={{ fontFamily: "DM Sans" }}>{msg.text}</p>
+                      <p
+                        className={`text-[10px] mt-1 text-right ${msg.from === "me" ? "text-orange-100" : "text-[#AAAAAA]"}`}
+                        style={{ fontFamily: "DM Sans" }}
+                      >
+                        {msg.time}
                       </p>
                     </div>
                   </div>
+                ))
+              )}
+            </div>
+
+            <div className="bg-white border-t border-[#F0F0F0] px-4 md:px-6 py-4 shrink-0">
+              <div className="flex items-center gap-2 md:gap-3 bg-[#F5F5F5] rounded-xl px-3 md:px-4 py-2 md:py-2.5 border border-[#EBEBEB]">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-transparent text-sm text-[#333] outline-none placeholder:text-[#AAAAAA]"
+                  style={{ fontFamily: "DM Sans" }}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || !selected || savingMessage}
+                  className="bg-[#FE9800] text-white p-2 rounded-lg hover:bg-[#e58a00] transition-colors disabled:opacity-40"
+                >
+                  <Send size={14} />
                 </button>
-              ))
-            )}
-          </div>
-        </aside>
-
-        <div className="flex-1 flex flex-col bg-[#FAFAFA]">
-          <div className="bg-white border-b border-[#F0F0F0] px-6 py-3.5 flex items-center justify-between">
-            {selected ? (
-              <div className="flex items-center gap-3">
-                {selected.avatarUrl ? (
-                  <img
-                    src={selected.avatarUrl}
-                    alt={selected.name}
-                    className="w-9 h-9 rounded-full object-cover border border-[#F0F0F0]"
-                  />
-                ) : (
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: selected.avatarColor }}
-                  >
-                    {selected.avatar}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-[#1A1A1A]" style={{ fontFamily: "DM Sans" }}>
-                    {selected.name}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full inline-block ${onlineUsers.has(selected.participantId) ? "bg-green-400" : "bg-gray-300"}`} />
-                    <p className={`text-xs ${onlineUsers.has(selected.participantId) ? "text-green-500" : "text-gray-400"}`} style={{ fontFamily: "DM Sans" }}>
-                      {onlineUsers.has(selected.participantId) ? "Active now" : "Offline"}
-                    </p>
-                    <span
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${roleBadgeStyle(selected.role)}`}
-                      style={{ fontFamily: "DM Sans" }}
-                    >
-                      {selected.role === "barangay" ? "Barangay" : "Donor"}
-                    </span>
-                  </div>
-                </div>
               </div>
-            ) : (
-              <p className="text-sm text-[#888]">Select a conversation</p>
-            )}
-            <button className="p-2 text-[#888888] hover:text-[#555] rounded-full hover:bg-[#F5F5F5] transition-colors">
-              <MoreVertical size={16} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-3">
-            {!selected ? (
-              <p className="text-sm text-[#888]">No active chat selected.</p>
-            ) : (
-              selected.messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm ${
-                      msg.from === "me"
-                        ? "bg-[#FE9800] text-white rounded-br-sm"
-                        : "bg-white text-[#333] border border-[#F0F0F0] shadow-sm rounded-bl-sm"
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap" style={{ fontFamily: "DM Sans" }}>{msg.text}</p>
-                    <p
-                      className={`text-xs mt-1 ${msg.from === "me" ? "text-orange-100" : "text-[#AAAAAA]"}`}
-                      style={{ fontFamily: "DM Sans" }}
-                    >
-                      {msg.time}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="bg-white border-t border-[#F0F0F0] px-6 py-4">
-            <div className="flex items-center gap-3 bg-[#F5F5F5] rounded-xl px-4 py-2.5 border border-[#EBEBEB]">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type a message..."
-                className="flex-1 bg-transparent text-sm text-[#333] outline-none placeholder:text-[#AAAAAA]"
-                style={{ fontFamily: "DM Sans" }}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || !selected || savingMessage}
-                className="bg-[#FE9800] text-white p-2 rounded-lg hover:bg-[#e58a00] transition-colors disabled:opacity-40"
-              >
-                <Send size={14} />
-              </button>
             </div>
           </div>
         </div>
