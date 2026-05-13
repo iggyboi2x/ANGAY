@@ -3,7 +3,7 @@ import FoodbankSidebar from '../../components/foodbank/FoodbankSidebar';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
-import { Package, Plus, Clock, CheckCircle2, Pencil, Trash2, Search, Minus, LayoutGrid, List } from 'lucide-react';
+import { Package, Plus, Clock, CheckCircle2, Pencil, Trash2, Search, Minus, LayoutGrid, List, Menu } from 'lucide-react';
 import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 import SendFoodAidModal from '../../components/foodbank/SendFoodAidModal';
@@ -37,6 +37,7 @@ const TABS = [
 ];
 
 export default function FoodbankPackages() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { id: foodbankId, displayName } = useProfile();
   const [packages, setPackages] = useState([]);
   const [barangays, setBarangays] = useState([]);
@@ -322,115 +323,138 @@ export default function FoodbankPackages() {
   const filtered = packages.filter(p => p.status === activeTab);
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <FoodbankSidebar />
+    <div className="flex min-h-screen bg-white relative overflow-x-hidden">
+      <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
-      <div className="ml-60 flex-1 p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-7">
-          <div>
-            <h1 className="text-[24px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
-              Donation Packages
-            </h1>
-            <p className="text-sm text-[#888888] mt-1" style={{ fontFamily: 'DM Sans' }}>
-              Manage your prepared relief goods and track their distribution status.
-            </p>
-          </div>
-          <Button variant="primary" icon={<Plus size={16} />} onClick={openPackModal}>
-            New Package
-          </Button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex gap-2 bg-[#F5F5F5] p-1.5 rounded-[18px] w-fit">
-            {TABS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`px-6 py-2.5 rounded-[14px] text-sm font-bold transition-all duration-300 flex items-center gap-2
-                  ${activeTab === key
-                    ? 'bg-white text-[#FE9800] shadow-[0px_4px_12px_rgba(0,0,0,0.05)] scale-[1.02]'
-                    : 'text-[#888888] hover:text-[#555] hover:bg-gray-100'
-                  }`}
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                {label}
-                {counts[key] > 0 && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${activeTab === key ? 'bg-[#FE9800] text-white' : 'bg-gray-200 text-gray-500'
-                    }`}>
-                    {counts[key]}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex bg-[#F5F5F5] p-1.5 rounded-[18px]">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}
-            >
-              <LayoutGrid size={18} />
+      <div className="md:ml-60 flex-1 flex flex-col w-full min-w-0">
+        {/* Top Bar */}
+        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
             </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}
-            >
-              <List size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Package Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading packages...</div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-80 bg-[#F9FAFB]/50 rounded-[32px] border-2 border-dashed border-[#E0E0E0]">
-            <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
-              <Package size={30} className="text-[#CCC]" />
+            <div className="hidden sm:flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-64 md:w-72">
+              <Search size={14} className="text-[#888888]" />
+              <input type="text" placeholder="Search packages…"
+                className="bg-transparent text-sm text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
+                style={{ fontFamily: 'DM Sans' }} />
             </div>
-            <p className="text-base text-[#888] font-bold" style={{ fontFamily: 'DM Sans' }}>No {activeTab} packages found.</p>
-            <p className="text-sm text-[#AAA] mt-1 max-w-[280px] text-center" style={{ fontFamily: 'DM Sans' }}>
-              {activeTab === 'available'
-                ? "Go to Inventory to pack your first relief package for distribution."
-                : activeTab === 'pending'
-                  ? "Packages currently being sent to barangays will appear here."
-                  : "Your distribution history will appear here once packages are received."}
-            </p>
           </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {filtered.map((pkg) => (
-              <PackageCard
-                key={pkg.id}
-                pkg={pkg}
-                onSend={() => {
-                  setSelectedPkgId(pkg.id);
-                  setShowSendModal(true);
-                }}
-                onEdit={() => openEditModal(pkg)}
-                onDelete={() => handleDelete(pkg)}
-              />
-            ))}
+          <div className="flex items-center gap-2">
+            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openPackModal} className="sm:hidden">New</Button>
+            <div className="w-9 h-9 rounded-full bg-[#FE9800] text-white text-xs font-bold flex items-center justify-center">
+              FB
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {filtered.map((pkg) => (
-              <PackageListRow
-                key={pkg.id}
-                pkg={pkg}
-                onClick={() => setViewingItem(pkg)}
-                onSend={() => {
-                  setSelectedPkgId(pkg.id);
-                  setShowSendModal(true);
-                }}
-                onEdit={() => openEditModal(pkg)}
-                onDelete={() => handleDelete(pkg)}
-              />
-            ))}
+        </div>
+
+        <div className="p-4 md:p-8">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
+            <div>
+              <h1 className="text-[24px] font-bold text-[#1A1A1A]" style={{ fontFamily: 'DM Sans' }}>
+                Donation Packages
+              </h1>
+              <p className="text-sm text-[#888888] mt-1" style={{ fontFamily: 'DM Sans' }}>
+                Manage relief goods and track distribution status.
+              </p>
+            </div>
+            <Button variant="primary" icon={<Plus size={16} />} onClick={openPackModal} className="hidden sm:flex">
+              New Package
+            </Button>
           </div>
-        )}
+
+          {/* Tabs & View Mode */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+            <div className="flex gap-2 bg-[#F5F5F5] p-1.5 rounded-[18px] w-full lg:w-fit overflow-x-auto no-scrollbar">
+              {TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`px-4 sm:px-6 py-2.5 rounded-[14px] text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-2 shrink-0
+                    ${activeTab === key
+                      ? 'bg-white text-[#FE9800] shadow-[0px_4px_12px_rgba(0,0,0,0.05)] scale-[1.02]'
+                      : 'text-[#888888] hover:text-[#555] hover:bg-gray-100'
+                    }`}
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  {label}
+                  {counts[key] > 0 && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${activeTab === key ? 'bg-[#FE9800] text-white' : 'bg-gray-200 text-gray-500'
+                      }`}>
+                      {counts[key]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex bg-[#F5F5F5] p-1.5 rounded-[18px] self-end lg:self-auto">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white text-[#FE9800] shadow-sm' : 'text-[#888888]'}`}
+              >
+                <List size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Package Content */}
+          {loading ? (
+            <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading packages...</div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-80 bg-[#F9FAFB]/50 rounded-[32px] border-2 border-dashed border-[#E0E0E0]">
+              <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
+                <Package size={30} className="text-[#CCC]" />
+              </div>
+              <p className="text-base text-[#888] font-bold" style={{ fontFamily: 'DM Sans' }}>No {activeTab} packages found.</p>
+              <p className="text-sm text-[#AAA] mt-1 max-w-[280px] text-center px-4" style={{ fontFamily: 'DM Sans' }}>
+                {activeTab === 'available'
+                  ? "Go to Inventory to pack your first relief package for distribution."
+                  : activeTab === 'pending'
+                    ? "Packages currently being sent to barangays will appear here."
+                    : "Your distribution history will appear here once packages are received."}
+              </p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {filtered.map((pkg) => (
+                <PackageCard
+                  key={pkg.id}
+                  pkg={pkg}
+                  onSend={() => {
+                    setSelectedPkgId(pkg.id);
+                    setShowSendModal(true);
+                  }}
+                  onEdit={() => openEditModal(pkg)}
+                  onDelete={() => handleDelete(pkg)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {filtered.map((pkg) => (
+                <PackageListRow
+                  key={pkg.id}
+                  pkg={pkg}
+                  onClick={() => setViewingItem(pkg)}
+                  onSend={() => {
+                    setSelectedPkgId(pkg.id);
+                    setShowSendModal(true);
+                  }}
+                  onEdit={() => openEditModal(pkg)}
+                  onDelete={() => handleDelete(pkg)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {viewingItem && (

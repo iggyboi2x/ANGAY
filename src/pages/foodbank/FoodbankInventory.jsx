@@ -10,7 +10,7 @@ import { supabase } from '../../../supabase';
 import { useProfile } from '../../hooks/useProfile';
 import {
   Package, AlertTriangle, CloudUpload, Search,
-  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check, ChevronDown, MoreVertical
+  Box, Upload, Plus, Pencil, Trash2, Minus, Download, X, Check, ChevronDown, MoreVertical, Menu
 } from 'lucide-react';
 import FlashMessage from '../../components/FlashMessage';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -34,6 +34,7 @@ function StatusBadge({ status }) {
 }
 
 export default function FoodbankInventory() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { id: foodbankId } = useProfile();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -235,165 +236,195 @@ export default function FoodbankInventory() {
 
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <FoodbankSidebar />
-      <div className="ml-60 flex-1 p-8">
-
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          {[
-            { label: 'Total SKUs', value: items.length, icon: <Package size={20} className="text-[#FE9800]" /> },
-            { label: 'Total Items', value: totalQty.toLocaleString(), icon: <Package size={20} className="text-[#FE9800]" /> },
-            { label: 'Nearing Expiry', value: expiring.length, icon: <AlertTriangle size={20} className="text-yellow-600" />, warn: true },
-            { label: 'Expired', value: expired.length, icon: <Package size={20} className="text-red-400" /> },
-          ].map(({ label, value, icon, warn }) => (
-            <Card key={label} className={`!p-4 ${warn ? 'border-yellow-300 bg-yellow-50' : ''}`}>
-              <div className="flex items-center gap-3">
-                {icon}
-                <div>
-                  <div className={`text-2xl font-bold ${warn ? 'text-yellow-700' : ''}`} style={{ fontFamily: 'DM Sans' }}>{value}</div>
-                  <div className="text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{label}</div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
-          <div className="flex gap-2">
-            <div className="relative" ref={dropdownRef}>
-              <Button 
-                variant="secondary" 
-                icon={<ChevronDown size={16} />} 
-                onClick={() => setShowDropdown(!showDropdown)}
-              >
-                Inventory Actions
-              </Button>
-              
-              {showDropdown && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-[#F0F0F0] rounded-xl shadow-[0px_10px_30px_rgba(0,0,0,0.08)] z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <button 
-                    onClick={() => { exportToExcel(); setShowDropdown(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
-                  >
-                    <Download size={15} className="text-[#888]" />
-                    <span className="font-medium">Export Inventory</span>
-                  </button>
-                  <button 
-                    onClick={() => { downloadTemplate(); setShowDropdown(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
-                  >
-                    <Download size={15} className="text-[#888]" />
-                    <span className="font-medium">Download Template</span>
-                  </button>
-                  <div className="h-px bg-[#F0F0F0] my-1 mx-2" />
-                  <button 
-                    onClick={() => { fileRef.current?.click(); setShowDropdown(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
-                  >
-                    <Upload size={15} className="text-[#888]" />
-                    <span className="font-medium">Upload Excel</span>
-                  </button>
-                </div>
-              )}
+    <div className="flex min-h-screen bg-white relative overflow-x-hidden">
+      <FoodbankSidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="md:ml-60 flex-1 flex flex-col w-full min-w-0">
+        
+        {/* Top Bar */}
+        <div className="h-14 bg-white border-b border-[#F0F0F0] flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            {/* Re-using the Menu icon logic from dashboard */}
+            <button className="md:hidden p-2 -ml-2 text-[#888888] hover:text-[#FE9800]" onClick={() => setMobileOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div className="hidden sm:flex items-center gap-2 bg-[#F5F5F5] rounded-lg px-3 py-2 border border-[#EBEBEB] w-64 md:w-72">
+              <Search size={14} className="text-[#888888]" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search inventory…"
+                className="bg-transparent text-sm text-[#555] outline-none w-full placeholder:text-[#AAAAAA]"
+                style={{ fontFamily: 'DM Sans' }} />
             </div>
-            
-            <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd}>Add Item</Button>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openAdd} className="sm:hidden">Add</Button>
+            <div className="w-9 h-9 rounded-full bg-[#FE9800] text-white text-xs font-bold flex items-center justify-center">
+              FB
+            </div>
           </div>
         </div>
 
-        {/* Drop zone */}
-        <div
-          className="border-2 border-dashed border-[#CCCCCC] rounded-xl h-20 mb-6 flex items-center justify-center gap-6 cursor-pointer hover:border-[#FE9800] transition-colors"
-          onClick={() => fileRef.current?.click()}
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { const ev = { target: { files: [f], value: '' } }; handleFile(ev); } }}
-        >
-          <CloudUpload size={22} className="text-[#888888]" />
-          <span className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Drag &amp; drop .xlsx or click to browse</span>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-3 mb-4">
-          <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item or category..."
-              className="w-full h-10 pl-9 pr-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
-          </div>
-          <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-            className="h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
-            {uniqueCats.map(c => <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>)}
-          </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
-            <option value="all">All Status</option>
-            <option value="fresh">Fresh</option>
-            <option value="expiring">Expiring</option>
-            <option value="expired">Expired</option>
-          </select>
-        </div>
-
-        <div className="flex gap-5">
-          {/* Table */}
-          <div className="flex-1">
-            <Card className="!p-0 overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-[#F5F5F5]">
-                  <tr>
-                    {['Item Name', 'Category', 'Qty', 'Unit', 'Expiry', 'Status', ''].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs uppercase text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">Loading…</td></tr>
-                  ) : filtered.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No items found.</td></tr>
-                  ) : filtered.map((item, idx) => (
-                    <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFA]'}>
-                      <td className="px-4 py-3 text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</td>
-                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.category}</td>
-                      <td className="px-4 py-3 text-sm font-bold" style={{ fontFamily: 'DM Sans' }}>{Number(item.quantity).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.unit}</td>
-                      <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.expiration_date || '—'}</td>
-                      <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button onClick={() => openEdit(item)} className="text-[#888] hover:text-[#FE9800] transition-colors"><Pencil size={15} /></button>
-                          <button onClick={() => handleDelete(item.id)} className="text-[#888] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="border-t border-[#F0F0F0] px-4 py-3">
-                <span className="text-xs text-[#888]" style={{ fontFamily: 'DM Sans' }}>Showing {filtered.length} of {items.length} items</span>
-              </div>
-            </Card>
-          </div>
-
-          {/* Expiring Soon */}
-          <div className="w-56 shrink-0">
-            <Card>
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={15} className="text-[#FE9800]" />
-                <h3 className="text-sm font-bold text-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>Expiring Soon</h3>
-              </div>
-              {expiring.length === 0
-                ? <p className="text-xs text-gray-400">None expiring soon.</p>
-                : expiring.map(item => (
-                  <div key={item.id} className="pb-3 mb-3 border-b border-[#F0F0F0] last:border-0 last:mb-0">
-                    <p className="text-xs font-bold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
-                    <p className="text-[10px] text-[#888]">Exp: {item.expiration_date}</p>
-                    <p className="text-[10px] text-[#888]">{Number(item.quantity).toLocaleString()} {item.unit}</p>
+        <div className="p-4 md:p-8">
+          {/* Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Total SKUs', value: items.length, icon: <Package size={20} className="text-[#FE9800]" /> },
+              { label: 'Total Items', value: totalQty.toLocaleString(), icon: <Package size={20} className="text-[#FE9800]" /> },
+              { label: 'Nearing Expiry', value: expiring.length, icon: <AlertTriangle size={20} className="text-yellow-600" />, warn: true },
+              { label: 'Expired', value: expired.length, icon: <Package size={20} className="text-red-400" /> },
+            ].map(({ label, value, icon, warn }) => (
+              <Card key={label} className={`!p-4 ${warn ? 'border-yellow-300 bg-yellow-50' : ''}`}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+                  {icon}
+                  <div>
+                    <div className={`text-xl sm:text-2xl font-bold ${warn ? 'text-yellow-700' : ''}`} style={{ fontFamily: 'DM Sans' }}>{value}</div>
+                    <div className="text-[10px] sm:text-xs text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{label}</div>
                   </div>
-                ))}
-            </Card>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h1 className="text-[22px] font-bold" style={{ fontFamily: 'DM Sans' }}>Inventory</h1>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+              <div className="relative shrink-0" ref={dropdownRef}>
+                <Button 
+                  variant="secondary" 
+                  icon={<ChevronDown size={16} />} 
+                  onClick={() => setShowDropdown(!showDropdown)}
+                >
+                  Actions
+                </Button>
+                
+                {showDropdown && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-[#F0F0F0] rounded-xl shadow-[0px_10px_30px_rgba(0,0,0,0.08)] z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <button 
+                      onClick={() => { exportToExcel(); setShowDropdown(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                    >
+                      <Download size={15} className="text-[#888]" />
+                      <span className="font-medium">Export Inventory</span>
+                    </button>
+                    <button 
+                      onClick={() => { downloadTemplate(); setShowDropdown(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                    >
+                      <Download size={15} className="text-[#888]" />
+                      <span className="font-medium">Download Template</span>
+                    </button>
+                    <div className="h-px bg-[#F0F0F0] my-1 mx-2" />
+                    <button 
+                      onClick={() => { fileRef.current?.click(); setShowDropdown(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-gray-50 transition-colors"
+                    >
+                      <Upload size={15} className="text-[#888]" />
+                      <span className="font-medium">Upload Excel</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <Button variant="primary" icon={<Plus size={16} />} onClick={openAdd} className="hidden sm:flex">Add Item</Button>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
+            </div>
+          </div>
+
+          {/* Drop zone */}
+          <div
+            className="hidden sm:flex border-2 border-dashed border-[#CCCCCC] rounded-xl h-20 mb-6 items-center justify-center gap-6 cursor-pointer hover:border-[#FE9800] transition-colors"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { const ev = { target: { files: [f], value: '' } }; handleFile(ev); } }}
+          >
+            <CloudUpload size={22} className="text-[#888888]" />
+            <span className="text-sm text-[#888888]" style={{ fontFamily: 'DM Sans' }}>Drag &amp; drop .xlsx or click to browse</span>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-3 mb-4">
+            <div className="flex-1 relative md:hidden">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search item or category..."
+                className="w-full h-10 pl-9 pr-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }} />
+            </div>
+            <div className="flex gap-2">
+              <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+                className="flex-1 h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+                {uniqueCats.map(c => <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>)}
+              </select>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                className="flex-1 h-10 px-3 bg-[#F5F5F5] border border-[#CCCCCC] rounded-lg text-sm focus:outline-none focus:border-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>
+                <option value="all">All Status</option>
+                <option value="fresh">Fresh</option>
+                <option value="expiring">Expiring</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-5">
+            {/* Table */}
+            <div className="flex-1 min-w-0">
+              <Card className="!p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="bg-[#F5F5F5]">
+                      <tr>
+                        {['Item Name', 'Category', 'Qty', 'Unit', 'Expiry', 'Status', ''].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs uppercase text-[#888888]" style={{ fontFamily: 'DM Sans' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">Loading…</td></tr>
+                      ) : filtered.length === 0 ? (
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No items found.</td></tr>
+                      ) : filtered.map((item, idx) => (
+                        <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFA]'}>
+                          <td className="px-4 py-3 text-sm font-medium" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</td>
+                          <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.category}</td>
+                          <td className="px-4 py-3 text-sm font-bold" style={{ fontFamily: 'DM Sans' }}>{Number(item.quantity).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.unit}</td>
+                          <td className="px-4 py-3 text-sm text-[#555]" style={{ fontFamily: 'DM Sans' }}>{item.expiration_date || '—'}</td>
+                          <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button onClick={() => openEdit(item)} className="text-[#888] hover:text-[#FE9800] transition-colors"><Pencil size={15} /></button>
+                              <button onClick={() => handleDelete(item.id)} className="text-[#888] hover:text-red-500 transition-colors"><Trash2 size={15} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border-t border-[#F0F0F0] px-4 py-3">
+                  <span className="text-xs text-[#888]" style={{ fontFamily: 'DM Sans' }}>Showing {filtered.length} of {items.length} items</span>
+                </div>
+              </Card>
+            </div>
+
+            {/* Expiring Soon */}
+            <div className="w-full lg:w-56 shrink-0">
+              <Card>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle size={15} className="text-[#FE9800]" />
+                  <h3 className="text-sm font-bold text-[#FE9800]" style={{ fontFamily: 'DM Sans' }}>Expiring Soon</h3>
+                </div>
+                <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+                  {expiring.length === 0
+                    ? <p className="text-xs text-gray-400">None expiring soon.</p>
+                    : expiring.map(item => (
+                      <div key={item.id} className="min-w-[150px] lg:min-w-0 pb-3 lg:mb-3 border lg:border-0 border-[#F0F0F0] rounded-xl lg:rounded-none p-3 lg:p-0 lg:border-b last:border-0 last:mb-0">
+                        <p className="text-xs font-bold" style={{ fontFamily: 'DM Sans' }}>{item.item_name}</p>
+                        <p className="text-[10px] text-[#888]">Exp: {item.expiration_date}</p>
+                        <p className="text-[10px] text-[#888]">{Number(item.quantity).toLocaleString()} {item.unit}</p>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
